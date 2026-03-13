@@ -1,0 +1,188 @@
+import { useState, useCallback } from 'react';
+import type { ElementType } from 'react';
+import { BarChart2, ShoppingCart, Package, Users, DollarSign, Loader2, FileText, TrendingDown, BookOpen, Wallet } from 'lucide-react';
+import { apiClient } from '../services/api';
+import { CustomerSearch } from '../components/ui/CustomerSearch';
+import { SupplierSearch } from '../components/ui/SupplierSearch';
+import { AccountSelect } from '../components/ui/AccountSelect';
+import type { Customer, Supplier } from '../types/pos';
+
+type ReportId = 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement';
+
+interface ReportDef {
+  id: ReportId;
+  label: string;
+  description: string;
+  icon: ElementType;
+  params: ('dates' | 'customer' | 'supplier' | 'account')[];
+  endpoint: string | ((id: number) => string);
+}
+
+const REPORTS: ReportDef[] = [
+  { id: 'sales', label: 'Sales Report', description: 'Revenue, COGS, gross profit & all invoices', icon: ShoppingCart, params: ['dates'], endpoint: '/reports/sales' },
+  { id: 'purchases', label: 'Purchases Report', description: 'Purchase orders, total costs & due amounts', icon: Package, params: ['dates'], endpoint: '/reports/purchases' },
+  { id: 'inventory', label: 'Inventory Report', description: 'Stock levels, inventory value & reorder alerts', icon: BarChart2, params: [], endpoint: '/reports/inventory' },
+  { id: 'customers', label: 'Customer Balances', description: 'Outstanding receivables per customer', icon: Users, params: [], endpoint: '/reports/customer-balances' },
+  { id: 'suppliers', label: 'Supplier Balances', description: 'Outstanding payables per supplier', icon: TrendingDown, params: [], endpoint: '/reports/supplier-balances' },
+  { id: 'expenses', label: 'Expenses Report', description: 'All expenses by category & account', icon: DollarSign, params: ['dates'], endpoint: '/reports/expenses' },
+  { id: 'customer-ledger', label: 'Customer Ledger', description: 'Full transaction ledger for a customer', icon: BookOpen, params: ['customer', 'dates'], endpoint: (id: number) => `/reports/customer-ledger/${id}` },
+  { id: 'supplier-ledger', label: 'Supplier Ledger', description: 'Full transaction ledger for a supplier', icon: BookOpen, params: ['supplier', 'dates'], endpoint: (id: number) => `/reports/supplier-ledger/${id}` },
+  { id: 'account-statement', label: 'Account Statement', description: 'Transaction statement for an account', icon: Wallet, params: ['account', 'dates'], endpoint: (id: number) => `/reports/account-statement/${id}` },
+];
+
+const today = new Date().toISOString().slice(0, 10);
+const monthStart = today.slice(0, 8) + '01';
+const inputCls = 'px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500';
+
+export function Reports() {
+  const [activeId, setActiveId] = useState<ReportId>('sales');
+  const active = REPORTS.find(r => r.id === activeId)!;
+  const [from, setFrom] = useState(monthStart);
+  const [to, setTo] = useState(today);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [accountId, setAccountId] = useState<number | null>(null);
+
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const generate = useCallback(async () => {
+    if (active.params.includes('customer') && !customer) return;
+    if (active.params.includes('supplier') && !supplier) return;
+    if (active.params.includes('account') && !accountId) return;
+
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    setPdfUrl(null);
+    setError('');
+    setLoading(true);
+
+    try {
+      let endpoint: string;
+      if (typeof active.endpoint === 'function') {
+        if (active.params.includes('customer')) endpoint = active.endpoint(customer!.id);
+        else if (active.params.includes('supplier')) endpoint = active.endpoint(supplier!.id);
+        else if (active.params.includes('account')) endpoint = active.endpoint(accountId!);
+        else endpoint = active.endpoint(0);
+      } else {
+        endpoint = active.endpoint;
+      }
+
+      const params: Record<string, string> = {};
+      if (active.params.includes('dates')) { params.from = from; params.to = to; }
+
+      const blob = await apiClient.getBlob(endpoint, { params });
+      setPdfUrl(URL.createObjectURL(blob));
+    } catch {
+      setError('Failed to generate report. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [active, from, to, customer, supplier, accountId, pdfUrl]);
+
+  const switchReport = (id: ReportId) => {
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    setPdfUrl(null);
+    setError('');
+    setActiveId(id);
+  };
+
+  const canGenerate =
+    (!active.params.includes('customer') || !!customer) &&
+    (!active.params.includes('supplier') || !!supplier) &&
+    (!active.params.includes('account') || !!accountId);
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)] overflow-hidden -m-4">
+      {/* Left – report list */}
+      <div className="w-52 shrink-0 border-r border-gray-200 dark:border-gray-700 overflow-y-auto bg-gray-50 dark:bg-gray-800/50 py-3 px-2 space-y-0.5">
+        {REPORTS.map(r => (
+          <button
+            key={r.id}
+            onClick={() => switchReport(r.id)}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left text-sm transition-colors ${activeId === r.id
+              ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-medium'
+              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700/50'
+              }`}
+          >
+            <r.icon size={15} className="shrink-0" />
+            <span className="truncate">{r.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Right – toolbar + PDF viewer */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Toolbar */}
+        <div className="shrink-0 flex items-center gap-3 px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-wrap">
+          <div className="flex items-center gap-2 mr-1">
+            <active.icon size={16} className="text-primary-600" />
+            <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm">{active.label}</span>
+          </div>
+          <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" />
+
+          {active.params.includes('customer') && (
+            <div className="w-52">
+              <CustomerSearch value={customer} onSelect={setCustomer} placeholder="Select customer…" />
+            </div>
+          )}
+          {active.params.includes('supplier') && (
+            <div className="w-52">
+              <SupplierSearch value={supplier} onSelect={setSupplier} placeholder="Select supplier…" />
+            </div>
+          )}
+          {active.params.includes('account') && (
+            <AccountSelect value={accountId} onChange={id => setAccountId(id)} className="w-52" filter="all" />
+          )}
+
+          {active.params.includes('dates') && (
+            <>
+              <input type="date" value={from} onChange={e => setFrom(e.target.value)} className={inputCls} />
+              <span className="text-gray-400 text-xs">to</span>
+              <input type="date" value={to} onChange={e => setTo(e.target.value)} className={inputCls} />
+            </>
+          )}
+
+          <button
+            onClick={generate}
+            disabled={!canGenerate || loading}
+            className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg disabled:opacity-40 transition-colors font-medium"
+          >
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+            Generate
+          </button>
+        </div>
+
+        {/* PDF viewer area */}
+        <div className="flex-1 relative bg-gray-100 dark:bg-gray-900">
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <Loader2 size={28} className="text-primary-600 animate-spin" />
+                <p className="text-sm text-gray-500">Generating report…</p>
+              </div>
+            </div>
+          )}
+          {error && !loading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className="text-sm text-red-500">{error}</p>
+            </div>
+          )}
+          {!loading && !error && !pdfUrl && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center space-y-2">
+                <FileText size={40} className="mx-auto text-gray-300 dark:text-gray-600" />
+                <p className="text-sm text-gray-400">{active.description}</p>
+                <p className="text-xs text-gray-400">Configure parameters above and click Generate</p>
+              </div>
+            </div>
+          )}
+          {pdfUrl && (
+            <iframe src={pdfUrl} className="w-full h-full border-0" title={active.label} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+

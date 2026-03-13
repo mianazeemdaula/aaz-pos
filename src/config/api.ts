@@ -1,0 +1,204 @@
+/**
+ * API Configuration � POS System
+ */
+
+export const API_CONFIG = {
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
+    timeout: parseInt(import.meta.env.VITE_API_TIMEOUT) || 30000,
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    },
+    env: import.meta.env.VITE_APP_ENV || 'development',
+} as const;
+
+/**
+ * FBR (Federal Board of Revenue) Configuration
+ */
+export const FBR_CONFIG = {
+    baseURL: import.meta.env.VITE_FBR_BASE_URL || 'http://localhost:8524/api/IMSFiscal',
+    posId: parseInt(import.meta.env.VITE_FBR_POS_ID || '123456'),
+    enabled: (import.meta.env.VITE_FBR_ENABLED ?? 'true') === 'true',
+    timeout: 15000,
+} as const;
+
+/**
+ * API Endpoints � all POS modules
+ */
+export const API_ENDPOINTS = {
+    auth: {
+        login: '/auth/login',
+        register: '/auth/register',
+        me: '/auth/me',
+        changePassword: '/auth/change-password',
+    },
+    users: {
+        list: '/users',
+        create: '/users',
+        detail: (id: number) => `/users/${id}`,
+        update: (id: number) => `/users/${id}`,
+        delete: (id: number) => `/users/${id}`,
+        resetPassword: (id: number) => `/users/${id}/reset-password`,
+    },
+    accounts: {
+        list: '/accounts',
+        create: '/accounts',
+        detail: (id: number) => `/accounts/${id}`,
+        update: (id: number) => `/accounts/${id}`,
+        delete: (id: number) => `/accounts/${id}`,
+    },
+    customers: {
+        list: '/customers',
+        create: '/customers',
+        detail: (id: number) => `/customers/${id}`,
+        update: (id: number) => `/customers/${id}`,
+        delete: (id: number) => `/customers/${id}`,
+        ledger: (id: number) => `/customers/${id}/ledger`,
+        payments: (id: number) => `/customers/${id}/payments`,
+    },
+    suppliers: {
+        list: '/suppliers',
+        create: '/suppliers',
+        detail: (id: number) => `/suppliers/${id}`,
+        update: (id: number) => `/suppliers/${id}`,
+        delete: (id: number) => `/suppliers/${id}`,
+        ledger: (id: number) => `/suppliers/${id}/ledger`,
+        payments: (id: number) => `/suppliers/${id}/payments`,
+    },
+    categories: {
+        list: '/categories',
+        create: '/categories',
+        detail: (id: number) => `/categories/${id}`,
+        update: (id: number) => `/categories/${id}`,
+        delete: (id: number) => `/categories/${id}`,
+    },
+    brands: {
+        list: '/brands',
+        create: '/brands',
+        detail: (id: number) => `/brands/${id}`,
+        update: (id: number) => `/brands/${id}`,
+        delete: (id: number) => `/brands/${id}`,
+    },
+    products: {
+        list: '/products',
+        create: '/products',
+        detail: (id: number) => `/products/${id}`,
+        update: (id: number) => `/products/${id}`,
+        delete: (id: number) => `/products/${id}`,
+        variants: (id: number) => `/products/${id}/variants`,
+        variant: (id: number, variantId: number) => `/products/${id}/variants/${variantId}`,
+        createVariant: (id: number) => `/products/${id}/variants`,
+        updateVariant: (id: number, variantId: number) => `/products/${id}/variants/${variantId}`,
+        deleteVariant: (id: number, variantId: number) => `/products/${id}/variants/${variantId}`,
+        variantByBarcode: (barcode: string) => `/products/variants/barcode/${barcode}`,
+    },
+    stockMovements: {
+        list: '/stock-movements',
+        adjustment: '/stock-movements/adjustment',
+    },
+    sales: {
+        list: '/sales',
+        create: '/sales',
+        detail: (id: number) => `/sales/${id}`,
+        delete: (id: number) => `/sales/${id}`,
+        returnsList: '/sales/returns/all',
+        returnsCreate: '/sales/returns',
+        returnDetail: (id: number) => `/sales/returns/${id}`,
+        returnApprove: (id: number) => `/sales/returns/${id}/approve`,
+        returnReject: (id: number) => `/sales/returns/${id}/reject`,
+        returnProcess: (id: number) => `/sales/returns/${id}/process`,
+    },
+    purchases: {
+        list: '/purchases',
+        create: '/purchases',
+        detail: (id: number) => `/purchases/${id}`,
+        delete: (id: number) => `/purchases/${id}`,
+        returnsList: '/purchases/returns/all',
+        returnsCreate: '/purchases/returns',
+        returnDetail: (id: number) => `/purchases/returns/${id}`,
+    },
+    packages: {
+        list: '/packages',
+        create: '/packages',
+        detail: (id: number) => `/packages/${id}`,
+        update: (id: number) => `/packages/${id}`,
+        delete: (id: number) => `/packages/${id}`,
+        addItem: (id: number) => `/packages/${id}/items`,
+        removeItem: (id: number, itemId: number) => `/packages/${id}/items/${itemId}`,
+    },
+    employees: {
+        list: '/employees',
+        create: '/employees',
+        detail: (id: number) => `/employees/${id}`,
+        update: (id: number) => `/employees/${id}`,
+        delete: (id: number) => `/employees/${id}`,
+        ledger: (id: number) => `/employees/${id}/ledger`,
+        advances: (id: number) => `/employees/${id}/advances`,
+        createAdvance: (id: number) => `/employees/${id}/advances`,
+    },
+    salarySlips: {
+        list: '/salary-slips',
+        create: '/salary-slips',
+        detail: (id: number) => `/salary-slips/${id}`,
+        approve: (id: number) => `/salary-slips/${id}/approve`,
+        pay: (id: number) => `/salary-slips/${id}/pay`,
+        cancel: (id: number) => `/salary-slips/${id}/cancel`,
+    },
+    expenses: {
+        list: '/expenses',
+        create: '/expenses',
+        detail: (id: number) => `/expenses/${id}`,
+        update: (id: number) => `/expenses/${id}`,
+        delete: (id: number) => `/expenses/${id}`,
+    },
+    recurringExpenses: {
+        list: '/recurring-expenses',
+        create: '/recurring-expenses',
+        detail: (id: number) => `/recurring-expenses/${id}`,
+        update: (id: number) => `/recurring-expenses/${id}`,
+        delete: (id: number) => `/recurring-expenses/${id}`,
+    },
+    advanceBookings: {
+        list: '/advance-bookings',
+        create: '/advance-bookings',
+        detail: (id: number) => `/advance-bookings/${id}`,
+        updateStatus: (id: number) => `/advance-bookings/${id}/status`,
+        delete: (id: number) => `/advance-bookings/${id}`,
+    },
+    promotions: {
+        list: '/promotions',
+        active: '/promotions/active',
+        create: '/promotions',
+        detail: (id: number) => `/promotions/${id}`,
+        update: (id: number) => `/promotions/${id}`,
+        delete: (id: number) => `/promotions/${id}`,
+    },
+    held: {
+        salesList: '/held/sales',
+        salesCreate: '/held/sales',
+        saleDetail: (id: number) => `/held/sales/${id}`,
+        saleResume: (id: number) => `/held/sales/${id}/resume`,
+        saleCancel: (id: number) => `/held/sales/${id}/cancel`,
+        purchasesList: '/held/purchases',
+        purchasesCreate: '/held/purchases',
+        purchaseDetail: (id: number) => `/held/purchases/${id}`,
+        purchaseResume: (id: number) => `/held/purchases/${id}/resume`,
+        purchaseCancel: (id: number) => `/held/purchases/${id}/cancel`,
+    },
+    reports: {
+        dashboard: '/reports/dashboard',
+        salesPdf: '/reports/sales/pdf',
+        purchasesPdf: '/reports/purchases',
+        inventoryPdf: '/reports/inventory',
+        expensesPdf: '/reports/expenses',
+        customerBalancesPdf: '/reports/customer-balances',
+        supplierBalancesPdf: '/reports/supplier-balances',
+        customerLedgerPdf: (customerId: number) => `/reports/customer-ledger/${customerId}`,
+        supplierLedgerPdf: (supplierId: number) => `/reports/supplier-ledger/${supplierId}`,
+        accountStatementPdf: (accountId: number) => `/reports/account-statement/${accountId}`,
+    },
+    settings: {
+        get: '/settings',
+        update: '/settings',
+    },
+} as const;
