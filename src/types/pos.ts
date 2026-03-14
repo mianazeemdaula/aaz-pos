@@ -81,10 +81,8 @@ export interface ProductVariant {
     name: string;
     barcode: string;
     price: number;
-    salePrice?: number;
-    wholesalePrice?: number | null;
-    purchasePrice: number;
-    costPrice?: number;
+    retail?: number | null;
+    wholesale?: number | null;
     factor: number;
     isDefault: boolean;
     createdAt?: string;
@@ -103,8 +101,14 @@ export interface Product {
     allowNegative: boolean;
     imageUrl?: string | null;
     hsCode?: string | null;
+    taxSchduleId?: number | null;
+    taxMethod?: 'EXCLUSIVE' | 'INCLUSIVE';
     taxRate?: number | null;
     active: boolean;
+    isService?: boolean;
+    showBarcodePrice?: boolean;
+    isFavorite?: boolean;
+    saleBelowCost?: boolean;
     createdAt?: string;
     brand?: Brand | null;
     category?: Category;

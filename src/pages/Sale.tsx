@@ -2,19 +2,48 @@
 import { Plus, Minus, Trash2, Save, Pause, Loader2, CheckCircle2, AlertCircle, X, UserPlus, Scan, Search } from 'lucide-react';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
 import { ProductSearchModal } from '../components/ui/ProductSearch';
+import { PrintConfirmDialog } from '../components/ui/PrintConfirmDialog';
 import { saleService, heldService, productService, accountService, customerService } from '../services/pos.service';
 import { fbrService } from '../services/fbr.service';
 import { FBRPaymentMode, FBRInvoiceType } from '../types/fbr';
 import { FBR_CONFIG } from '../config/api';
-import type { ProductVariant, Customer, Account, HeldSale } from '../types/pos';
+import { printSaleInvoice, type SaleInvoiceData } from '../utils/invoices';
+import type { Product, ProductVariant, Customer, Account, HeldSale } from '../types/pos';
+
+type PriceType = 'MRP' | 'Retail' | 'Wholesale';
 
 interface CartItem {
+  product: Product;
   variant: ProductVariant;
   qty: number;
+  priceType: PriceType;
   price: number;
   discount: number;
   taxRate: number;
+  taxMethod: 'EXCLUSIVE' | 'INCLUSIVE';
   hsCode: string;
+}
+
+function getVariantPrice(variant: ProductVariant, pt: PriceType): number {
+  if (pt === 'Retail' && variant.retail != null) return variant.retail;
+  if (pt === 'Wholesale' && variant.wholesale != null) return variant.wholesale;
+  return variant.price;
+}
+
+function computeLine(item: CartItem) {
+  const gross = item.qty * item.price;
+  const discAmt = gross * item.discount / 100;
+  const afterDisc = gross - discAmt;
+  let taxAmt: number;
+  let lineTotal: number;
+  if (item.taxMethod === 'INCLUSIVE' && item.taxRate > 0) {
+    lineTotal = afterDisc;
+    taxAmt = afterDisc * item.taxRate / (100 + item.taxRate);
+  } else {
+    taxAmt = afterDisc * item.taxRate / 100;
+    lineTotal = afterDisc + taxAmt;
+  }
+  return { gross, discAmt, afterDisc, taxAmt, lineTotal };
 }
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
@@ -144,6 +173,9 @@ export function Sale() {
   const [newCustPhone, setNewCustPhone] = useState('');
   const [savingCustomer, setSavingCustomer] = useState(false);
 
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [pendingPrintData, setPendingPrintData] = useState<SaleInvoiceData | null>(null);
+
   const barcodeRef = useRef<HTMLInputElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
   const firstAccountRef = useRef<HTMLInputElement>(null);
@@ -159,9 +191,9 @@ export function Sale() {
   }, []);
 
   const subtotal = cart.reduce((a, i) => a + i.qty * i.price, 0);
-  const itemDiscountTotal = cart.reduce((a, i) => a + i.qty * i.price * (i.discount / 100), 0);
-  const taxTotal = cart.reduce((a, i) => a + i.qty * i.price * (1 - i.discount / 100) * (i.taxRate / 100), 0);
-  const grandTotal = Math.max(0, subtotal - itemDiscountTotal + taxTotal - invoiceDiscount);
+  const itemDiscountTotal = cart.reduce((a, i) => a + computeLine(i).discAmt, 0);
+  const taxTotal = cart.reduce((a, i) => a + computeLine(i).taxAmt, 0);
+  const grandTotal = Math.max(0, cart.reduce((a, i) => a + computeLine(i).lineTotal, 0) - invoiceDiscount);
   const paidTotal = Object.values(accountAmounts).reduce((a, v) => a + (parseFloat(v) || 0), 0);
   const change = paidTotal - grandTotal;
 
@@ -170,7 +202,8 @@ export function Sale() {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const addVariant = useCallback((variant: ProductVariant) => {
+  const addToCart = useCallback((product: Product, variant: ProductVariant, priceType: PriceType = 'MRP') => {
+    const enrichedVariant = { ...variant, product };
     setCart(prev => {
       const idx = prev.findIndex(i => i.variant.id === variant.id);
       if (idx >= 0) {
@@ -179,11 +212,15 @@ export function Sale() {
         return next;
       }
       return [{
-        variant, qty: 1,
-        price: variant.salePrice ?? variant.price,
+        product,
+        variant: enrichedVariant,
+        qty: 1,
+        priceType,
+        price: getVariantPrice(variant, priceType),
         discount: 0,
-        taxRate: variant.product?.taxRate ?? 0,
-        hsCode: variant.product?.hsCode ?? '',
+        taxRate: product.taxRate ?? 0,
+        taxMethod: product.taxMethod ?? 'EXCLUSIVE',
+        hsCode: product.hsCode ?? '',
       }, ...prev];
     });
     setBarcode('');
@@ -195,15 +232,19 @@ export function Sale() {
     setBarcodeLoading(true);
     setBarcodeError('');
     try {
-      const variant = await productService.getVariantByBarcode(bc.toLocaleUpperCase().trim());
-      if (variant) { addVariant(variant); }
+      const variant = await productService.getVariantByBarcode(bc.toUpperCase().trim());
+      if (variant && variant.productId) {
+        const fullProduct = await productService.get(variant.productId);
+        const matchedVariant = fullProduct.variants?.find(v => v.barcode === variant.barcode) ?? variant;
+        addToCart(fullProduct, matchedVariant);
+      }
     } catch {
       setBarcodeError(`"${bc.trim()}" not found`);
       setTimeout(() => setBarcodeError(''), 2500);
     } finally {
       setBarcodeLoading(false);
     }
-  }, [addVariant]);
+  }, [addToCart]);
 
   const updateQty = (idx: number, delta: number) =>
     setCart(prev => prev.map((item, i) => i === idx ? { ...item, qty: Math.max(1, item.qty + delta) } : item));
@@ -212,6 +253,23 @@ export function Sale() {
     setCart(prev => prev.map((item, i) => i === idx ? { ...item, [field]: field === 'qty' ? Math.max(1, val) : val } : item));
 
   const removeItem = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx));
+
+  const changeVariant = (idx: number, variantId: number) => {
+    setCart(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      const newVariant = item.product.variants?.find(v => v.id === variantId);
+      if (!newVariant) return item;
+      const enrichedVariant = { ...newVariant, product: item.product };
+      return { ...item, variant: enrichedVariant, price: getVariantPrice(newVariant, item.priceType) };
+    }));
+  };
+
+  const changePriceType = (idx: number, pt: PriceType) => {
+    setCart(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      return { ...item, priceType: pt, price: getVariantPrice(item.variant, pt) };
+    }));
+  };
 
   const clearCart = useCallback(() => {
     setCart([]);
@@ -236,25 +294,47 @@ export function Sale() {
             qty: i.qty,
             price: i.price,
             discount: i.discount,
+            priceType: i.priceType,
+            taxMethod: i.taxMethod,
             variantSnapshot: {
               id: i.variant.id,
               productId: i.variant.productId,
               name: i.variant.name,
               barcode: i.variant.barcode,
               price: i.variant.price,
-              salePrice: i.variant.salePrice,
+              retail: i.variant.retail,
+              wholesale: i.variant.wholesale,
               factor: i.variant.factor,
               isDefault: i.variant.isDefault,
               product: i.variant.product ? {
                 id: i.variant.product.id,
                 name: i.variant.product.name,
                 taxRate: i.variant.product.taxRate,
+                taxMethod: i.variant.product.taxMethod,
                 hsCode: i.variant.product.hsCode,
                 totalStock: i.variant.product.totalStock,
                 category: i.variant.product.category,
                 brand: i.variant.product.brand,
               } : null,
             },
+            productSnapshot: i.product ? {
+              id: i.product.id,
+              name: i.product.name,
+              taxRate: i.product.taxRate,
+              taxMethod: i.product.taxMethod,
+              hsCode: i.product.hsCode,
+              variants: i.product.variants?.map(v => ({
+                id: v.id,
+                productId: v.productId,
+                name: v.name,
+                barcode: v.barcode,
+                price: v.price,
+                retail: v.retail,
+                wholesale: v.wholesale,
+                factor: v.factor,
+                isDefault: v.isDefault,
+              })),
+            } : null,
           })),
         },
       });
@@ -271,24 +351,57 @@ export function Sale() {
     const items: any[] = data?.items ?? [];
     const newCart: CartItem[] = items.map((item: any) => {
       const snap = item.variantSnapshot as any;
+      const prodSnap = item.productSnapshot as any;
       const variant: ProductVariant = snap?.id ? snap : {
         id: item.variantId,
         productId: 0,
         name: `Variant #${item.variantId}`,
         barcode: '',
         price: item.price ?? 0,
-        salePrice: item.price ?? 0,
-        purchasePrice: 0,
+        retail: null,
+        wholesale: null,
         factor: 1,
         isDefault: true,
       };
+      const product: Product = prodSnap?.id ? prodSnap : (snap?.product ? {
+        id: snap.product.id,
+        name: snap.product.name,
+        categoryId: 0,
+        totalStock: snap.product.totalStock ?? 0,
+        avgCostPrice: 0,
+        reorderLevel: 0,
+        allowNegative: false,
+        active: true,
+        taxRate: snap.product.taxRate ?? 0,
+        taxMethod: snap.product.taxMethod ?? item.taxMethod ?? 'EXCLUSIVE',
+        hsCode: snap.product.hsCode ?? '',
+        category: snap.product.category,
+        brand: snap.product.brand,
+        variants: prodSnap?.variants ?? [variant],
+      } : {
+        id: 0,
+        name: variant.name,
+        categoryId: 0,
+        totalStock: 0,
+        avgCostPrice: 0,
+        reorderLevel: 0,
+        allowNegative: false,
+        active: true,
+        taxRate: 0,
+        taxMethod: 'EXCLUSIVE' as const,
+        hsCode: '',
+        variants: [variant],
+      });
       return {
-        variant,
+        product,
+        variant: { ...variant, product },
         qty: item.qty ?? 1,
+        priceType: (item.priceType as PriceType) ?? 'MRP',
         price: item.price ?? 0,
         discount: item.discount ?? 0,
-        taxRate: snap?.product?.taxRate ?? 0,
-        hsCode: snap?.product?.hsCode ?? '',
+        taxRate: product.taxRate ?? 0,
+        taxMethod: product.taxMethod ?? 'EXCLUSIVE',
+        hsCode: product.hsCode ?? '',
       };
     });
     setCart(newCart);
@@ -334,9 +447,12 @@ export function Sale() {
 
       if (FBR_CONFIG.enabled) {
         try {
-          const saleVal = cart.reduce((a, i) => a + i.qty * i.price * (1 - i.discount / 100), 0);
-          const taxAmt = cart.reduce((a, i) => a + i.qty * i.price * (1 - i.discount / 100) * i.taxRate / 100, 0);
-          const discAmt = cart.reduce((a, i) => a + i.qty * i.price * i.discount / 100, 0) + invoiceDiscount;
+          const saleVal = cart.reduce((a, i) => {
+            const { afterDisc, taxAmt } = computeLine(i);
+            return a + (i.taxMethod === 'INCLUSIVE' ? afterDisc - taxAmt : afterDisc);
+          }, 0);
+          const taxAmt = cart.reduce((a, i) => a + computeLine(i).taxAmt, 0);
+          const discAmt = cart.reduce((a, i) => a + computeLine(i).discAmt, 0) + invoiceDiscount;
           const totalQty = cart.reduce((a, i) => a + i.qty, 0);
           const hasBankPayment = paymentEntries.some(p => p.accountId == 2);
           await fbrService.generateInvoice({
@@ -356,18 +472,22 @@ export function Sale() {
             TotalBillAmount: saleVal + taxAmt,
             PaymentMode: hasBankPayment ? FBRPaymentMode.CARD : FBRPaymentMode.CASH,
             InvoiceType: FBRInvoiceType.NEW,
-            Items: cart.map(i => ({
-              ItemCode: i.variant.barcode ?? String(i.variant.id),
-              ItemName: i.variant.product?.name ?? i.variant.name,
-              Quantity: i.qty,
-              PCTCode: i.hsCode || '00000000',
-              TaxRate: i.taxRate,
-              TaxCharged: i.qty * i.price * (1 - i.discount / 100) * i.taxRate / 100,
-              TotalAmount: i.qty * i.price * (1 - i.discount / 100) * (1 + i.taxRate / 100),
-              SaleValue: i.qty * i.price * (1 - i.discount / 100),
-              InvoiceType: FBRInvoiceType.NEW,
-              Discount: i.qty * i.price * i.discount / 100,
-            })),
+            Items: cart.map(i => {
+              const lc = computeLine(i);
+              const itemSaleVal = i.taxMethod === 'INCLUSIVE' ? lc.afterDisc - lc.taxAmt : lc.afterDisc;
+              return {
+                ItemCode: i.variant.barcode ?? String(i.variant.id),
+                ItemName: i.variant.product?.name ?? i.variant.name,
+                Quantity: i.qty,
+                PCTCode: i.hsCode || '00000000',
+                TaxRate: i.taxRate,
+                TaxCharged: lc.taxAmt,
+                TotalAmount: lc.lineTotal,
+                SaleValue: itemSaleVal,
+                InvoiceType: FBRInvoiceType.NEW,
+                Discount: lc.discAmt,
+              };
+            }),
           });
         } catch (e: unknown) {
           console.error('[FBR submit]', e);
@@ -377,15 +497,35 @@ export function Sale() {
         }
       }
 
+      const printData: SaleInvoiceData = {
+        sale,
+        items: cart.map(i => ({
+          name: i.variant.product?.name ?? i.variant.name,
+          qty: i.qty,
+          price: i.price,
+          discount: i.discount,
+          total: computeLine(i).lineTotal,
+        })),
+        customer: customer ?? null,
+        subtotal,
+        discountAmount: itemDiscountTotal + invoiceDiscount,
+        taxAmount: taxTotal,
+        grandTotal,
+        paidAmount: paidTotal,
+        changeAmount: Math.max(0, change),
+      };
+
       clearCart();
       showToast('success', `Sale #${sale.invoiceNumber ?? sale.id} saved!`);
+      setPendingPrintData(printData);
+      setShowPrintDialog(true);
     } catch (e: unknown) {
       console.error('[submit sale]', e);
       showToast('error', parseError(e, 'Failed to save sale'));
     } finally {
       setSaving(false);
     }
-  }, [cart, customer, accounts, accountAmounts, grandTotal, paidTotal, invoiceDiscount, note, showToast, clearCart]);
+  }, [cart, customer, accounts, accountAmounts, grandTotal, paidTotal, invoiceDiscount, note, showToast, clearCart, subtotal, itemDiscountTotal, taxTotal, change]);
 
   const saveNewCustomer = async () => {
     if (!newCustName.trim()) return;
@@ -474,7 +614,13 @@ export function Sale() {
 
       {showProductModal && (
         <ProductSearchModal
-          onSelect={addVariant}
+          onSelect={(variant) => {
+            const prod = variant.product;
+            if (prod) {
+              const defaultVariant = prod.variants?.find(v => v.isDefault) ?? variant;
+              addToCart(prod, defaultVariant);
+            }
+          }}
           onClose={() => { setShowProductModal(false); setTimeout(() => barcodeRef.current?.focus(), 30); }}
         />
       )}
@@ -485,6 +631,18 @@ export function Sale() {
           onClose={() => { setShowHeldModal(false); setTimeout(() => barcodeRef.current?.focus(), 30); }}
         />
       )}
+
+      <PrintConfirmDialog
+        open={showPrintDialog}
+        title="Print Sale Invoice"
+        message="Sale saved successfully. Would you like to print the invoice?"
+        onPrint={async () => {
+          if (pendingPrintData) await printSaleInvoice(pendingPrintData);
+          setPendingPrintData(null);
+          setShowPrintDialog(false);
+        }}
+        onSkip={() => { setPendingPrintData(null); setShowPrintDialog(false); }}
+      />
 
       {showNewCustomer && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -586,11 +744,11 @@ export function Sale() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-                  <th className="text-left px-3 py-2 font-medium text-gray-500">Product</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-500">Product / Variant</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-28">Qty</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Price</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-32">Price</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-16">Disc%</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-16">Tax</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-20">Tax</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Total</th>
                   <th className="w-8"></th>
                 </tr>
@@ -598,12 +756,32 @@ export function Sale() {
               <tbody>
                 {cart.map((item, idx) => {
                   const isLast = idx === 0;
-                  const lineTotal = item.qty * item.price * (1 - item.discount / 100) * (1 + item.taxRate / 100);
+                  const lc = computeLine(item);
+                  const variants = item.product.variants ?? [];
+                  const hasRetail = item.variant.retail != null;
+                  const hasWholesale = item.variant.wholesale != null;
                   return (
-                    <tr key={item.variant.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-1.5">
-                        <p className="font-medium text-gray-900 dark:text-gray-100">{item.variant.product?.name ?? item.variant.name}</p>
-                        <p className="text-gray-400">{item.variant.name !== item.variant.product?.name ? item.variant.name : ''}{item.variant.barcode ? `  ${item.variant.barcode}` : ''}</p>
+                        <p className="font-medium text-gray-900 dark:text-gray-100">{item.product.name}</p>
+                        {variants.length > 1 ? (
+                          <select
+                            value={item.variant.id}
+                            onChange={e => changeVariant(idx, Number(e.target.value))}
+                            className="mt-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 max-w-40"
+                          >
+                            {variants.map(v => (
+                              <option key={v.id} value={v.id}>
+                                {v.name} (×{v.factor}) - {fmt(v.price)}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <p className="text-gray-400">{item.variant.name}{item.variant.barcode ? ` · ${item.variant.barcode}` : ''}</p>
+                        )}
+                        {item.taxMethod === 'INCLUSIVE' && item.taxRate > 0 && (
+                          <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded mt-0.5 inline-block">Tax Incl.</span>
+                        )}
                       </td>
                       <td className="px-2 py-1.5">
                         <div className="flex items-center justify-center gap-1">
@@ -621,16 +799,33 @@ export function Sale() {
                         </div>
                       </td>
                       <td className="px-2 py-1.5 text-center">
-                        {item.price.toFixed(2)}
+                        <div className="flex flex-col items-center gap-0.5">
+                          {(hasRetail || hasWholesale) ? (
+                            <select
+                              value={item.priceType}
+                              onChange={e => changePriceType(idx, e.target.value as PriceType)}
+                              className="text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1"
+                            >
+                              <option value="MRP">MRP</option>
+                              {hasRetail && <option value="Retail">Retail</option>}
+                              {hasWholesale && <option value="Wholesale">Wholesale</option>}
+                            </select>
+                          ) : (
+                            <span className="text-[10px] text-gray-400">MRP</span>
+                          )}
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{item.price.toFixed(2)}</span>
+                        </div>
                       </td>
                       <td className="px-2 py-1.5">
                         <input type="number" value={item.discount} min={0} max={100} step="0.01" onChange={e => updateField(idx, 'discount', Math.min(100, Number(e.target.value)))}
                           className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
                       </td>
                       <td className="px-2 py-1.5 text-right">
-                        {item.taxRate > 0 && <p className="text-primary-600">{(item.taxRate * (item.qty * item.price * (1 - item.discount / 100)) / 100).toFixed(2)}</p>}
+                        {item.taxRate > 0 && (
+                          <p className="text-primary-600">{lc.taxAmt.toFixed(2)}</p>
+                        )}
                       </td>
-                      <td className="px-2 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(lineTotal)}</td>
+                      <td className="px-2 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(lc.lineTotal)}</td>
                       <td className="px-1 py-1.5">
                         <button onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500 dark:hover:text-red-400"><Trash2 size={13} /></button>
                       </td>

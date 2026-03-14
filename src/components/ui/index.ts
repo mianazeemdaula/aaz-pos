@@ -10,3 +10,4 @@ export { AccountSelect } from './AccountSelect';
 export { CustomerSearch } from './CustomerSearch';
 export { SupplierSearch } from './SupplierSearch';
 export { ProductSearch } from './ProductSearch';
+export { PrintConfirmDialog } from './PrintConfirmDialog';

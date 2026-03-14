@@ -6,6 +6,7 @@ import {
 import { settingsService } from '../services/pos.service';
 import { apiClient } from '../services/api';
 import { savePrinterConfig, loadPrinterConfig } from '../utils/printer';
+import { saveThermalConfig, loadThermalConfig, listPrinters, type ThermalPrinterConfig, type PrinterInfo } from '../utils/thermalPrinter';
 
 // ─── LocalStorage keys ────────────────────────────────────────────────────────
 const LS_API_URL = 'pos_api_url';
@@ -27,7 +28,7 @@ interface FbrSettings {
   enabled: boolean;
 }
 
-type Tab = 'api' | 'printer' | 'database' | 'fbr';
+type Tab = 'api' | 'printer' | 'thermal' | 'database' | 'fbr';
 
 // ─── Field helper ─────────────────────────────────────────────────────────────
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -74,6 +75,13 @@ export function Settings() {
   // ── Database ─────────────────────────────────────────────────────────────
   const [dbBusy, setDbBusy] = useState(false);
   const [dbMsg, setDbMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // ── Thermal Printer ──────────────────────────────────────────────────────
+  const [thermal, setThermal] = useState<ThermalPrinterConfig>(loadThermalConfig);
+  const [thermalSaving, setThermalSaving] = useState(false);
+  const [thermalMsg, setThermalMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [thermalPrinters, setThermalPrinters] = useState<PrinterInfo[]>([]);
+  const [thermalLoading, setThermalLoading] = useState(false);
 
   // ── FBR ──────────────────────────────────────────────────────────────────
   const [fbr, setFbr] = useState<FbrSettings>(() => {
@@ -192,6 +200,34 @@ export function Settings() {
     }
   };
 
+  const refreshThermalPrinters = async () => {
+    setThermalLoading(true);
+    try {
+      const printers = await listPrinters();
+      setThermalPrinters(printers);
+      if (printers.length > 0 && !thermal.printerName) {
+        setThermal(p => ({ ...p, printerName: printers[0].name }));
+      }
+    } catch {
+      setThermalMsg({ ok: false, text: 'Failed to list printers.' });
+    } finally {
+      setThermalLoading(false);
+    }
+  };
+
+  const saveThermalSettings = () => {
+    setThermalSaving(true);
+    setThermalMsg(null);
+    try {
+      saveThermalConfig(thermal);
+      setThermalMsg({ ok: true, text: 'Thermal printer settings saved.' });
+    } catch {
+      setThermalMsg({ ok: false, text: 'Failed to save thermal printer settings.' });
+    } finally {
+      setThermalSaving(false);
+    }
+  };
+
   const saveFbr = () => {
     setFbrSaving(true);
     setFbrMsg(null);
@@ -209,6 +245,7 @@ export function Settings() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'api', label: 'API / Server', icon: <Network size={14} /> },
     { id: 'printer', label: 'Printer', icon: <Usb size={14} /> },
+    { id: 'thermal', label: 'Thermal Printer', icon: <Usb size={14} /> },
     { id: 'database', label: 'Database', icon: <Database size={14} /> },
     { id: 'fbr', label: 'FBR', icon: <Wifi size={14} /> },
   ];
@@ -342,6 +379,111 @@ export function Settings() {
 
           <div className="flex justify-end">
             <SaveBtn loading={printerSaving} onClick={savePrinter} label="Save Printer Settings" />
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab: Thermal Printer ─────────────────────────────────────────── */}
+      {tab === 'thermal' && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
+            <Usb size={15} className="text-primary-500" /> Thermal Printer (Invoice Printing)
+          </h2>
+
+          {/* Printer selection */}
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <Field label="Printer">
+                {thermalPrinters.length > 0 ? (
+                  <select
+                    value={thermal.printerName}
+                    onChange={e => setThermal(p => ({ ...p, printerName: e.target.value }))}
+                    className={inputCls}
+                  >
+                    <option value="">— Select a printer —</option>
+                    {thermalPrinters.map(p => (
+                      <option key={p.name} value={p.name}>{p.name} ({p.interface_type})</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={thermal.printerName}
+                    onChange={e => setThermal(p => ({ ...p, printerName: e.target.value }))}
+                    placeholder="Enter printer name or click Detect"
+                    className={inputCls}
+                  />
+                )}
+              </Field>
+            </div>
+            <button
+              onClick={refreshThermalPrinters}
+              disabled={thermalLoading}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              {thermalLoading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+              Detect
+            </button>
+          </div>
+
+          {/* Paper size */}
+          <Field label="Paper Size">
+            <div className="flex gap-2">
+              {(['Mm58', 'Mm80'] as const).map(size => (
+                <button
+                  key={size}
+                  onClick={() => setThermal(p => ({ ...p, paperSize: size }))}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${thermal.paperSize === size
+                      ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-400 text-primary-600 dark:text-primary-400'
+                      : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
+                    }`}
+                >
+                  {size === 'Mm58' ? '58mm (32 chars)' : '80mm (48 chars)'}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          {/* Business info for receipt header */}
+          <div className="pt-3 border-t border-gray-100 dark:border-gray-700 space-y-3">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Receipt Header Info</p>
+            <Field label="Business Name">
+              <input
+                value={thermal.businessName}
+                onChange={e => setThermal(p => ({ ...p, businessName: e.target.value }))}
+                placeholder="Your Business Name"
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Address">
+              <input
+                value={thermal.businessAddress ?? ''}
+                onChange={e => setThermal(p => ({ ...p, businessAddress: e.target.value }))}
+                placeholder="Business address"
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Phone">
+              <input
+                value={thermal.businessPhone ?? ''}
+                onChange={e => setThermal(p => ({ ...p, businessPhone: e.target.value }))}
+                placeholder="Phone number"
+                className={inputCls}
+              />
+            </Field>
+            <Field label="NTN">
+              <input
+                value={thermal.businessNTN ?? ''}
+                onChange={e => setThermal(p => ({ ...p, businessNTN: e.target.value }))}
+                placeholder="National Tax Number"
+                className={inputCls}
+              />
+            </Field>
+          </div>
+
+          <StatusMsg msg={thermalMsg} />
+
+          <div className="flex justify-end">
+            <SaveBtn loading={thermalSaving} onClick={saveThermalSettings} label="Save Thermal Printer Settings" />
           </div>
         </div>
       )}

@@ -6,6 +6,7 @@ export { Purchase } from './Purchase';
 export { SaleReturns } from './SaleReturns';
 export { PurchaseReturns } from './PurchaseReturns';
 export { Products } from './Products';
+export { ProductForm } from './ProductForm';
 export { Categories } from './Categories';
 export { Brands } from './Brands';
 export { Customers } from './Customers';

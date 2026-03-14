@@ -8,7 +8,9 @@ import { ProductSearchModal } from '../components/ui/ProductSearch';
 import { SupplierSearch } from '../components/ui/SupplierSearch';
 import { AccountSelect } from '../components/ui/AccountSelect';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { PrintConfirmDialog } from '../components/ui/PrintConfirmDialog';
 import { purchaseService, heldService, productService } from '../services/pos.service';
+import { printPurchaseInvoice, type PurchaseInvoiceData } from '../utils/invoices';
 import type { Product, ProductVariant, Supplier, HeldPurchase } from '../types/pos';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -193,6 +195,9 @@ export function Purchase() {
 
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [pendingPrintData, setPendingPrintData] = useState<PurchaseInvoiceData | null>(null);
 
   // Refs
   const barcodeRef = useRef<HTMLInputElement>(null);
@@ -473,14 +478,35 @@ export function Purchase() {
         }),
       });
 
+      const poTyped = po as { id: number; invoiceNo?: string };
+      const printData: PurchaseInvoiceData = {
+        purchase: { id: poTyped.id, invoiceNo: poTyped.invoiceNo, refNumber: refNo, supplierId: supplier?.id, supplier, accountId: accountId!, totalAmount: itemNetTotal, paidAmount: paidAmountNum, discount: invoiceDiscount, taxAmount: invoiceTax, expenses: invoiceExpenses, date: new Date().toISOString(), createdAt: new Date().toISOString() },
+        items: cart.map(i => ({
+          name: i.product.name,
+          qty: i.qty,
+          unitCost: i.qty > 0 ? i.totalCost / i.qty : 0,
+          discount: i.discount,
+          total: i.totalCost * (1 - i.discount / 100),
+        })),
+        supplier: supplier ?? null,
+        subtotal: itemNetTotal + itemDiscountTotal,
+        discountAmount: itemDiscountTotal + invoiceDiscount,
+        taxAmount: invoiceTax,
+        expenses: invoiceExpenses,
+        grandTotal,
+        paidAmount: paidAmountNum,
+      };
+
       clearCart();
-      showToast('success', `Purchase #${(po as { id: number; invoiceNo?: string }).invoiceNo ?? (po as { id: number }).id} saved!`);
+      showToast('success', `Purchase #${poTyped.invoiceNo ?? poTyped.id} saved!`);
+      setPendingPrintData(printData);
+      setShowPrintDialog(true);
     } catch (e) {
       showToast('error', parseError(e, 'Failed to save purchase'));
     } finally {
       setSaving(false);
     }
-  }, [cart, supplier, refNo, note, invoiceDiscount, invoiceTax, invoiceExpenses, accountId, paidAmountNum, grandTotal, clearCart, showToast]);
+  }, [cart, supplier, refNo, note, invoiceDiscount, invoiceTax, invoiceExpenses, accountId, paidAmountNum, grandTotal, clearCart, showToast, itemNetTotal, itemDiscountTotal]);
 
   // Stable refs
   submitRef.current = submit;
@@ -543,6 +569,18 @@ export function Purchase() {
         variant="danger"
         onConfirm={handleLeaveConfirm}
         onCancel={handleLeaveCancel}
+      />
+
+      <PrintConfirmDialog
+        open={showPrintDialog}
+        title="Print Purchase Invoice"
+        message="Purchase saved successfully. Would you like to print the invoice?"
+        onPrint={async () => {
+          if (pendingPrintData) await printPurchaseInvoice(pendingPrintData);
+          setPendingPrintData(null);
+          setShowPrintDialog(false);
+        }}
+        onSkip={() => { setPendingPrintData(null); setShowPrintDialog(false); }}
       />
 
       {/* LEFT: Cart Panel */}

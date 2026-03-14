@@ -214,12 +214,10 @@ model SupplierPayment {
 
 // ==== PRODUCTS & INVENTORY ====
 model Category {
-  id       Int     @id @default(autoincrement())
-  name     String
-  parentId Int? // null = top-level category
-  hsnCode  String? // Optional HSN code for tax classification
-  taxRate  Float? // Optional tax rate for products in this category
-
+  id            Int        @id @default(autoincrement())
+  name          String     @db.VarChar(50)
+  parentId      Int? // null = top-level category
+  prefix        String?    @unique
   parent        Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
   subcategories Category[] @relation("CategoryHierarchy")
   products      Product[]
@@ -230,7 +228,7 @@ model Category {
 
 model Brand {
   id       Int       @id @default(autoincrement())
-  name     String    @unique
+  name     String    @unique @db.VarChar(50)
   active   Boolean   @default(true)
   products Product[]
 
@@ -240,10 +238,23 @@ model Brand {
   @@map("brands")
 }
 
+model TaxSchdule {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique @db.VarChar(100)
+  description String? @db.VarChar(100)
+  taxRate     Float // Tax rate as a percentage (e.g., 17.5 for 17.5%)
+
+  products Product[] // Products using this tax schedule
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tax_schedules")
+}
+
 model Product {
   id            Int     @id @default(autoincrement())
   name          String
-  description   String?
   brandId       Int?
   categoryId    Int
   reorderLevel  Int     @default(10)
@@ -251,9 +262,18 @@ model Product {
   avgCostPrice  Float   @default(0) // Weighted average cost — updated on each purchase
   allowNegative Boolean @default(false)
   imageUrl      String?
-  hsCode        String? // Harmonized System code for tax
-  taxRate       Float? // Product-level tax rate (overrides category if set)
-  active        Boolean @default(true)
+
+  // Tax Schdules and HSN codes can be defined at both category and product level.
+  hsCode       String?   @db.VarChar(10) // Harmonized System code for tax
+  taxSchduleId Int?
+  taxMethod    TaxMethod @default(EXCLUSIVE)
+  taxRate      Float     @default(0) // Tax rate as a percentage (e.g., 17.5 for 17.5%)
+
+  active           Boolean @default(true)
+  isService        Boolean @default(false) // If true, inventory tracking is disabled
+  showBarcodePrice Boolean @default(true)
+  isFavorite       Boolean @default(false)
+  saleBelowCost    Boolean @default(false) // Prevent selling below cost price
 
   brand          Brand?           @relation(fields: [brandId], references: [id])
   category       Category         @relation(fields: [categoryId], references: [id])
@@ -263,20 +283,26 @@ model Product {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   purchaseItems PurchaseItem[]
+  taxSchdule    TaxSchdule?    @relation(fields: [taxSchduleId], references: [id])
 
   @@map("products")
 }
 
+enum TaxMethod {
+  EXCLUSIVE // Tax is added on top of the price
+  INCLUSIVE // Tax is included in the price
+}
+
 model ProductVariant {
-  id             Int     @id @default(autoincrement())
-  productId      Int
-  name           String // e.g., "Unit", "Dozen", "Pack of 6"
-  barcode        String  @unique
-  price          Float // Selling price
-  wholesalePrice Float? // Optional wholesale price
-  purchasePrice  Float // Last purchase price (for profit calculation)
-  factor         Int     @default(1) // Conversion factor (1=unit, 12=dozen)
-  isDefault      Boolean @default(false)
+  id        Int     @id @default(autoincrement())
+  productId Int
+  name      String  @db.VarChar(50) // e.g., "Unit", "Dozen", "Pack of 6"
+  barcode   String  @unique
+  price     Float // Selling price
+  retail    Float? // Optional retail price
+  wholesale Float? // Optional wholesale price
+  factor    Int     @default(1) // Conversion factor (1=unit, 12=dozen)
+  isDefault Boolean @default(false)
 
   product             Product               @relation(fields: [productId], references: [id])
   saleItems           SaleItem[]
@@ -319,21 +345,21 @@ enum StockMovementType {
 
 // ==== SALES ====
 model Sale {
-  id           Int     @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
   customerId   Int?
   totalAmount  Float
-  paidAmount   Float   @default(0) // Sum of all SalePayment.amount entries
-  taxAmount    Float   @default(0)
-  discount     Float   @default(0)
-  changeAmount Float   @default(0) // Change given to customer
+  paidAmount   Float         @default(0) // Sum of all SalePayment.amount entries
+  taxAmount    Float         @default(0)
+  discount     Float         @default(0)
+  changeAmount Float         @default(0) // Change given to customer
   userId       Int?
-  taxInvoiceId String? @unique // Tax authority invoice number
-
-  customer Customer?     @relation(fields: [customerId], references: [id])
-  user     User?         @relation(fields: [userId], references: [id])
-  items    SaleItem[]
-  returns  SaleReturn[]
-  payments SalePayment[] // Split payments across multiple accounts
+  taxInvoiceId String?       @unique // Tax authority invoice number
+  note         String?
+  customer     Customer?     @relation(fields: [customerId], references: [id])
+  user         User?         @relation(fields: [userId], references: [id])
+  items        SaleItem[]
+  returns      SaleReturn[]
+  payments     SalePayment[] // Split payments across multiple accounts
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -385,15 +411,16 @@ model Purchase {
   supplierId  Int?
   totalAmount Float
   paidAmount  Float    @default(0)
-  accountId   Int // Account to debit
+  accountId   Int? // Account to debit
   userId      Int?
-  date        DateTime @default(now())
   discount    Float    @default(0)
   taxAmount   Float    @default(0)
   expenses    Float    @default(0) // Freight / misc landing costs
+  note        String?
+  date        DateTime @default(now())
 
   supplier Supplier?        @relation(fields: [supplierId], references: [id])
-  account  Account          @relation(fields: [accountId], references: [id])
+  account  Account?         @relation(fields: [accountId], references: [id])
   user     User?            @relation(fields: [userId], references: [id])
   items    PurchaseItem[]
   returns  PurchaseReturn[]
