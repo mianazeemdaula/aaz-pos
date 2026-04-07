@@ -230,6 +230,28 @@ class ApiClient {
             throw error;
         }
     }
+
+    /**
+     * Upload a file via FormData (multipart/form-data)
+     */
+    async uploadFile<T>(endpoint: string, file: File, fieldName = 'image'): Promise<T> {
+        const url = this.buildURL(endpoint);
+        const headers: Record<string, string> = {};
+        const token = this.getAuthToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const formData = new FormData();
+        formData.append(fieldName, file);
+
+        const response = await fetch(url, { method: 'POST', headers, body: formData });
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error?.message || result.error || response.statusText);
+        }
+
+        return result;
+    }
 }
 
 // Export singleton instance

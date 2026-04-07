@@ -3,7 +3,7 @@ import {
   LayoutDashboard, ShoppingCart, ShoppingBag, Package, Users, Truck,
   UserCheck, Receipt, TrendingDown, Wallet, BarChart3, Settings,
   Menu, X, ChevronDown, LogOut, User, Tag, Bookmark,
-  Layers, RefreshCw, Gift, Pause, Sliders, ArrowDownCircle, ArrowUpCircle
+  Layers, RefreshCw, Gift, Pause, Sliders, ArrowDownCircle, ArrowUpCircle, CalendarCheck, ShieldCheck
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../contexts';
@@ -18,6 +18,7 @@ const MENU: MenuGroup[] = [
       { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
       { label: 'New Sale', icon: ShoppingCart, path: '/sale' },
       { label: 'Sale & Returns', icon: RefreshCw, path: '/sale/returns' },
+      { label: 'Advance Bookings', icon: CalendarCheck, path: '/advance-bookings' },
       { label: 'Held', icon: Pause, path: '/held' },
     ],
   },
@@ -34,7 +35,7 @@ const MENU: MenuGroup[] = [
       { label: 'Products', icon: Package, path: '/products' },
       { label: 'Categories', icon: Tag, path: '/categories' },
       { label: 'Brands', icon: Bookmark, path: '/brands' },
-      { label: 'Stock Adjustments', icon: Sliders, path: '/stock-adjustments' },
+      { label: 'Stock', icon: Sliders, path: '/stock-adjustments' },
     ],
   },
   {
@@ -52,6 +53,7 @@ const MENU: MenuGroup[] = [
       { label: 'Employees', icon: UserCheck, path: '/employees' },
       { label: 'Salary Slips', icon: Receipt, path: '/salary-slips' },
       { label: 'Expenses', icon: TrendingDown, path: '/expenses' },
+      { label: 'Recurring Expenses', icon: RefreshCw, path: '/recurring-expenses' },
       { label: 'Accounts', icon: Wallet, path: '/accounts' },
       { label: 'Promotions', icon: Gift, path: '/promotions' },
     ],
@@ -61,6 +63,7 @@ const MENU: MenuGroup[] = [
     items: [
       { label: 'Reports', icon: BarChart3, path: '/reports' },
       { label: 'Users', icon: User, path: '/users' },
+      { label: 'Admin Panel', icon: ShieldCheck, path: '/admin' },
       { label: 'Settings', icon: Settings, path: '/settings' },
     ],
   },

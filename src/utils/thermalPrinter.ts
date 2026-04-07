@@ -56,7 +56,9 @@ export interface PrintJobRequest {
 }
 
 export interface ThermalPrinterConfig {
-    printerName: string;
+    connectionType: 'IP' | 'USB' | 'SHARED';
+    ipAddress: string;    // used when connectionType === 'IP'
+    printerName: string;  // used when connectionType === 'USB' or 'SHARED'
     paperSize: 'Mm58' | 'Mm80';
     businessName: string;
     businessAddress?: string;
@@ -67,6 +69,8 @@ export interface ThermalPrinterConfig {
 const THERMAL_CONFIG_KEY = 'thermal_printer_config';
 
 const DEFAULT_CONFIG: ThermalPrinterConfig = {
+    connectionType: 'USB',
+    ipAddress: '',
     printerName: '',
     paperSize: 'Mm80',
     businessName: 'AAZ Point of Sale',
@@ -117,6 +121,19 @@ export async function printDocument(job: PrintJobRequest): Promise<boolean> {
 }
 
 /**
+ * Resolve the printer identifier string from config.
+ * - IP: "tcp://IP" (plugin handles default port)
+ * - USB / SHARED: use the printer name directly
+ */
+function resolvePrinter(config: ThermalPrinterConfig): string {
+    if (config.connectionType === 'IP') {
+        const ip = config.ipAddress.trim();
+        return ip ? `tcp://${ip}` : '';
+    }
+    return config.printerName;
+}
+
+/**
  * Build a PrintJobRequest from sections using the stored config.
  */
 export function buildPrintJob(
@@ -125,7 +142,7 @@ export function buildPrintJob(
 ): PrintJobRequest {
     const config = loadThermalConfig();
     return {
-        printer: config.printerName,
+        printer: resolvePrinter(config),
         paper_size: config.paperSize,
         options: { cut_paper: true, beep: false, open_cash_drawer: false, ...options },
         sections,

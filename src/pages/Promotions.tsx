@@ -3,13 +3,17 @@ import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { promotionService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Pagination } from '../components/ui/Pagination';
 
 type Promo = Record<string, unknown>;
 const TYPES = ['PERCENTAGE', 'FIXED', 'BOGO'];
+const PAGE_SIZE = 20;
 
 export function Promotions() {
   const [items, setItems] = useState<Promo[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [modal, setModal] = useState<{ mode: 'add' | 'edit'; item?: Promo } | null>(null);
   const [confirm, setConfirm] = useState<{ id: number } | null>(null);
   const [form, setForm] = useState<Promo>({ type: 'PERCENTAGE', isActive: true, value: 0 });
@@ -18,9 +22,9 @@ export function Promotions() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await promotionService.list({ pageSize: 200 }); setItems(r.data as unknown as Promo[]); }
+    try { const r = await promotionService.list({ page, pageSize: PAGE_SIZE }); setItems(r.data as unknown as Promo[]); setTotal(r.pagination?.total ?? 0); }
     catch { setItems([]); } finally { setLoading(false); }
-  }, []);
+  }, [page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -76,6 +80,7 @@ export function Promotions() {
                 </tbody>
               </table>
             )}
+        {(() => { const totalPages = Math.ceil(total / PAGE_SIZE); return totalPages > 1 ? <Pagination currentPage={page} totalPages={totalPages} totalItems={total} itemsPerPage={PAGE_SIZE} onPageChange={setPage} /> : null; })()}
       </div>
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit Promotion' : 'Add Promotion'} size="sm">
         <div className="space-y-3">

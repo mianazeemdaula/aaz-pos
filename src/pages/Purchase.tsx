@@ -6,12 +6,12 @@ import {
 } from 'lucide-react';
 import { ProductSearchModal } from '../components/ui/ProductSearch';
 import { SupplierSearch } from '../components/ui/SupplierSearch';
-import { AccountSelect } from '../components/ui/AccountSelect';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { PrintConfirmDialog } from '../components/ui/PrintConfirmDialog';
-import { purchaseService, heldService, productService } from '../services/pos.service';
+import { QuickSupplierAdd } from '../components/ui/QuickSupplierAdd';
+import { purchaseService, heldService, productService, accountService } from '../services/pos.service';
 import { printPurchaseInvoice, type PurchaseInvoiceData } from '../utils/invoices';
-import type { Product, ProductVariant, Supplier, HeldPurchase } from '../types/pos';
+import type { Product, ProductVariant, Supplier, HeldPurchase, Account } from '../types/pos';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,8 @@ interface CartItem {
   & { barcode?: string }
   qty: number;
   totalCost: number; // total for this line (qty × unitCost), user-entered
-  discount: number;  // percent 0-100
+  discount: number;  // discount in Rs (amount)
+  unitRate: number;  // intended selling price per unit (for profit display)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -44,8 +45,7 @@ interface Draft {
   supplier: Supplier | null;
   note: string;
   refNo: string;
-  accountId: number | undefined;
-  paidAmount: string;
+  accountAmounts: Record<number, string>;
   invoiceDiscount: number;
   invoiceTax: number;
   invoiceExpenses: number;
@@ -177,6 +177,7 @@ export function Purchase() {
   // State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [showQuickSupplier, setShowQuickSupplier] = useState(false);
   const [note, setNote] = useState('');
   const [refNo, setRefNo] = useState('');
   const [invoiceDiscount, setInvoiceDiscount] = useState(0);
@@ -187,8 +188,8 @@ export function Purchase() {
   const [barcodeLoading, setBarcodeLoading] = useState(false);
   const [barcodeError, setBarcodeError] = useState('');
 
-  const [accountId, setAccountId] = useState<number | undefined>();
-  const [paidAmount, setPaidAmount] = useState('');
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accountAmounts, setAccountAmounts] = useState<Record<number, string>>({});
 
   const [showProductModal, setShowProductModal] = useState(false);
   const [showHeldModal, setShowHeldModal] = useState(false);
@@ -201,20 +202,27 @@ export function Purchase() {
 
   // Refs
   const barcodeRef = useRef<HTMLInputElement>(null);
-  const paidAmountRef = useRef<HTMLInputElement>(null);
+  const firstAccountRef = useRef<HTMLInputElement>(null);
   const lastQtyRef = useRef<HTMLInputElement>(null);
   const submitRef = useRef<() => void>(() => { });
   const clearCartRef = useRef<() => void>(() => { });
   const holdRef = useRef<() => void>(() => { });
 
   // Derived totals
-  const itemNetTotal = cart.reduce((a, i) => a + i.totalCost * (1 - i.discount / 100), 0);
-  const itemDiscountTotal = cart.reduce((a, i) => a + i.totalCost * (i.discount / 100), 0);
+  const itemNetTotal = cart.reduce((a, i) => a + (i.totalCost - i.discount), 0);
+  const itemDiscountTotal = cart.reduce((a, i) => a + i.discount, 0);
   const grandTotal = Math.max(0, itemNetTotal - invoiceDiscount + invoiceTax + invoiceExpenses);
-  const paidAmountNum = parseFloat(paidAmount) || 0;
-  const balance = paidAmountNum - grandTotal;
+  const paidTotal = Object.values(accountAmounts).reduce((a, v) => a + (parseFloat(v) || 0), 0);
+  const balance = paidTotal - grandTotal;
 
   const hasDraft = cart.length > 0;
+
+  // Load ASSET accounts on mount
+  useEffect(() => {
+    accountService.list({ pageSize: 100 }).then(r => {
+      setAccounts(r.data.filter((a: Account) => a.type === 'ASSET'));
+    }).catch(e => { console.error('[load accounts]', e); });
+  }, []);
 
   // Leave-page guard (works with BrowserRouter)
   const navigate = useNavigate();
@@ -267,8 +275,7 @@ export function Purchase() {
     setSupplier(draft.supplier ?? null);
     setNote(draft.note ?? '');
     setRefNo(draft.refNo ?? '');
-    setAccountId(draft.accountId);
-    setPaidAmount(draft.paidAmount ?? '');
+    setAccountAmounts(draft.accountAmounts ?? {});
     setInvoiceDiscount(draft.invoiceDiscount ?? 0);
     setInvoiceTax(draft.invoiceTax ?? 0);
     setInvoiceExpenses(draft.invoiceExpenses ?? 0);
@@ -276,8 +283,8 @@ export function Purchase() {
 
   // Save draft on every change
   useEffect(() => {
-    saveDraft({ cart, supplier, note, refNo, accountId, paidAmount, invoiceDiscount, invoiceTax, invoiceExpenses });
-  }, [cart, supplier, note, refNo, accountId, paidAmount, invoiceDiscount, invoiceTax, invoiceExpenses]);
+    saveDraft({ cart, supplier, note, refNo, accountAmounts, invoiceDiscount, invoiceTax, invoiceExpenses });
+  }, [cart, supplier, note, refNo, accountAmounts, invoiceDiscount, invoiceTax, invoiceExpenses]);
 
   // beforeunload warning
   useEffect(() => {
@@ -300,8 +307,9 @@ export function Purchase() {
         next[idx] = { ...cur, qty: cur.qty + v.factor, totalCost: (cur.qty + v.factor) * unitCost };
         return next;
       }
-      const unitCost = product.avgCostPrice || v.costPrice || v.purchasePrice || v.price || 0;
-      return [{ product, qty: v.factor, totalCost: unitCost, discount: 0 }, ...prev];
+      const unitCost = product.avgCostPrice || v.wholesale || v.price || 0;
+      const sellingPrice = v.price || 0;
+      return [{ product, qty: v.factor, totalCost: unitCost, discount: 0, unitRate: sellingPrice }, ...prev];
     });
     setBarcode('');
     setTimeout(() => barcodeRef.current?.focus(), 30);
@@ -330,7 +338,7 @@ export function Purchase() {
       return { ...item, qty: newQty, totalCost: newQty * unitCost };
     }));
 
-  const updateField = (idx: number, field: 'qty' | 'totalCost' | 'discount', val: number) =>
+  const updateField = (idx: number, field: 'qty' | 'totalCost' | 'discount' | 'unitRate', val: number) => {
     setCart(prev =>
       prev.map((item, i) => {
         if (i !== idx) return item;
@@ -339,10 +347,22 @@ export function Purchase() {
           const unitCost = item.qty > 0 ? item.totalCost / item.qty : 0;
           return { ...item, qty: newQty, totalCost: newQty * unitCost };
         }
-        if (field === 'discount') return { ...item, discount: Math.min(100, Math.max(0, val)) };
+        if (field === 'discount') return { ...item, discount: Math.max(0, val) };
+        if (field === 'unitRate') return { ...item, unitRate: Math.max(0, val) };
         return { ...item, totalCost: Math.max(0, val) };
       })
     );
+    // Update the default variant's retail price when sale price (unitRate) changes
+    if (field === 'unitRate') {
+      const item = cart[idx];
+      if (item) {
+        const defaultVariant = item.product.variants?.find(v => v.factor === 1);
+        if (defaultVariant) {
+          productService.updateVariant(item.product.id, defaultVariant.id, { retail: Math.max(0, val) }).catch(() => { });
+        }
+      }
+    }
+  };
 
   const removeItem = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx));
 
@@ -351,8 +371,7 @@ export function Purchase() {
     setSupplier(null);
     setNote('');
     setRefNo('');
-    setAccountId(undefined);
-    setPaidAmount('');
+    setAccountAmounts({});
     setInvoiceDiscount(0);
     setInvoiceTax(0);
     setInvoiceExpenses(0);
@@ -372,14 +391,14 @@ export function Purchase() {
           discount: invoiceDiscount,
           taxAmount: invoiceTax,
           expenses: invoiceExpenses,
-          accountId,
-          paidAmount,
+          accountAmounts,
           items: cart.map(i => ({
             productId: i.product.id,
             qty: i.qty,
             totalCost: i.totalCost,
             unitCost: i.qty > 0 ? i.totalCost / i.qty : 0,
             discount: i.discount,
+            sellingPrice: i.unitRate,
             productSnapshot: {
               id: i.product.id,
               name: i.product.name,
@@ -399,7 +418,7 @@ export function Purchase() {
     } catch (e) {
       showToast('error', parseError(e, 'Failed to hold purchase'));
     }
-  }, [cart, supplier, refNo, note, invoiceDiscount, invoiceTax, invoiceExpenses, accountId, paidAmount, clearCart, showToast]);
+  }, [cart, supplier, refNo, note, invoiceDiscount, invoiceTax, invoiceExpenses, accountAmounts, clearCart, showToast]);
 
   // Load held purchase
   const loadHeldPurchase = useCallback(async (held: HeldPurchase) => {
@@ -416,8 +435,7 @@ export function Purchase() {
       invoiceDiscount?: number;
       invoiceTax?: number;
       invoiceExpenses?: number;
-      accountId?: number;
-      paidAmount?: string;
+      accountAmounts?: Record<number, string>;
     };
     const items = data?.items ?? [];
     const newCart: CartItem[] = items.map(item => {
@@ -434,7 +452,7 @@ export function Purchase() {
           active: true,
           categoryId: 0,
         };
-      return { product, qty: item.qty ?? 1, totalCost: item.totalCost ?? 0, discount: item.discount ?? 0 };
+      return { product, qty: item.qty ?? 1, totalCost: item.totalCost ?? 0, discount: item.discount ?? 0, unitRate: (item as any).sellingPrice ?? 0 };
     });
     setCart(newCart);
     setRefNo(data?.refNo ?? '');
@@ -442,8 +460,7 @@ export function Purchase() {
     setInvoiceDiscount(data?.invoiceDiscount ?? 0);
     setInvoiceTax(data?.invoiceTax ?? 0);
     setInvoiceExpenses(data?.invoiceExpenses ?? 0);
-    setAccountId(data?.accountId);
-    setPaidAmount(data?.paidAmount ?? '');
+    setAccountAmounts(data?.accountAmounts ?? {});
     if (data?.supplierSnapshot) setSupplier(data.supplierSnapshot as Supplier);
     try { await heldService.resumePurchase(held.id); } catch (e) { console.error('[resumePurchase]', e); }
     showToast('success', `Loaded held purchase #${held.id}`);
@@ -453,26 +470,35 @@ export function Purchase() {
   // Submit / Save
   const submit = useCallback(async () => {
     if (!cart.length) return showToast('error', 'Cart is empty');
-    if (!accountId && !supplier) return showToast('error', 'Please select a payment account');
+    const paymentEntries = accounts
+      .filter(a => (parseFloat(accountAmounts[a.id] || '0') || 0) > 0)
+      .map(a => ({ accountId: a.id, amount: parseFloat(accountAmounts[a.id]) || 0 }));
+
+    // When no supplier: only allow paying up to grand total
+    if (!supplier && paidTotal > grandTotal + 0.01) {
+      return showToast('error', 'No supplier selected — payment cannot exceed the grand total');
+    }
     setSaving(true);
     try {
       const po = await purchaseService.create({
         invoiceNo: refNo || undefined,
         supplierId: supplier?.id,
-        accountId,
+        payments: paymentEntries,
         discount: invoiceDiscount,
-        paidAmount: paidAmountNum,
+        paidAmount: paidTotal,
         taxAmount: invoiceTax,
         expenses: invoiceExpenses,
         note: note || undefined,
         items: cart.map(i => {
           const unitCost = i.qty > 0 ? i.totalCost / i.qty : 0;
+          const discountPerUnit = i.qty > 0 ? i.discount / i.qty : 0;
           return {
             productId: i.product.id,
             quantity: i.qty,
             unitCost,
-            totalCost: i.totalCost * (1 - i.discount / 100),
-            discount: i.discount,
+            sellingPrice: i.unitRate,
+            totalCost: i.totalCost - i.discount,
+            discount: discountPerUnit,
             taxAmount: 0,
           };
         }),
@@ -480,13 +506,13 @@ export function Purchase() {
 
       const poTyped = po as { id: number; invoiceNo?: string };
       const printData: PurchaseInvoiceData = {
-        purchase: { id: poTyped.id, invoiceNo: poTyped.invoiceNo, refNumber: refNo, supplierId: supplier?.id, supplier, accountId: accountId!, totalAmount: itemNetTotal, paidAmount: paidAmountNum, discount: invoiceDiscount, taxAmount: invoiceTax, expenses: invoiceExpenses, date: new Date().toISOString(), createdAt: new Date().toISOString() },
+        purchase: { id: poTyped.id, invoiceNo: poTyped.invoiceNo, refNumber: refNo, supplierId: supplier?.id, supplier, accountId: paymentEntries[0]?.accountId, totalAmount: itemNetTotal, paidAmount: paidTotal, discount: invoiceDiscount, taxAmount: invoiceTax, expenses: invoiceExpenses, date: new Date().toISOString(), createdAt: new Date().toISOString() },
         items: cart.map(i => ({
           name: i.product.name,
           qty: i.qty,
           unitCost: i.qty > 0 ? i.totalCost / i.qty : 0,
           discount: i.discount,
-          total: i.totalCost * (1 - i.discount / 100),
+          total: i.totalCost - i.discount,
         })),
         supplier: supplier ?? null,
         subtotal: itemNetTotal + itemDiscountTotal,
@@ -494,7 +520,7 @@ export function Purchase() {
         taxAmount: invoiceTax,
         expenses: invoiceExpenses,
         grandTotal,
-        paidAmount: paidAmountNum,
+        paidAmount: paidTotal,
       };
 
       clearCart();
@@ -506,7 +532,7 @@ export function Purchase() {
     } finally {
       setSaving(false);
     }
-  }, [cart, supplier, refNo, note, invoiceDiscount, invoiceTax, invoiceExpenses, accountId, paidAmountNum, grandTotal, clearCart, showToast, itemNetTotal, itemDiscountTotal]);
+  }, [cart, supplier, refNo, note, invoiceDiscount, invoiceTax, invoiceExpenses, accounts, accountAmounts, paidTotal, grandTotal, clearCart, showToast, itemNetTotal, itemDiscountTotal]);
 
   // Stable refs
   submitRef.current = submit;
@@ -521,7 +547,7 @@ export function Purchase() {
         case 'F2': e.preventDefault(); barcodeRef.current?.focus(); barcodeRef.current?.select(); break;
         case 'F3': e.preventDefault(); lastQtyRef.current?.focus(); lastQtyRef.current?.select(); break;
         case 'F5': e.preventDefault(); setShowProductModal(true); break;
-        case 'F6': e.preventDefault(); paidAmountRef.current?.focus(); paidAmountRef.current?.select(); break;
+        case 'F6': e.preventDefault(); firstAccountRef.current?.focus(); firstAccountRef.current?.select(); break;
         case 'F7': e.preventDefault(); submitRef.current(); break;
         case 'F8': e.preventDefault(); holdRef.current(); break;
         case 'F9': e.preventDefault(); setShowHeldModal(true); break;
@@ -633,7 +659,9 @@ export function Purchase() {
                   <th className="text-left px-3 py-2 font-medium text-gray-500">Product</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-28">Qty</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-32">Total Cost</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-20">Disc%</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-20">Disc (Rs)</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-28">Sale Rate</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Profit</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Net</th>
                   <th className="w-8"></th>
                 </tr>
@@ -642,7 +670,9 @@ export function Purchase() {
                 {cart.map((item, idx) => {
                   const isFirst = idx === 0;
                   const unitCost = item.qty > 0 ? item.totalCost / item.qty : 0;
-                  const netTotal = item.totalCost * (1 - item.discount / 100);
+                  const netTotal = item.totalCost - item.discount;
+                  const profitPerUnit = item.unitRate - unitCost;
+                  const profitTotal = profitPerUnit * item.qty;
                   return (
                     <tr key={item.product.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-1.5">
@@ -672,8 +702,15 @@ export function Purchase() {
                           className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
                       </td>
                       <td className="px-2 py-1.5">
-                        <input type="number" value={item.discount} min={0} max={100} step="0.01" onChange={e => updateField(idx, 'discount', Number(e.target.value))}
+                        <input type="number" value={item.discount} min={0} step="0.01" onChange={e => updateField(idx, 'discount', Number(e.target.value))}
                           className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <input type="number" value={item.unitRate} min={0} step="0.01" onChange={e => updateField(idx, 'unitRate', Number(e.target.value))}
+                          className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 py-0.5 px-1 text-xs" />
+                      </td>
+                      <td className={`px-2 py-1.5 text-right text-xs font-medium ${profitTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                        {profitTotal !== 0 ? fmt(profitTotal) : '—'}
                       </td>
                       <td className="px-2 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(netTotal)}</td>
                       <td className="px-1 py-1.5">
@@ -703,7 +740,7 @@ export function Purchase() {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 space-y-3">
           <div>
             <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Supplier <span className="normal-case font-normal text-gray-400">(optional)</span></p>
-            <SupplierSearch value={supplier} onSelect={setSupplier} />
+            <SupplierSearch value={supplier} onSelect={setSupplier} onCreateNew={() => setShowQuickSupplier(true)} />
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Ref / Bill #</label>
@@ -714,28 +751,68 @@ export function Purchase() {
 
         {/* Payment + Totals */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 space-y-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase">Payment</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase">
+            Payment <span className="normal-case font-normal text-gray-400">(F6)</span>
+          </p>
 
-          <div>
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Account *</label>
-            <AccountSelect value={accountId} onChange={id => setAccountId(id)} />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
-              Paid Amount <span className="font-normal text-gray-400">(F6)</span>
-            </label>
-            <input
-              ref={paidAmountRef}
-              type="number"
-              value={paidAmount}
-              min={0}
-              step="0.01"
-              placeholder={grandTotal > 0 ? grandTotal.toFixed(2) : '0'}
-              onChange={e => setPaidAmount(e.target.value)}
-              className="w-full text-right border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
-            />
-          </div>
+          {!supplier ? (
+            /* No supplier selected: only allow paying exactly the grand total */
+            <div className="space-y-1.5">
+              <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                <AlertCircle size={12} /> No supplier — full payment only
+              </p>
+              {accounts.length === 0 ? (
+                <p className="text-xs text-gray-400 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Loading accounts</p>
+              ) : (
+                <div className="space-y-2">
+                  {accounts.map((account, idx) => (
+                    <div key={account.id} className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{account.name}</p>
+                        <p className="text-xs text-gray-400">{account.type}</p>
+                      </div>
+                      <input
+                        ref={idx === 0 ? firstAccountRef : undefined}
+                        type="number"
+                        value={accountAmounts[account.id] ?? ''}
+                        min={0}
+                        step="0.01"
+                        placeholder="0"
+                        onChange={e => setAccountAmounts(prev => ({ ...prev, [account.id]: e.target.value }))}
+                        className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Supplier selected: split payments across accounts */
+            accounts.length === 0 ? (
+              <p className="text-xs text-gray-400 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Loading accounts</p>
+            ) : (
+              <div className="space-y-2">
+                {accounts.map((account, idx) => (
+                  <div key={account.id} className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{account.name}</p>
+                      <p className="text-xs text-gray-400">{account.type}</p>
+                    </div>
+                    <input
+                      ref={idx === 0 ? firstAccountRef : undefined}
+                      type="number"
+                      value={accountAmounts[account.id] ?? ''}
+                      min={0}
+                      step="0.01"
+                      placeholder="0"
+                      onChange={e => setAccountAmounts(prev => ({ ...prev, [account.id]: e.target.value }))}
+                      className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
+                    />
+                  </div>
+                ))}
+              </div>
+            )
+          )}
 
           {/* Invoice Discount */}
           <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
@@ -783,17 +860,20 @@ export function Purchase() {
             <span>Grand Total</span><span>{fmt(grandTotal)}</span>
           </div>
 
-          {cart.length > 0 && paidAmountNum > 0 && (
+          {cart.length > 0 && paidTotal > 0 && (
             <div className="space-y-0.5 text-xs">
               <div className="flex justify-between font-bold text-sm text-gray-500">
                 <span>Paid</span>
-                <span className={paidAmountNum >= grandTotal - 0.01 ? 'text-green-600 font-medium' : 'text-gray-700'}>{fmt(paidAmountNum)}</span>
+                <span className={paidTotal >= grandTotal - 0.01 ? 'text-green-600 font-medium' : 'text-gray-700'}>{fmt(paidTotal)}</span>
               </div>
-              {balance > 0.009 && (
+              {supplier && balance > 0.009 && (
                 <div className="flex justify-between text-amber-600 font-bold text-sm"><span>Overpaid</span><span>{fmt(balance)}</span></div>
               )}
-              {balance < -0.009 && (
+              {supplier && balance < -0.009 && (
                 <div className="flex justify-between text-red-500 font-bold text-sm"><span>Remaining</span><span>{fmt(-balance)}</span></div>
+              )}
+              {!supplier && balance > 0.009 && (
+                <div className="flex justify-between text-red-500 font-bold text-sm"><span>Exceeds Total</span><span>{fmt(balance)}</span></div>
               )}
               {Math.abs(balance) <= 0.009 && (
                 <div className="flex justify-between text-green-600 font-bold text-sm"><span>Status</span><span>Exact ✓</span></div>
@@ -827,6 +907,7 @@ export function Purchase() {
           <p className="text-center text-xs text-amber-500">Draft auto-saved</p>
         )}
       </div>
+      <QuickSupplierAdd open={showQuickSupplier} onClose={() => setShowQuickSupplier(false)} onCreated={(s) => { setSupplier(s); setShowQuickSupplier(false); }} />
     </div>
   );
 }

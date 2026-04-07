@@ -5,7 +5,7 @@ import { apiClient } from './api';
 import { API_ENDPOINTS } from '../config/api';
 import type {
   PaginatedResponse, Account, Customer, Supplier, Category, Brand,
-  Product, ProductVariant, Sale, Purchase, SaleReturn, PurchaseReturn,
+  Product, ProductVariant, Sale, Purchase,
   Employee, EmployeeAdvance, SalarySlip, Expense, RecurringExpense,
   Package, Promotion, AdvanceBooking, StockMovement, HeldSale, HeldPurchase,
   DashboardStats, User, CustomerLedgerEntry, SupplierLedgerEntry,
@@ -74,6 +74,7 @@ export const productService = {
   updateVariant: (id: number, variantId: number, data: object) => apiClient.put<ProductVariant>(API_ENDPOINTS.products.updateVariant(id, variantId), data),
   deleteVariant: (id: number, variantId: number) => apiClient.delete(API_ENDPOINTS.products.deleteVariant(id, variantId)),
   getVariantByBarcode: (barcode: string) => apiClient.get<ProductVariant>(API_ENDPOINTS.products.variantByBarcode(barcode)),
+  uploadImage: (file: File) => apiClient.uploadFile<{ imageUrl: string }>(API_ENDPOINTS.products.uploadImage, file, 'image'),
 };
 
 // ---- Stock Movements ----
@@ -89,12 +90,6 @@ export const saleService = {
   get: (id: number) => apiClient.get<Sale>(API_ENDPOINTS.sales.detail(id)),
   create: (data: object) => apiClient.post<Sale>(API_ENDPOINTS.sales.create, data),
   delete: (id: number) => apiClient.delete(API_ENDPOINTS.sales.delete(id)),
-  listReturns: (params?: object) => apiClient.get<PaginatedResponse<SaleReturn>>(API_ENDPOINTS.sales.returnsList, { params }),
-  getReturn: (id: number) => apiClient.get<SaleReturn>(API_ENDPOINTS.sales.returnDetail(id)),
-  createReturn: (data: object) => apiClient.post<SaleReturn>(API_ENDPOINTS.sales.returnsCreate, data),
-  approveReturn: (id: number, data?: object) => apiClient.patch<SaleReturn>(API_ENDPOINTS.sales.returnApprove(id), data),
-  rejectReturn: (id: number, data?: object) => apiClient.patch<SaleReturn>(API_ENDPOINTS.sales.returnReject(id), data),
-  processReturn: (id: number, data?: object) => apiClient.patch<SaleReturn>(API_ENDPOINTS.sales.returnProcess(id), data),
 };
 
 // ---- Purchases ----
@@ -103,9 +98,6 @@ export const purchaseService = {
   get: (id: number) => apiClient.get<Purchase>(API_ENDPOINTS.purchases.detail(id)),
   create: (data: object) => apiClient.post<Purchase>(API_ENDPOINTS.purchases.create, data),
   delete: (id: number) => apiClient.delete(API_ENDPOINTS.purchases.delete(id)),
-  listReturns: (params?: object) => apiClient.get<PaginatedResponse<PurchaseReturn>>(API_ENDPOINTS.purchases.returnsList, { params }),
-  getReturn: (id: number) => apiClient.get<PurchaseReturn>(API_ENDPOINTS.purchases.returnDetail(id)),
-  createReturn: (data: object) => apiClient.post<PurchaseReturn>(API_ENDPOINTS.purchases.returnsCreate, data),
 };
 
 // ---- Packages ----

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Pencil, Trash2, Loader2, ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Loader2, Package } from 'lucide-react';
+import { Pagination } from '../components/ui/Pagination';
 import { productService, categoryService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import type { Product, Category } from '../types/pos';
@@ -137,14 +138,7 @@ export function Products() {
               </table>
             )}
         {totalPages > 1 && (
-          <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-sm">
-            <span className="text-gray-500">{total} products</span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"><ChevronLeft size={16} /></button>
-              <span className="text-gray-700 dark:text-gray-300">{page} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"><ChevronRight size={16} /></button>
-            </div>
-          </div>
+          <Pagination currentPage={page} totalPages={totalPages} totalItems={total} itemsPerPage={PAGE_SIZE} onPageChange={setPage} />
         )}
       </div>
 

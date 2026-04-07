@@ -3,12 +3,17 @@ import { Search, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { brandService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Pagination } from '../components/ui/Pagination';
 import type { Brand } from '../types/pos';
+
+const PAGE_SIZE = 20;
 
 export function Brands() {
   const [items, setItems] = useState<Brand[]>([]);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [modal, setModal] = useState<{ mode: 'add' | 'edit'; item?: Brand } | null>(null);
   const [confirm, setConfirm] = useState<{ id: number } | null>(null);
   const [form, setForm] = useState<Partial<Brand>>({});
@@ -16,9 +21,9 @@ export function Brands() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await brandService.list({ q, pageSize: 100 }); setItems(r.data); }
+    try { const r = await brandService.list({ q, page, pageSize: PAGE_SIZE }); setItems(r.data); setTotal(r.pagination?.total ?? 0); }
     catch { setItems([]); } finally { setLoading(false); }
-  }, [q]);
+  }, [q, page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -48,33 +53,34 @@ export function Brands() {
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search brands..."
+            <input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="Search brands..."
               className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
         </div>
         {loading ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
           : items.length === 0 ? <p className="text-center text-gray-400 py-12 text-sm">No brands found</p>
-          : (
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
-                <th className="px-4 py-2">Name</th><th className="px-4 py-2">Description</th><th className="px-4 py-2">Actions</th>
-              </tr></thead>
-              <tbody>
-                {items.map(item => (
-                  <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{item.description ?? '—'}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex gap-2">
-                        <button onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }} className="text-gray-400 hover:text-primary-600"><Pencil size={14} /></button>
-                        <button onClick={() => setConfirm({ id: item.id })} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+            : (
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
+                  <th className="px-4 py-2">Name</th><th className="px-4 py-2">Description</th><th className="px-4 py-2">Actions</th>
+                </tr></thead>
+                <tbody>
+                  {items.map(item => (
+                    <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{item.description ?? '—'}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex gap-2">
+                          <button onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }} className="text-gray-400 hover:text-primary-600"><Pencil size={14} /></button>
+                          <button onClick={() => setConfirm({ id: item.id })} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+        {(() => { const totalPages = Math.ceil(total / PAGE_SIZE); return totalPages > 1 ? <Pagination currentPage={page} totalPages={totalPages} totalItems={total} itemsPerPage={PAGE_SIZE} onPageChange={setPage} /> : null; })()}
       </div>
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit Brand' : 'Add Brand'} size="sm">
         <div className="space-y-3">

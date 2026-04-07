@@ -3,21 +3,26 @@ import { Loader2, Play, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { heldService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Pagination } from '../components/ui/Pagination';
 import type { HeldSale } from '../types/pos';
+
+const PAGE_SIZE = 20;
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
 
 export function HeldTransactions() {
   const [items, setItems] = useState<HeldSale[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [confirm, setConfirm] = useState<{ id: number } | null>(null);
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await heldService.listSales({}); setItems(r.data ?? []); }
+    try { const r = await heldService.listSales({ page, pageSize: PAGE_SIZE }); setItems(r.data ?? []); setTotal(r.pagination?.total ?? 0); }
     catch { setItems([]); } finally { setLoading(false); }
-  }, []);
+  }, [page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -67,6 +72,7 @@ export function HeldTransactions() {
                 </tbody>
               </table>
             )}
+        {(() => { const totalPages = Math.ceil(total / PAGE_SIZE); return totalPages > 1 ? <Pagination currentPage={page} totalPages={totalPages} totalItems={total} itemsPerPage={PAGE_SIZE} onPageChange={setPage} /> : null; })()}
       </div>
       <ConfirmDialog open={!!confirm} title="Discard Transaction" message="Discard this held transaction?" variant="danger" confirmLabel="Discard" onConfirm={del} onCancel={() => setConfirm(null)} />
     </div>

@@ -3,13 +3,17 @@ import { Plus, Pencil, Trash2, Loader2, Eye, EyeOff } from 'lucide-react';
 import { userService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Pagination } from '../components/ui/Pagination';
 import type { User } from '../types/pos';
 
 const ROLES = ['ADMIN', 'CASHIER', 'MANAGER'];
+const PAGE_SIZE = 20;
 
 export function Users() {
   const [items, setItems] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [modal, setModal] = useState<{ mode: 'add' | 'edit'; item?: User } | null>(null);
   const [confirm, setConfirm] = useState<{ id: number } | null>(null);
   const [form, setForm] = useState<Partial<User> & { password?: string }>({ role: 'CASHIER', status: true });
@@ -18,9 +22,9 @@ export function Users() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await userService.list({ pageSize: 200 }); setItems(r.data); }
+    try { const r = await userService.list({ page, pageSize: PAGE_SIZE }); setItems(r.data); setTotal(r.pagination?.total ?? 0); }
     catch { setItems([]); } finally { setLoading(false); }
-  }, []);
+  }, [page]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -79,6 +83,7 @@ export function Users() {
                 </tbody>
               </table>
             )}
+        {(() => { const totalPages = Math.ceil(total / PAGE_SIZE); return totalPages > 1 ? <Pagination currentPage={page} totalPages={totalPages} totalItems={total} itemsPerPage={PAGE_SIZE} onPageChange={setPage} /> : null; })()}
       </div>
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit User' : 'Add User'} size="sm">
         <div className="space-y-3">

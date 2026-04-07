@@ -166,6 +166,14 @@ export interface PurchaseItem {
     totalCost?: number;
 }
 
+export interface PurchasePayment {
+    id?: number;
+    accountId: number;
+    account?: Account;
+    amount: number;
+    note?: string;
+}
+
 export interface Purchase {
     id: number;
     invoiceNo?: string | null;
@@ -174,7 +182,7 @@ export interface Purchase {
     supplier?: Supplier | null;
     userId?: number | null;
     user?: User | null;
-    accountId: number;
+    accountId?: number | null;
     account?: Account;
     totalAmount: number;
     paidAmount: number;
@@ -185,72 +193,23 @@ export interface Purchase {
     date: string;
     createdAt: string;
     items?: PurchaseItem[];
+    payments?: PurchasePayment[];
 }
 
-export interface SaleReturn {
-    id: number;
-    saleId: number;
-    sale?: Sale;
-    reason?: string | null;
-    totalRefund: number;
-    accountId?: number | null;
-    account?: Account | null;
-    userId?: number | null;
-    adminId?: number | null;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'PROCESSED' | 'CANCELLED';
-    requestedAt: string;
-    approvedAt?: string | null;
-    processedAt?: string | null;
-    adminNotes?: string | null;
-    items?: ReturnItem[];
-}
-
-export interface ReturnItem {
-    id?: number;
-    variantId: number;
-    variant?: ProductVariant;
-    quantity: number;
-    unitPrice: number;
-    discount: number;
-}
-
-export interface PurchaseReturn {
-    id: number;
-    purchaseId: number;
-    purchase?: Purchase;
-    reason?: string | null;
-    totalRefund: number;
-    accountId?: number | null;
-    account?: Account | null;
-    date: string;
-    createdAt: string;
-    items?: PurchaseReturnItem[];
-}
-
-export interface PurchaseReturnItem {
-    id?: number;
-    variantId: number;
-    variant?: ProductVariant;
-    quantity: number;
-    unitCost: number;
-    discount: number;
-    totalCost?: number;
-}
 
 export interface Employee {
     id: number;
-    userId: number;
+    userId?: number | null;
     user?: User;
-    name?: string;
+    name: string;
     phone?: string | null;
     cnic?: string | null;
     designation?: string | null;
-    salary?: number;
     baseSalary: number;
     advanceLimit: number;
     balance: number;
     joiningDate: string;
-    isActive?: boolean;
+    active: boolean;
     createdAt?: string;
 }
 

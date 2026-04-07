@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Pencil, Trash2, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Pagination } from '../components/ui/Pagination';
 import { expenseService } from '../services/pos.service';
 import { AccountSelect } from '../components/ui/AccountSelect';
 import { Modal } from '../components/ui/Modal';
@@ -64,40 +65,33 @@ export function Expenses() {
         </div>
         {loading ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
           : items.length === 0 ? <p className="text-center text-gray-400 py-12 text-sm">No expenses found</p>
-          : (
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
-                <th className="px-4 py-2">Date</th><th className="px-4 py-2">Description</th><th className="px-4 py-2">Category</th>
-                <th className="px-4 py-2">Account</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2">Actions</th>
-              </tr></thead>
-              <tbody>
-                {items.map(item => (
-                  <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-4 py-2.5 text-gray-500">{new Date(item.date).toLocaleDateString()}</td>
-                    <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.description}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{item.category ?? '—'}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{item.account?.name ?? '—'}</td>
-                    <td className="px-4 py-2.5 text-right font-medium text-red-600">{fmt(item.amount)}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex gap-2">
-                        <button onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }} className="text-gray-400 hover:text-primary-600"><Pencil size={14} /></button>
-                        <button onClick={() => setConfirm({ id: item.id })} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+            : (
+              <table className="w-full text-sm">
+                <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
+                  <th className="px-4 py-2">Date</th><th className="px-4 py-2">Description</th><th className="px-4 py-2">Category</th>
+                  <th className="px-4 py-2">Account</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2">Actions</th>
+                </tr></thead>
+                <tbody>
+                  {items.map(item => (
+                    <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-4 py-2.5 text-gray-500">{new Date(item.date).toLocaleDateString()}</td>
+                      <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.description}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{item.category ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{item.account?.name ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-right font-medium text-red-600">{fmt(item.amount)}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex gap-2">
+                          <button onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }} className="text-gray-400 hover:text-primary-600"><Pencil size={14} /></button>
+                          <button onClick={() => setConfirm({ id: item.id })} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
         {totalPages > 1 && (
-          <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-sm">
-            <span className="text-gray-500">{total} total</span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"><ChevronLeft size={16} /></button>
-              <span>{page} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"><ChevronRight size={16} /></button>
-            </div>
-          </div>
+          <Pagination currentPage={page} totalPages={totalPages} totalItems={total} itemsPerPage={PAGE_SIZE} onPageChange={setPage} />
         )}
       </div>
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit Expense' : 'Add Expense'} size="sm">

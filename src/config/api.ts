@@ -85,6 +85,7 @@ export const API_ENDPOINTS = {
         detail: (id: number) => `/products/${id}`,
         update: (id: number) => `/products/${id}`,
         delete: (id: number) => `/products/${id}`,
+        uploadImage: '/products/upload-image',
         variants: (id: number) => `/products/${id}/variants`,
         variant: (id: number, variantId: number) => `/products/${id}/variants/${variantId}`,
         createVariant: (id: number) => `/products/${id}/variants`,
@@ -101,21 +102,12 @@ export const API_ENDPOINTS = {
         create: '/sales',
         detail: (id: number) => `/sales/${id}`,
         delete: (id: number) => `/sales/${id}`,
-        returnsList: '/sales/returns/all',
-        returnsCreate: '/sales/returns',
-        returnDetail: (id: number) => `/sales/returns/${id}`,
-        returnApprove: (id: number) => `/sales/returns/${id}/approve`,
-        returnReject: (id: number) => `/sales/returns/${id}/reject`,
-        returnProcess: (id: number) => `/sales/returns/${id}/process`,
     },
     purchases: {
         list: '/purchases',
         create: '/purchases',
         detail: (id: number) => `/purchases/${id}`,
         delete: (id: number) => `/purchases/${id}`,
-        returnsList: '/purchases/returns/all',
-        returnsCreate: '/purchases/returns',
-        returnDetail: (id: number) => `/purchases/returns/${id}`,
     },
     packages: {
         list: '/packages',
@@ -200,5 +192,7 @@ export const API_ENDPOINTS = {
     settings: {
         get: '/settings',
         update: '/settings',
+        backup: '/settings/backup',
+        restore: '/settings/restore',
     },
 } as const;

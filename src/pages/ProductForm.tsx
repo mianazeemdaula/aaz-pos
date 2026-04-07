@@ -1,9 +1,53 @@
-import { useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Save, X } from 'lucide-react';
+import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Save, X, Upload } from 'lucide-react';
 import { productService, categoryService, brandService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { API_CONFIG } from '../config/api';
 import type { Product, Category, Brand, ProductVariant } from '../types/pos';
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+const serverOrigin = API_CONFIG.baseURL.replace(/\/api\/?$/, '');
+
+function ImageUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+    const [uploading, setUploading] = useState(false);
+    const fileRef = useRef<HTMLInputElement>(null);
+
+    const handleFile = async (file: File) => {
+        setUploading(true);
+        try {
+            const r = await productService.uploadImage(file);
+            onChange(r.imageUrl);
+        } catch (e: unknown) {
+            alert(e instanceof Error ? e.message : 'Upload failed');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const imgSrc = value ? (value.startsWith('http') ? value : `${serverOrigin}${value}`) : '';
+
+    return (
+        <div className="flex items-center gap-3">
+            {imgSrc ? (
+                <div className="relative w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
+                    <img src={imgSrc} alt="Product" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => onChange('')}
+                        className="absolute top-0 right-0 p-0.5 bg-red-500 text-white rounded-bl-lg">
+                        <X size={10} />
+                    </button>
+                </div>
+            ) : null}
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
+                {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                {uploading ? 'Uploading…' : value ? 'Change Image' : 'Select Image'}
+            </button>
+            <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden"
+                onChange={e => { const file = e.target.files?.[0]; if (file) handleFile(file); e.target.value = ''; }} />
+        </div>
+    );
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmt = (n: number | null | undefined) =>
@@ -485,8 +529,8 @@ export function ProductForm() {
                             className={`${inp} resize-none`} placeholder="Optional product description" />
                     </div>
                     <div className="md:col-span-2">
-                        <label className={lbl}>Image URL</label>
-                        <input value={form.imageUrl} onChange={e => f('imageUrl', e.target.value)} className={inp} placeholder="https://..." />
+                        <label className={lbl}>Product Image</label>
+                        <ImageUpload value={form.imageUrl} onChange={(url) => f('imageUrl', url)} />
                     </div>
                 </div>
             </div>

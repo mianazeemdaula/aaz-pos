@@ -175,6 +175,7 @@ export function Sale() {
 
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [pendingPrintData, setPendingPrintData] = useState<SaleInvoiceData | null>(null);
+  const [returnMode, setReturnMode] = useState(false);
 
   const barcodeRef = useRef<HTMLInputElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
@@ -193,7 +194,8 @@ export function Sale() {
   const subtotal = cart.reduce((a, i) => a + i.qty * i.price, 0);
   const itemDiscountTotal = cart.reduce((a, i) => a + computeLine(i).discAmt, 0);
   const taxTotal = cart.reduce((a, i) => a + computeLine(i).taxAmt, 0);
-  const grandTotal = Math.max(0, cart.reduce((a, i) => a + computeLine(i).lineTotal, 0) - invoiceDiscount);
+  const grandTotal = cart.reduce((a, i) => a + computeLine(i).lineTotal, 0) - invoiceDiscount;
+  const isReturnCart = grandTotal < -0.01;
   const paidTotal = Object.values(accountAmounts).reduce((a, v) => a + (parseFloat(v) || 0), 0);
   const change = paidTotal - grandTotal;
 
@@ -208,13 +210,13 @@ export function Sale() {
       const idx = prev.findIndex(i => i.variant.id === variant.id);
       if (idx >= 0) {
         const next = [...prev];
-        next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
+        next[idx] = { ...next[idx], qty: returnMode ? next[idx].qty - 1 : next[idx].qty + 1 };
         return next;
       }
       return [{
         product,
         variant: enrichedVariant,
-        qty: 1,
+        qty: returnMode ? -1 : 1,
         priceType,
         price: getVariantPrice(variant, priceType),
         discount: 0,
@@ -225,7 +227,7 @@ export function Sale() {
     });
     setBarcode('');
     setTimeout(() => barcodeRef.current?.focus(), 30);
-  }, []);
+  }, [returnMode]);
 
   const handleBarcodeEnter = useCallback(async (bc: string) => {
     if (!bc.trim()) return;
@@ -247,10 +249,10 @@ export function Sale() {
   }, [addToCart]);
 
   const updateQty = (idx: number, delta: number) =>
-    setCart(prev => prev.map((item, i) => i === idx ? { ...item, qty: Math.max(1, item.qty + delta) } : item));
+    setCart(prev => prev.map((item, i) => i === idx ? { ...item, qty: returnMode ? Math.min(-1, item.qty + delta) : Math.max(1, item.qty + delta) } : item));
 
   const updateField = (idx: number, field: 'price' | 'discount' | 'qty', val: number) =>
-    setCart(prev => prev.map((item, i) => i === idx ? { ...item, [field]: field === 'qty' ? Math.max(1, val) : val } : item));
+    setCart(prev => prev.map((item, i) => i === idx ? { ...item, [field]: field === 'qty' ? (returnMode ? Math.min(-1, val) : Math.max(1, val)) : val } : item));
 
   const removeItem = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx));
 
@@ -415,7 +417,7 @@ export function Sale() {
 
   const submit = useCallback(async () => {
     if (!cart.length) return showToast('error', 'Cart is empty');
-    if (paidTotal < grandTotal - 0.01 && !customer) {
+    if (!isReturnCart && paidTotal < grandTotal - 0.01 && !customer) {
       return showToast('error', 'Payment is short. Enter the received amount.');
     }
     setSaving(true);
@@ -445,7 +447,7 @@ export function Sale() {
 
       const sale = await saleService.create(salePayload);
 
-      if (FBR_CONFIG.enabled) {
+      if (FBR_CONFIG.enabled && !isReturnCart) {
         try {
           const saleVal = cart.reduce((a, i) => {
             const { afterDisc, taxAmt } = computeLine(i);
@@ -728,6 +730,16 @@ export function Sale() {
             >
               <Search size={14} /> <span className="hidden sm:inline">Search</span> <span className="text-xs text-primary-400">F5</span>
             </button>
+            <label
+              title="Toggle Return Mode"
+              className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${returnMode
+                ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-300 dark:border-red-600'
+                : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100'
+                }`}
+            >
+              <input type="checkbox" checked={returnMode} onChange={() => { setReturnMode(r => !r); setAccountAmounts({}); }} className="rounded border-gray-300 text-red-600 focus:ring-red-500" />
+              Return
+            </label>
           </div>
           {barcodeError && <p className="text-xs text-red-500 mt-1 pl-1">{barcodeError}</p>}
         </div>
@@ -744,7 +756,8 @@ export function Sale() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-                  <th className="text-left px-3 py-2 font-medium text-gray-500">Product / Variant</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-500">Product</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-500">Varient</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-28">Qty</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-32">Price</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-16">Disc%</th>
@@ -754,7 +767,7 @@ export function Sale() {
                 </tr>
               </thead>
               <tbody>
-                {cart.map((item, idx) => {
+                {cart.map((item: CartItem, idx: number) => {
                   const isLast = idx === 0;
                   const lc = computeLine(item);
                   const variants = item.product.variants ?? [];
@@ -764,7 +777,10 @@ export function Sale() {
                     <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-1.5">
                         <p className="font-medium text-gray-900 dark:text-gray-100">{item.product.name}</p>
-                        {variants.length > 1 ? (
+                        <p className="text-gray-400 text-xs">{item.variant.barcode} · {item.variant.name}</p>
+                      </td>
+                      <td>
+                        {variants.length > 1 && (
                           <select
                             value={item.variant.id}
                             onChange={e => changeVariant(idx, Number(e.target.value))}
@@ -772,15 +788,10 @@ export function Sale() {
                           >
                             {variants.map(v => (
                               <option key={v.id} value={v.id}>
-                                {v.name} (×{v.factor}) - {fmt(v.price)}
+                                {v.name} (×{v.factor})
                               </option>
                             ))}
                           </select>
-                        ) : (
-                          <p className="text-gray-400">{item.variant.name}{item.variant.barcode ? ` · ${item.variant.barcode}` : ''}</p>
-                        )}
-                        {item.taxMethod === 'INCLUSIVE' && item.taxRate > 0 && (
-                          <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded mt-0.5 inline-block">Tax Incl.</span>
                         )}
                       </td>
                       <td className="px-2 py-1.5">
@@ -790,7 +801,7 @@ export function Sale() {
                             ref={isLast ? lastQtyRef : undefined}
                             type="number"
                             value={item.qty}
-                            min={1}
+                            min={returnMode ? -9999 : 1}
                             onChange={e => updateField(idx, 'qty', Number(e.target.value))}
                             onKeyDown={isLast ? e => { if (e.key === 'Enter') { e.preventDefault(); barcodeRef.current?.focus(); } } : undefined}
                             className="w-10 text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 text-xs"
@@ -819,11 +830,19 @@ export function Sale() {
                       <td className="px-2 py-1.5">
                         <input type="number" value={item.discount} min={0} max={100} step="0.01" onChange={e => updateField(idx, 'discount', Math.min(100, Number(e.target.value)))}
                           className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
+
                       </td>
-                      <td className="px-2 py-1.5 text-right">
-                        {item.taxRate > 0 && (
-                          <p className="text-primary-600">{lc.taxAmt.toFixed(2)}</p>
-                        )}
+                      <td className="px-2 py-1.5 text-right flex">
+                        <span>
+                          {item.taxRate > 0 && (
+                            <p className="text-primary-600">{lc.taxAmt.toFixed(2)}</p>
+                          )}
+                        </span>
+                        <span>
+                          {item.taxMethod === 'INCLUSIVE' && item.taxRate > 0 && (
+                            <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded mt-0.5 inline-block">Incl.</span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-2 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(lc.lineTotal)}</td>
                       <td className="px-1 py-1.5">
@@ -911,7 +930,8 @@ export function Sale() {
           )}
 
           <div className="flex justify-between font-bold text-sm text-gray-900 dark:text-gray-100 pt-1.5 border-t border-gray-100 dark:border-gray-700 mt-1">
-            <span>Grand Total</span><span>{fmt(grandTotal)}</span>
+            <span>{isReturnCart ? 'Refund Amount' : 'Grand Total'}</span>
+            <span className={isReturnCart ? 'text-red-600' : ''}>{fmt(Math.abs(grandTotal))}</span>
           </div>
           {cart.length > 0 && (
             <div className="mt-2 border-t border-gray-100 dark:border-gray-700 pt-2 space-y-0.5 text-xs">
@@ -920,7 +940,7 @@ export function Sale() {
                 <span className={paidTotal >= grandTotal - 0.01 ? 'text-green-600 font-medium' : 'text-gray-700'}>{fmt(paidTotal)}</span>
               </div>
               {change > 0.009 && (
-                <div className="flex justify-between text-green-600 font-bold text-sm"><span>Change</span><span>{fmt(change)}</span></div>
+                <div className="flex justify-between text-green-600 font-bold text-sm"><span>{isReturnCart ? 'To Refund' : 'Change'}</span><span>{fmt(change)}</span></div>
               )}
               {change < -0.009 && (
                 <div className="flex justify-between text-red-500 font-bold text-sm"><span>Remaining</span><span>{fmt(-change)}</span></div>
@@ -946,7 +966,7 @@ export function Sale() {
             disabled={saving || !cart.length}
             className="w-full py-2.5 px-4 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors">
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-            {saving ? 'Saving…' : `Save Sale (F7)  ${fmt(grandTotal)}`}
+            {saving ? 'Saving…' : isReturnCart ? `Process Return (F7)  ${fmt(Math.abs(grandTotal))}` : `Save Sale (F7)  ${fmt(grandTotal)}`}
           </button>
           <p className="text-center text-xs text-gray-400 mt-2">
             F8 Hold &nbsp;&bull;&nbsp; F9 Held &nbsp;&bull;&nbsp; F12 Clear

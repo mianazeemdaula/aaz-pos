@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { settingsService } from '../services/pos.service';
 import { apiClient } from '../services/api';
+import { API_ENDPOINTS } from '../config/api';
 import { savePrinterConfig, loadPrinterConfig } from '../utils/printer';
 import { saveThermalConfig, loadThermalConfig, listPrinters, type ThermalPrinterConfig, type PrinterInfo } from '../utils/thermalPrinter';
 
@@ -157,11 +158,7 @@ export function Settings() {
     setDbBusy(true);
     setDbMsg(null);
     try {
-      const res = await fetch(`${localStorage.getItem(LS_API_URL) || 'http://localhost:3000/api'}/backup`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('auth_token') ?? ''}` },
-      });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
-      const blob = await res.blob();
+      const blob = await apiClient.getBlob(API_ENDPOINTS.settings.backup);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -181,17 +178,8 @@ export function Settings() {
     setDbMsg(null);
     try {
       const text = await file.text();
-      JSON.parse(text); // validate JSON
-      const apiBase = localStorage.getItem(LS_API_URL) || 'http://localhost:3000/api';
-      const res = await fetch(`${apiBase}/restore`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('auth_token') ?? ''}`,
-        },
-        body: text,
-      });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      const parsed = JSON.parse(text); // validate JSON
+      await apiClient.post(API_ENDPOINTS.settings.restore, parsed);
       setDbMsg({ ok: true, text: 'Database restored successfully. Please refresh the app.' });
     } catch (e: unknown) {
       setDbMsg({ ok: false, text: e instanceof Error ? e.message : 'Restore failed.' });
@@ -390,40 +378,122 @@ export function Settings() {
             <Usb size={15} className="text-primary-500" /> Thermal Printer (Invoice Printing)
           </h2>
 
-          {/* Printer selection */}
-          <div className="flex gap-2 items-end">
-            <div className="flex-1">
-              <Field label="Printer">
-                {thermalPrinters.length > 0 ? (
-                  <select
-                    value={thermal.printerName}
-                    onChange={e => setThermal(p => ({ ...p, printerName: e.target.value }))}
-                    className={inputCls}
-                  >
-                    <option value="">— Select a printer —</option>
-                    {thermalPrinters.map(p => (
-                      <option key={p.name} value={p.name}>{p.name} ({p.interface_type})</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    value={thermal.printerName}
-                    onChange={e => setThermal(p => ({ ...p, printerName: e.target.value }))}
-                    placeholder="Enter printer name or click Detect"
-                    className={inputCls}
-                  />
-                )}
-              </Field>
+          {/* Connection type */}
+          <Field label="Connection Type">
+            <div className="flex gap-2">
+              {(['USB', 'IP', 'SHARED'] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setThermal(p => ({ ...p, connectionType: t }))}
+                  className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${thermal.connectionType === t
+                    ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-400 text-primary-600 dark:text-primary-400'
+                    : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
+                    }`}
+                >
+                  {t === 'USB' ? '🖨 USB' : t === 'IP' ? '🌐 IP / Network' : '📁 Shared'}
+                </button>
+              ))}
             </div>
-            <button
-              onClick={refreshThermalPrinters}
-              disabled={thermalLoading}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-            >
-              {thermalLoading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-              Detect
-            </button>
-          </div>
+          </Field>
+
+          {/* IP: only IP address */}
+          {thermal.connectionType === 'IP' && (
+            <Field label="Printer IP Address">
+              <input
+                value={thermal.ipAddress}
+                onChange={e => setThermal(p => ({ ...p, ipAddress: e.target.value }))}
+                placeholder="192.168.1.100"
+                className={inputCls}
+              />
+            </Field>
+          )}
+
+          {/* USB: select from detected printers */}
+          {thermal.connectionType === 'USB' && (
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Field label="USB Printer">
+                  {thermalPrinters.filter(p => p.interface_type?.toLowerCase().includes('usb')).length > 0 ? (
+                    <select
+                      value={thermal.printerName}
+                      onChange={e => setThermal(p => ({ ...p, printerName: e.target.value }))}
+                      className={inputCls}
+                    >
+                      <option value="">— Select USB printer —</option>
+                      {thermalPrinters
+                        .filter(p => p.interface_type?.toLowerCase().includes('usb'))
+                        .map(p => (
+                          <option key={p.name} value={p.name}>{p.name}</option>
+                        ))}
+                    </select>
+                  ) : thermalPrinters.length > 0 ? (
+                    <select
+                      value={thermal.printerName}
+                      onChange={e => setThermal(p => ({ ...p, printerName: e.target.value }))}
+                      className={inputCls}
+                    >
+                      <option value="">— Select printer —</option>
+                      {thermalPrinters.map(p => (
+                        <option key={p.name} value={p.name}>{p.name} ({p.interface_type})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={thermal.printerName}
+                      onChange={e => setThermal(p => ({ ...p, printerName: e.target.value }))}
+                      placeholder="Enter printer name or click Detect"
+                      className={inputCls}
+                    />
+                  )}
+                </Field>
+              </div>
+              <button
+                onClick={refreshThermalPrinters}
+                disabled={thermalLoading}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                {thermalLoading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                Detect
+              </button>
+            </div>
+          )}
+
+          {/* SHARED: text input for shared printer name */}
+          {thermal.connectionType === 'SHARED' && (
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Field label="Shared Printer Name (e.g. \\\\PCNAME\\PrinterName)">
+                  {thermalPrinters.filter(p => p.interface_type?.toLowerCase().includes('share') || p.interface_type?.toLowerCase().includes('network')).length > 0 ? (
+                    <select
+                      value={thermal.printerName}
+                      onChange={e => setThermal(p => ({ ...p, printerName: e.target.value }))}
+                      className={inputCls}
+                    >
+                      <option value="">— Select shared printer —</option>
+                      {thermalPrinters.map(p => (
+                        <option key={p.name} value={p.name}>{p.name} ({p.interface_type})</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      value={thermal.printerName}
+                      onChange={e => setThermal(p => ({ ...p, printerName: e.target.value }))}
+                      placeholder="\\PCNAME\PrinterName"
+                      className={inputCls}
+                    />
+                  )}
+                </Field>
+              </div>
+              <button
+                onClick={refreshThermalPrinters}
+                disabled={thermalLoading}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                {thermalLoading ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+                Detect
+              </button>
+            </div>
+          )}
 
           {/* Paper size */}
           <Field label="Paper Size">
@@ -433,8 +503,8 @@ export function Settings() {
                   key={size}
                   onClick={() => setThermal(p => ({ ...p, paperSize: size }))}
                   className={`flex-1 py-2 text-sm font-medium rounded-lg border transition-colors ${thermal.paperSize === size
-                      ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-400 text-primary-600 dark:text-primary-400'
-                      : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
+                    ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-400 text-primary-600 dark:text-primary-400'
+                    : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
                     }`}
                 >
                   {size === 'Mm58' ? '58mm (32 chars)' : '80mm (48 chars)'}

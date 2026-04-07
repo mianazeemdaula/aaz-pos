@@ -11,3 +11,5 @@ export { CustomerSearch } from './CustomerSearch';
 export { SupplierSearch } from './SupplierSearch';
 export { ProductSearch } from './ProductSearch';
 export { PrintConfirmDialog } from './PrintConfirmDialog';
+export { QuickCustomerAdd } from './QuickCustomerAdd';
+export { QuickSupplierAdd } from './QuickSupplierAdd';

@@ -43,13 +43,16 @@ const SupplierPayments = lazy(() => import('./pages/SupplierPayments').then(m =>
 const Employees = lazy(() => import('./pages/Employees').then(m => ({ default: m.Employees })));
 const SalarySlips = lazy(() => import('./pages/SalarySlips').then(m => ({ default: m.SalarySlips })));
 const Expenses = lazy(() => import('./pages/Expenses').then(m => ({ default: m.Expenses })));
+const RecurringExpenses = lazy(() => import('./pages/RecurringExpenses').then(m => ({ default: m.RecurringExpenses })));
 const Accounts = lazy(() => import('./pages/Accounts').then(m => ({ default: m.Accounts })));
 const Users = lazy(() => import('./pages/Users').then(m => ({ default: m.Users })));
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
 const HeldTransactions = lazy(() => import('./pages/HeldTransactions').then(m => ({ default: m.HeldTransactions })));
 const Promotions = lazy(() => import('./pages/Promotions').then(m => ({ default: m.Promotions })));
 const StockAdjustments = lazy(() => import('./pages/StockAdjustments').then(m => ({ default: m.StockAdjustments })));
+const AdvanceBookings = lazy(() => import('./pages/AdvanceBookings').then(m => ({ default: m.AdvanceBookings })));
 
 const Spinner = () => (
   <div className="flex items-center justify-center min-h-50">
@@ -85,13 +88,16 @@ function App() {
               <Route path="employees" element={<ErrorBoundary><Employees /></ErrorBoundary>} />
               <Route path="salary-slips" element={<ErrorBoundary><SalarySlips /></ErrorBoundary>} />
               <Route path="expenses" element={<ErrorBoundary><Expenses /></ErrorBoundary>} />
+              <Route path="recurring-expenses" element={<ErrorBoundary><RecurringExpenses /></ErrorBoundary>} />
               <Route path="accounts" element={<ErrorBoundary><Accounts /></ErrorBoundary>} />
               <Route path="users" element={<ErrorBoundary><Users /></ErrorBoundary>} />
               <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
               <Route path="held" element={<ErrorBoundary><HeldTransactions /></ErrorBoundary>} />
               <Route path="promotions" element={<ErrorBoundary><Promotions /></ErrorBoundary>} />
               <Route path="stock-adjustments" element={<ErrorBoundary><StockAdjustments /></ErrorBoundary>} />
+              <Route path="advance-bookings" element={<ErrorBoundary><AdvanceBookings /></ErrorBoundary>} />
               <Route path="settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
+              <Route path="admin" element={<ErrorBoundary><Admin /></ErrorBoundary>} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Route>

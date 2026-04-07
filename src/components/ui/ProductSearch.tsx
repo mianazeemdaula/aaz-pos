@@ -117,7 +117,7 @@ export function ProductSearch({
                     <span>{v.factor}</span>
                     <span className="text-gray-400 mx-1">=</span>
                     <span className="font-semibold text-primary-600">
-                      {_fmt((v.salePrice ?? v.price) * v.factor)}
+                      {_fmt(v.price * v.factor)}
                     </span>
                   </button>
                 ))}
@@ -320,7 +320,7 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
                               <span className="text-gray-500 dark:text-gray-400">{v.factor}</span>
                               <span className="text-gray-400 mx-1">=</span>
                               <span className="font-semibold text-primary-600 group-hover:text-primary-700">
-                                {_fmt((v.salePrice ?? v.price))}
+                                {_fmt(v.price)}
                               </span>
                             </button>
                           ))}

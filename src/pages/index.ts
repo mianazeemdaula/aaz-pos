@@ -1,5 +1,6 @@
 // Pages – POS System
 export { Login } from './Login';
+export { Admin } from './Admin';
 export { Dashboard } from './Dashboard';
 export { Sale } from './Sale';
 export { Purchase } from './Purchase';
@@ -25,3 +26,4 @@ export { HeldTransactions } from './HeldTransactions';
 export { Promotions } from './Promotions';
 export { StockAdjustments } from './StockAdjustments';
 export { Settings } from './Settings';
+export { AdvanceBookings } from './AdvanceBookings';

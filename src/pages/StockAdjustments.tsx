@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
+import { Pagination } from '../components/ui/Pagination';
 import { stockMovementService } from '../services/pos.service';
 import { ProductSearch } from '../components/ui/ProductSearch';
 import { Modal } from '../components/ui/Modal';
@@ -15,7 +16,7 @@ export function StockAdjustments() {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<{ variantId?: number; variantName?: string; qty: number; type: string; reason: string; cost?: number }>({ qty: 1, type: 'ADJUST', reason: '' });
   const [saving, setSaving] = useState(false);
-  const PAGE_SIZE = 30;
+  const PAGE_SIZE = 20;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,14 +76,7 @@ export function StockAdjustments() {
               </table>
             )}
         {totalPages > 1 && (
-          <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-sm">
-            <span className="text-gray-500">{total} total</span>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"><ChevronLeft size={16} /></button>
-              <span>{page} / {totalPages}</span>
-              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"><ChevronRight size={16} /></button>
-            </div>
-          </div>
+          <Pagination currentPage={page} totalPages={totalPages} totalItems={total} itemsPerPage={PAGE_SIZE} onPageChange={setPage} />
         )}
       </div>
       <Modal open={modal} onClose={() => setModal(false)} title="New Stock Adjustment" size="sm">
