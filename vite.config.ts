@@ -19,14 +19,19 @@ export default defineConfig(async () => ({
     host: host || false,
     hmr: host
       ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
+        protocol: "ws",
+        host,
+        port: 1421,
+      }
       : undefined,
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
     },
   },
+  preview: {
+    host: '0.0.0.0',
+    port: 4002,
+    allowedHosts: ['pos.txdevs.com', 'localhost', '127.0.0.1'],
+  }
 }));
