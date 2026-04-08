@@ -92,6 +92,8 @@ export const API_ENDPOINTS = {
         updateVariant: (id: number, variantId: number) => `/products/${id}/variants/${variantId}`,
         deleteVariant: (id: number, variantId: number) => `/products/${id}/variants/${variantId}`,
         variantByBarcode: (barcode: string) => `/products/variants/barcode/${barcode}`,
+        importFile: '/products/import/file',
+        history: (id: number) => `/products/${id}/history`,
     },
     stockMovements: {
         list: '/stock-movements',
@@ -127,6 +129,10 @@ export const API_ENDPOINTS = {
         ledger: (id: number) => `/employees/${id}/ledger`,
         advances: (id: number) => `/employees/${id}/advances`,
         createAdvance: (id: number) => `/employees/${id}/advances`,
+        approveAdvance: (id: number, advId: number) => `/employees/${id}/advances/${advId}/approve`,
+        rejectAdvance: (id: number, advId: number) => `/employees/${id}/advances/${advId}/reject`,
+        repayAdvance: (id: number, advId: number) => `/employees/${id}/advances/${advId}/repay`,
+        waiveAdvance: (id: number, advId: number) => `/employees/${id}/advances/${advId}/waive`,
     },
     salarySlips: {
         list: '/salary-slips',

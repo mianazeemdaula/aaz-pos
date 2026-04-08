@@ -184,40 +184,40 @@ export function SaleReturns() {
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             {salesLoading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
               : sales.length === 0 ? <p className="text-center text-gray-400 py-10 text-sm">No sales found</p>
-              : (
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 text-left text-xs text-gray-500">
-                    <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Customer</th>
-                    <th className="px-4 py-2.5 text-right">Total</th><th className="px-4 py-2.5 text-right">Paid</th>
-                    <th className="px-4 py-2.5 text-right">Due</th><th className="px-4 py-2.5 text-right">Items</th>
-                    <th className="px-4 py-2.5 text-right">Cashier</th><th className="px-4 py-2.5 text-center">Actions</th>
-                  </tr></thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {sales.map(s => {
-                      const due = Math.max(0, s.totalAmount - s.paidAmount);
-                      return (
-                        <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
-                          <td className="px-4 py-1.5 font-medium text-gray-900 dark:text-gray-100">{s.taxInvoiceId ?? `#${s.id}`}</td>
-                          <td className="px-4 py-1.5 text-gray-500">{new Date(s.createdAt).toLocaleDateString()}</td>
-                          <td className="px-4 py-1.5 text-gray-700 dark:text-gray-300">{s.customer?.name ?? 'Walk-in'}</td>
-                          <td className="px-4 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(s.totalAmount)}</td>
-                          <td className="px-4 py-1.5 text-right text-green-600">{fmt(s.paidAmount)}</td>
-                          <td className={`px-4 py-1.5 text-right font-medium ${due > 0 ? 'text-red-600' : 'text-gray-400'}`}>{due > 0 ? fmt(due) : ''}</td>
-                          <td className="px-4 py-1.5 text-right">{s.items?.length ?? 0}</td>
-                          <td className="px-4 py-1.5 text-right">{s.user?.name ?? ''}</td>
-                          <td className="px-4 py-1.5">
-                            <div className="flex items-center gap-0.5 justify-end">
-                              <button onClick={() => openView(s)} disabled={viewLoading} title="View" className="p-1.5 text-gray-400 hover:text-primary-600 rounded disabled:opacity-40"><Eye size={14} /></button>
-                              <button onClick={() => printSaleReceipt(s)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
-                              <button onClick={() => openReturn(s)} title="Create return" className="p-1.5 text-gray-400 hover:text-orange-500 rounded"><RotateCcw size={14} /></button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
+                : (
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 text-left text-xs text-gray-500">
+                      <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Customer</th>
+                      <th className="px-4 py-2.5 text-right">Total</th><th className="px-4 py-2.5 text-right">Paid</th>
+                      <th className="px-4 py-2.5 text-right">Due</th><th className="px-4 py-2.5 text-right">Items</th>
+                      <th className="px-4 py-2.5 text-right">Cashier</th><th className="px-4 py-2.5 text-center">Actions</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {sales.map(s => {
+                        const due = Math.max(0, s.totalAmount - s.paidAmount);
+                        return (
+                          <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
+                            <td className="px-4 py-1.5 font-medium text-gray-900 dark:text-gray-100">{s.taxInvoiceId ?? `#${s.id}`}</td>
+                            <td className="px-4 py-1.5 text-gray-500">{new Date(s.createdAt).toLocaleDateString()}</td>
+                            <td className="px-4 py-1.5 text-gray-700 dark:text-gray-300">{s.customer?.name ?? 'Walk-in'}</td>
+                            <td className="px-4 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(s.totalAmount)}</td>
+                            <td className="px-4 py-1.5 text-right text-green-600">{fmt(s.paidAmount)}</td>
+                            <td className={`px-4 py-1.5 text-right font-medium ${due > 0 ? 'text-red-600' : 'text-gray-400'}`}>{due > 0 ? fmt(due) : ''}</td>
+                            <td className="px-4 py-1.5 text-right">{s.items?.length ?? 0}</td>
+                            <td className="px-4 py-1.5 text-right">{s.user?.name ?? ''}</td>
+                            <td className="px-4 py-1.5">
+                              <div className="flex items-center gap-0.5 justify-end">
+                                <button onClick={() => openView(s)} disabled={viewLoading} title="View" className="p-1.5 text-gray-400 hover:text-primary-600 rounded disabled:opacity-40"><Eye size={14} /></button>
+                                <button onClick={() => printSaleReceipt(s)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
+                                <button onClick={() => openReturn(s)} title="Create return" className="p-1.5 text-gray-400 hover:text-orange-500 rounded"><RotateCcw size={14} /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
             {!salesLoading && salesTotalPages > 1 && (
               <Pagination currentPage={salesPage} totalPages={salesTotalPages} totalItems={salesTotal} itemsPerPage={15} onPageChange={p => loadSales(p, salesFrom, salesTo, salesQ)} />
             )}
@@ -236,34 +236,34 @@ export function SaleReturns() {
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             {retLoading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
               : returnTxns.length === 0 ? <p className="text-center text-gray-400 py-10 text-sm">No return transactions found</p>
-              : (
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 text-left text-xs text-gray-500">
-                    <th className="px-4 py-2.5">Return #</th><th className="px-4 py-2.5">Date</th>
-                    <th className="px-4 py-2.5">Customer</th><th className="px-4 py-2.5 text-right">Refund</th>
-                    <th className="px-4 py-2.5 text-right">Items</th><th className="px-4 py-2.5 text-center">Actions</th>
-                  </tr></thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                    {returnTxns.map(r => (
-                      <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
-                          <span className="text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded mr-1.5">RTN</span>#{r.id}
-                        </td>
-                        <td className="px-4 py-2.5 text-gray-500">{new Date(r.createdAt).toLocaleDateString()}</td>
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">{r.customer?.name ?? 'Walk-in'}</td>
-                        <td className="px-4 py-2.5 text-right font-semibold text-orange-600">{fmt(r.totalAmount)}</td>
-                        <td className="px-4 py-2.5 text-right">{r.items?.length ?? 0}</td>
-                        <td className="px-4 py-2.5">
-                          <div className="flex justify-center gap-1">
-                            <button onClick={() => openView(r)} disabled={viewLoading} title="View" className="p-1.5 text-gray-400 hover:text-primary-600 rounded disabled:opacity-40"><Eye size={14} /></button>
-                            <button onClick={() => printSaleReceipt(r, true)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                : (
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 text-left text-xs text-gray-500">
+                      <th className="px-4 py-2.5">Return #</th><th className="px-4 py-2.5">Date</th>
+                      <th className="px-4 py-2.5">Customer</th><th className="px-4 py-2.5 text-right">Refund</th>
+                      <th className="px-4 py-2.5 text-right">Items</th><th className="px-4 py-2.5 text-center">Actions</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {returnTxns.map(r => (
+                        <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                          <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
+                            <span className="text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded mr-1.5">RTN</span>#{r.id}
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-500">{new Date(r.createdAt).toLocaleDateString()}</td>
+                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">{r.customer?.name ?? 'Walk-in'}</td>
+                          <td className="px-4 py-2.5 text-right font-semibold text-orange-600">{fmt(r.totalAmount)}</td>
+                          <td className="px-4 py-2.5 text-right">{r.items?.length ?? 0}</td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex justify-center gap-1">
+                              <button onClick={() => openView(r)} disabled={viewLoading} title="View" className="p-1.5 text-gray-400 hover:text-primary-600 rounded disabled:opacity-40"><Eye size={14} /></button>
+                              <button onClick={() => printSaleReceipt(r, true)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
             {!retLoading && retTotalPages > 1 && (
               <Pagination currentPage={retPage} totalPages={retTotalPages} totalItems={retTotal} itemsPerPage={15} onPageChange={p => loadReturnTxns(p, retFrom, retTo)} />
             )}

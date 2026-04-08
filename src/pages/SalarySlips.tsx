@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Loader2, Banknote, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Loader2, Banknote, CheckCircle2, XCircle, Eye } from 'lucide-react';
 import { Pagination } from '../components/ui/Pagination';
 import { salarySlipService, employeeService, accountService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { MONTH_NAMES, getMonthName } from '../utils/formatters';
 import type { SalarySlip, Employee, Account } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
-const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-amber-100 text-amber-700',
@@ -43,6 +43,10 @@ export function SalarySlips() {
 
   // Cancel confirm
   const [cancelSlip, setCancelSlip] = useState<SalarySlip | null>(null);
+
+  // View slip detail
+  const [viewSlip, setViewSlip] = useState<SalarySlip | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
 
   const PAGE_SIZE = 20;
 
@@ -108,6 +112,16 @@ export function SalarySlips() {
 
   const cancelSlipConfirmed = async () => {
     if (!cancelSlip) return;
+
+    const openViewSlip = async (slip: SalarySlip) => {
+      setViewLoading(true);
+      setViewSlip(slip);
+      try {
+        const full = await salarySlipService.get(slip.id);
+        setViewSlip(full);
+      } catch { /* keep partial data */ }
+      finally { setViewLoading(false); }
+    };
     try {
       await salarySlipService.cancel(cancelSlip.id);
       setCancelSlip(null);
@@ -156,7 +170,7 @@ export function SalarySlips() {
                             <p className="text-xs text-gray-400 font-normal">{item.employee.designation}</p>
                           )}
                         </td>
-                        <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{months[item.month - 1]} {item.year}</td>
+                        <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{getMonthName(item.month)} {item.year}</td>
                         <td className="px-4 py-2.5 text-right">{fmt(item.baseSalary)}</td>
                         <td className="px-4 py-2.5 text-right text-green-600">{item.bonus ? fmt(item.bonus) : '—'}</td>
                         <td className="px-4 py-2.5 text-right text-red-600">{(item.totalAdvances || item.otherDeductions) ? fmt((item.totalAdvances ?? 0) + (item.otherDeductions ?? 0)) : '—'}</td>
@@ -171,6 +185,13 @@ export function SalarySlips() {
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex gap-1.5">
+                            <button
+                              onClick={() => openViewSlip(item)}
+                              className="flex items-center gap-1 px-2 py-1 text-xs text-blue-600 hover:text-blue-800 border border-blue-200 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                              title="View Details"
+                            >
+                              <Eye size={12} />
+                            </button>
                             {item.status !== 'PAID' && item.status !== 'CANCELLED' && (
                               <button
                                 onClick={() => openPay(item)}
@@ -228,7 +249,7 @@ export function SalarySlips() {
                 onChange={e => setGenForm(p => ({ ...p, month: Number(e.target.value) }))}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none"
               >
-                {months.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
               </select>
             </div>
             <div>
@@ -315,7 +336,7 @@ export function SalarySlips() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Period</span>
-                <span>{months[paySlip.month - 1]} {paySlip.year}</span>
+                <span>{getMonthName(paySlip.month)} {paySlip.year}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Basic</span>
@@ -370,12 +391,104 @@ export function SalarySlips() {
       <ConfirmDialog
         open={!!cancelSlip}
         title="Cancel Salary Slip"
-        message={`Cancel the ${cancelSlip ? months[cancelSlip.month - 1] + ' ' + cancelSlip.year : ''} slip for ${cancelSlip?.employee?.name ?? ''}? This cannot be undone.`}
+        message={`Cancel the ${cancelSlip ? getMonthName(cancelSlip.month) + ' ' + cancelSlip.year : ''} slip for ${cancelSlip?.employee?.name ?? ''}? This cannot be undone.`}
         variant="danger"
         confirmLabel="Cancel Slip"
         onConfirm={cancelSlipConfirmed}
         onCancel={() => setCancelSlip(null)}
       />
+
+      {/* ── View Salary Slip Detail ── */}
+      <Modal open={!!viewSlip} onClose={() => setViewSlip(null)} title="Salary Slip Details" size="md">
+        {viewSlip && (
+          <div className="space-y-4">
+            {viewLoading && <div className="flex justify-center py-4"><Loader2 size={16} className="text-primary-600 animate-spin" /></div>}
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm space-y-1">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Employee</span>
+                <span className="font-medium">{viewSlip.employee?.name ?? '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Period</span>
+                <span>{getMonthName(viewSlip.month)} {viewSlip.year}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Status</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${statusColors[viewSlip.status] ?? 'bg-gray-100 text-gray-500'}`}>{viewSlip.status}</span>
+              </div>
+              <div className="border-t border-gray-200 dark:border-gray-600 pt-1 mt-1 space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Basic Salary</span>
+                  <span>{fmt(viewSlip.baseSalary)}</span>
+                </div>
+                {viewSlip.bonus > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>+ Bonus</span><span>{fmt(viewSlip.bonus)}</span>
+                  </div>
+                )}
+                {viewSlip.totalAdvances > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>– Advances Deducted</span><span>{fmt(viewSlip.totalAdvances)}</span>
+                  </div>
+                )}
+                {(viewSlip.otherDeductions ?? 0) > 0 && (
+                  <div className="flex justify-between text-red-600">
+                    <span>– Other Deductions</span><span>{fmt(viewSlip.otherDeductions)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-base border-t border-gray-200 dark:border-gray-600 pt-1 mt-1">
+                  <span>Net Payable</span>
+                  <span className="text-primary-600">{fmt(viewSlip.netPayable)}</span>
+                </div>
+              </div>
+              {viewSlip.note && (
+                <div className="pt-1 border-t border-gray-200 dark:border-gray-600 mt-1">
+                  <span className="text-gray-500">Note:</span> <span className="text-gray-700 dark:text-gray-300">{viewSlip.note}</span>
+                </div>
+              )}
+              {viewSlip.account && (
+                <div className="flex justify-between pt-1">
+                  <span className="text-gray-500">Paid From</span>
+                  <span>{viewSlip.account.name}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Advances deducted in this slip */}
+            {viewSlip.advances && viewSlip.advances.length > 0 && (
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Advances Deducted</h3>
+                <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                        <th className="px-3 py-2 text-left text-gray-500">Date</th>
+                        <th className="px-3 py-2 text-right text-gray-500">Amount</th>
+                        <th className="px-3 py-2 text-left text-gray-500">Month/Year</th>
+                        <th className="px-3 py-2 text-left text-gray-500">Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {viewSlip.advances.map(adv => (
+                        <tr key={adv.id} className="border-b border-gray-100 dark:border-gray-700/50 last:border-0">
+                          <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{new Date(adv.date).toLocaleDateString('en-PK')}</td>
+                          <td className="px-3 py-2 text-right font-medium text-red-600">{fmt(adv.amount)}</td>
+                          <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{getMonthName(adv.month)} {adv.year}</td>
+                          <td className="px-3 py-2 text-gray-500">{adv.reason ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {(!viewSlip.advances || viewSlip.advances.length === 0) && viewSlip.totalAdvances === 0 && !viewLoading && (
+              <p className="text-xs text-center text-gray-400">No advances deducted in this slip</p>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

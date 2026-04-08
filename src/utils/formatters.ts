@@ -48,3 +48,63 @@ export function formatAbbreviatedNumber(num: number): string {
     }
     return num.toString();
 }
+
+/**
+ * Month names array (1-indexed usage: MONTH_NAMES[monthNumber - 1])
+ */
+export const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+] as const;
+
+/**
+ * Get month name from 1-based month number
+ */
+export function getMonthName(month: number): string {
+    return MONTH_NAMES[(month - 1) % 12] ?? '';
+}
+
+/**
+ * Format CNIC for display: xxxxx-xxxxxxx-x
+ * Strips non-digits, then inserts dashes. Returns raw value if not 13 digits.
+ */
+export function formatCNIC(value: string | null | undefined): string {
+    if (!value) return '—';
+    const digits = value.replace(/\D/g, '');
+    if (digits.length !== 13) return value;
+    return `${digits.slice(0, 5)}-${digits.slice(5, 12)}-${digits.slice(12)}`;
+}
+
+/**
+ * Format mobile number for display: 03xx-xxxxxxx
+ * Strips non-digits, then inserts dash after 4th digit. Returns raw value if not 11 digits.
+ */
+export function formatPhone(value: string | null | undefined): string {
+    if (!value) return '—';
+    const digits = value.replace(/\D/g, '');
+    if (digits.length !== 11) return value;
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+}
+
+/**
+ * CNIC input handler: auto-formats as user types (xxxxx-xxxxxxx-x).
+ * Strips non-digits and caps at 13 digits. Returns raw digits for storage.
+ */
+export function handleCNICInput(rawInput: string): { display: string; raw: string } {
+    const digits = rawInput.replace(/\D/g, '').slice(0, 13);
+    let display = digits;
+    if (digits.length > 5) display = digits.slice(0, 5) + '-' + digits.slice(5);
+    if (digits.length > 12) display = digits.slice(0, 5) + '-' + digits.slice(5, 12) + '-' + digits.slice(12);
+    return { display, raw: digits };
+}
+
+/**
+ * Phone input handler: auto-formats as user types (03xx-xxxxxxx).
+ * Strips non-digits and caps at 11 digits. Returns raw digits for storage.
+ */
+export function handlePhoneInput(rawInput: string): { display: string; raw: string } {
+    const digits = rawInput.replace(/\D/g, '').slice(0, 11);
+    let display = digits;
+    if (digits.length > 4) display = digits.slice(0, 4) + '-' + digits.slice(4);
+    return { display, raw: digits };
+}

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { supplierService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { formatPhone, handlePhoneInput } from '../utils/formatters';
 import type { Supplier } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
@@ -74,7 +75,7 @@ export function Suppliers() {
                   {items.map(item => (
                     <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{item.phone ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{formatPhone(item.phone)}</td>
                       <td className="px-4 py-2.5 text-gray-500">{item.city ?? '—'}</td>
                       <td className="px-4 py-2.5 text-right">
                         <span className={`text-xs font-medium ${item.balance > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{item.balance !== 0 ? fmt(item.balance) : 'Clear'}</span>
@@ -104,7 +105,7 @@ export function Suppliers() {
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
             <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Phone</label>
-              <input value={form.phone ?? ''} onChange={e => f('phone', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
+              <input value={form.phone ? handlePhoneInput(form.phone).display : ''} onChange={e => { const { raw } = handlePhoneInput(e.target.value); f('phone', raw); }} placeholder="03xx-xxxxxxx" className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
             <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Email</label>
               <input type="email" value={form.email ?? ''} onChange={e => f('email', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
             <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">NTN</label>

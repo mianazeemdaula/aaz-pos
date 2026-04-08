@@ -75,6 +75,8 @@ export const productService = {
   deleteVariant: (id: number, variantId: number) => apiClient.delete(API_ENDPOINTS.products.deleteVariant(id, variantId)),
   getVariantByBarcode: (barcode: string) => apiClient.get<ProductVariant>(API_ENDPOINTS.products.variantByBarcode(barcode)),
   uploadImage: (file: File) => apiClient.uploadFile<{ imageUrl: string }>(API_ENDPOINTS.products.uploadImage, file, 'image'),
+  importFile: (file: File) => apiClient.uploadFile<{ imported: { categories: number; brands: number; products: number; variants: number }; skipped: { categories: number; brands: number; products: number; variants: number }; errors: string[] }>(API_ENDPOINTS.products.importFile, file, 'file'),
+  getHistory: (id: number) => apiClient.get<{ recentSales: any[]; recentPurchases: any[] }>(API_ENDPOINTS.products.history(id)),
 };
 
 // ---- Stock Movements ----
@@ -121,6 +123,10 @@ export const employeeService = {
   getLedger: (id: number, params?: object) => apiClient.get<PaginatedResponse<any>>(API_ENDPOINTS.employees.ledger(id), { params }),
   getAdvances: (id: number, params?: object) => apiClient.get<PaginatedResponse<EmployeeAdvance>>(API_ENDPOINTS.employees.advances(id), { params }),
   createAdvance: (id: number, data: object) => apiClient.post<EmployeeAdvance>(API_ENDPOINTS.employees.createAdvance(id), data),
+  approveAdvance: (id: number, advId: number) => apiClient.patch<EmployeeAdvance>(API_ENDPOINTS.employees.approveAdvance(id, advId)),
+  rejectAdvance: (id: number, advId: number) => apiClient.patch<EmployeeAdvance>(API_ENDPOINTS.employees.rejectAdvance(id, advId)),
+  repayAdvance: (id: number, advId: number, data?: object) => apiClient.patch<EmployeeAdvance>(API_ENDPOINTS.employees.repayAdvance(id, advId), data),
+  waiveAdvance: (id: number, advId: number) => apiClient.patch<EmployeeAdvance>(API_ENDPOINTS.employees.waiveAdvance(id, advId)),
 };
 
 // ---- Salary Slips ----

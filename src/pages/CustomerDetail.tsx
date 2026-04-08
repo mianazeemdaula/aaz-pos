@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { customerService } from '../services/pos.service';
+import { formatCNIC, formatPhone } from '../utils/formatters';
 import type { Customer, CustomerLedgerEntry } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
@@ -39,12 +40,12 @@ export function CustomerDetail() {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <h2 className="text-sm font-semibold mb-3">Contact Info</h2>
           <dl className="space-y-1.5 text-sm">
-            {customer.phone && <div className="flex gap-2"><dt className="text-gray-500 w-24">Phone</dt><dd className="text-gray-900 dark:text-gray-100">{customer.phone}</dd></div>}
+            {customer.phone && <div className="flex gap-2"><dt className="text-gray-500 w-24">Phone</dt><dd className="text-gray-900 dark:text-gray-100">{formatPhone(customer.phone)}</dd></div>}
             {customer.email && <div className="flex gap-2"><dt className="text-gray-500 w-24">Email</dt><dd className="text-gray-900 dark:text-gray-100">{customer.email}</dd></div>}
             {customer.city && <div className="flex gap-2"><dt className="text-gray-500 w-24">City</dt><dd className="text-gray-900 dark:text-gray-100">{customer.city}</dd></div>}
             {customer.address && <div className="flex gap-2"><dt className="text-gray-500 w-24">Address</dt><dd className="text-gray-900 dark:text-gray-100">{customer.address}</dd></div>}
             {customer.ntn && <div className="flex gap-2"><dt className="text-gray-500 w-24">NTN</dt><dd className="text-gray-900 dark:text-gray-100">{customer.ntn}</dd></div>}
-            {customer.cnic && <div className="flex gap-2"><dt className="text-gray-500 w-24">CNIC</dt><dd className="text-gray-900 dark:text-gray-100">{customer.cnic}</dd></div>}
+            {customer.cnic && <div className="flex gap-2"><dt className="text-gray-500 w-24">CNIC</dt><dd className="text-gray-900 dark:text-gray-100">{formatCNIC(customer.cnic)}</dd></div>}
             <div className="flex gap-2"><dt className="text-gray-500 w-24">Credit Limit</dt><dd className="text-gray-900 dark:text-gray-100">{fmt(customer.creditLimit ?? 0)}</dd></div>
           </dl>
         </div>

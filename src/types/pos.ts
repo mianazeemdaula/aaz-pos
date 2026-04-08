@@ -244,6 +244,7 @@ export interface SalarySlip {
     account?: Account | null;
     note?: string | null;
     paidDate?: string | null;
+    advances?: EmployeeAdvance[];
     createdAt?: string;
 }
 

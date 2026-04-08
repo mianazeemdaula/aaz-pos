@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { customerService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { formatCNIC, formatPhone, handleCNICInput, handlePhoneInput } from '../utils/formatters';
 import type { Customer } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
@@ -76,7 +77,7 @@ export function Customers() {
                   {items.map(item => (
                     <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{item.phone ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{formatPhone(item.phone)}</td>
                       <td className="px-4 py-2.5 text-gray-500">{item.city ?? '—'}</td>
                       <td className="px-4 py-2.5 text-gray-500">{item.ntn ?? '—'}</td>
                       <td className="px-4 py-2.5 text-right">
@@ -111,7 +112,7 @@ export function Customers() {
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Phone</label>
-              <input value={form.phone ?? ''} onChange={e => f('phone', e.target.value)}
+              <input value={form.phone ? handlePhoneInput(form.phone).display : ''} onChange={e => { const { raw } = handlePhoneInput(e.target.value); f('phone', raw); }} placeholder="03xx-xxxxxxx"
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
             <div>
@@ -126,7 +127,7 @@ export function Customers() {
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">CNIC</label>
-              <input value={form.cnic ?? ''} onChange={e => f('cnic', e.target.value)}
+              <input value={form.cnic ? handleCNICInput(form.cnic).display : ''} onChange={e => { const { raw } = handleCNICInput(e.target.value); f('cnic', raw); }} placeholder="xxxxx-xxxxxxx-x"
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
             </div>
             <div>

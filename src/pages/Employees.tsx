@@ -4,6 +4,7 @@ import { Pagination } from '../components/ui/Pagination';
 import { employeeService, accountService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { formatCNIC, formatPhone, handleCNICInput, handlePhoneInput, MONTH_NAMES, getMonthName } from '../utils/formatters';
 import type { Employee, EmployeeAdvance, Account } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
@@ -124,6 +125,24 @@ export function Employees() {
     finally { setAdvSaving(false); }
   };
 
+  const advanceAction = async (action: 'approve' | 'reject' | 'repay' | 'waive', adv: EmployeeAdvance) => {
+    if (!advanceModal) return;
+    const labels = { approve: 'approve', reject: 'reject', repay: 'mark as repaid', waive: 'waive off' };
+    if (!window.confirm(`Are you sure you want to ${labels[action]} this advance of ${fmt(adv.amount)}?`)) return;
+    try {
+      const methods = {
+        approve: () => employeeService.approveAdvance(advanceModal.id, adv.id),
+        reject: () => employeeService.rejectAdvance(advanceModal.id, adv.id),
+        repay: () => employeeService.repayAdvance(advanceModal.id, adv.id),
+        waive: () => employeeService.waiveAdvance(advanceModal.id, adv.id),
+      };
+      await methods[action]();
+      const advRes = await employeeService.getAdvances(advanceModal.id, { pageSize: 100 });
+      setAdvances(advRes.data);
+      load();
+    } catch (e: unknown) { alert(getErrMsg(e)); }
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const f = (key: keyof EmployeeForm, val: unknown) => setForm(p => ({ ...p, [key]: val }));
 
@@ -176,8 +195,8 @@ export function Employees() {
                         <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                           <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
                           <td className="px-4 py-2.5 text-gray-500">{item.designation ?? '—'}</td>
-                          <td className="px-4 py-2.5 text-gray-500">{item.phone ?? '—'}</td>
-                          <td className="px-4 py-2.5 text-gray-500">{item.cnic ?? '—'}</td>
+                          <td className="px-4 py-2.5 text-gray-500">{formatPhone(item.phone)}</td>
+                          <td className="px-4 py-2.5 text-gray-500">{formatCNIC(item.cnic)}</td>
                           <td className="px-4 py-2.5 text-right font-medium">{fmt(item.baseSalary ?? 0)}</td>
                           <td className="px-4 py-2.5 text-right font-medium">
                             <span className={item.balance < 0 ? 'text-red-600' : 'text-gray-700 dark:text-gray-300'}>{fmt(item.balance ?? 0)}</span>
@@ -222,8 +241,8 @@ export function Employees() {
             <div>
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Phone</label>
               <input
-                value={form.phone ?? ''}
-                onChange={e => f('phone', e.target.value)}
+                value={formatPhone(form.phone) === '—' ? '' : (form.phone ? handlePhoneInput(form.phone).display : '')}
+                onChange={e => { const { raw } = handlePhoneInput(e.target.value); f('phone', raw); }}
                 placeholder="03xx-xxxxxxx"
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
               />
@@ -231,8 +250,8 @@ export function Employees() {
             <div>
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">CNIC</label>
               <input
-                value={form.cnic ?? ''}
-                onChange={e => f('cnic', e.target.value)}
+                value={formatCNIC(form.cnic) === '—' ? '' : (form.cnic ? handleCNICInput(form.cnic).display : '')}
+                onChange={e => { const { raw } = handleCNICInput(e.target.value); f('cnic', raw); }}
                 placeholder="xxxxx-xxxxxxx-x"
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
               />
@@ -335,8 +354,10 @@ export function Employees() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 block mb-1">Month</label>
-                  <input type="number" value={advForm.month} min={1} max={12} onChange={e => setAdvForm(p => ({ ...p, month: Number(e.target.value) }))}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
+                  <select value={advForm.month} onChange={e => setAdvForm(p => ({ ...p, month: Number(e.target.value) }))}
+                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none">
+                    {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 block mb-1">Year</label>
@@ -369,6 +390,7 @@ export function Employees() {
                       <th className="px-3 py-2 text-left text-gray-500">Month/Year</th>
                       <th className="px-3 py-2 text-left text-gray-500">Reason</th>
                       <th className="px-3 py-2 text-left text-gray-500">Status</th>
+                      <th className="px-3 py-2 text-left text-gray-500">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -377,14 +399,29 @@ export function Employees() {
                         <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{new Date(adv.date).toLocaleDateString('en-PK')}</td>
                         <td className="px-3 py-2 text-right font-medium text-red-600">{fmt(adv.amount)}</td>
                         <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{adv.account?.name ?? '—'}</td>
-                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{adv.month}/{adv.year}</td>
+                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{getMonthName(adv.month)} {adv.year}</td>
                         <td className="px-3 py-2 text-gray-500">{adv.reason ?? '—'}</td>
                         <td className="px-3 py-2">
                           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${adv.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                              adv.status === 'DEDUCTED' ? 'bg-green-100 text-green-700' :
-                                adv.status === 'REPAID' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-500'
+                            adv.status === 'DEDUCTED' ? 'bg-green-100 text-green-700' :
+                              adv.status === 'REPAID' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-500'
                             }`}>{adv.status}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          {adv.status === 'PENDING' && (
+                            <div className="flex gap-1">
+                              <button onClick={() => advanceAction('repay', adv)}
+                                className="px-1.5 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                                title="Mark as repaid by employee">Repay</button>
+                              <button onClick={() => advanceAction('waive', adv)}
+                                className="px-1.5 py-0.5 text-[10px] bg-gray-50 dark:bg-gray-600/20 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-600/40"
+                                title="Waive off this advance">Waive</button>
+                              <button onClick={() => advanceAction('reject', adv)}
+                                className="px-1.5 py-0.5 text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded hover:bg-red-100 dark:hover:bg-red-900/40"
+                                title="Reject and reverse this advance">Reject</button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
