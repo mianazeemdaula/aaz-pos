@@ -110,18 +110,18 @@ export function SalarySlips() {
     finally { setPaying(false); }
   };
 
+  const openViewSlip = async (slip: SalarySlip) => {
+    setViewLoading(true);
+    setViewSlip(slip);
+    try {
+      const full = await salarySlipService.get(slip.id);
+      setViewSlip(full);
+    } catch { /* keep partial data */ }
+    finally { setViewLoading(false); }
+  };
+
   const cancelSlipConfirmed = async () => {
     if (!cancelSlip) return;
-
-    const openViewSlip = async (slip: SalarySlip) => {
-      setViewLoading(true);
-      setViewSlip(slip);
-      try {
-        const full = await salarySlipService.get(slip.id);
-        setViewSlip(full);
-      } catch { /* keep partial data */ }
-      finally { setViewLoading(false); }
-    };
     try {
       await salarySlipService.cancel(cancelSlip.id);
       setCancelSlip(null);

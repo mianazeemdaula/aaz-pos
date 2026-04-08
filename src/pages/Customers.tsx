@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { customerService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { formatCNIC, formatPhone, handleCNICInput, handlePhoneInput } from '../utils/formatters';
+import { formatPhone, handleCNICInput, handlePhoneInput } from '../utils/formatters';
 import type { Customer } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
