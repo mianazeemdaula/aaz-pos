@@ -10,12 +10,25 @@ export const COLORS = {
         100: '#ccfbf1',
         200: '#99f6e4',
         300: '#5eead4',
-        400: '#2dd4bf',
-        500: '#14b8a6',
-        600: '#0d9488',
-        700: '#0f766e',
-        800: '#115e59',
-        900: '#134e4a',
+        400: '#14b8a6',
+        500: '#0d9488',
+        600: '#0f766e',
+        700: '#115e59',
+        800: '#134e4a',
+        900: '#0c3c38',
+    },
+    // Secondary brand colors
+    secondary: {
+        50: '#f5f3fc',
+        100: '#eae5f8',
+        200: '#d5ccf1',
+        300: '#b8a7e5',
+        400: '#9679d6',
+        500: '#7050c2',
+        600: '#5438a0',
+        700: '#3f2a7c',
+        800: '#281c59',
+        900: '#1a1040',
     },
     // Status colors
     success: {
@@ -88,12 +101,12 @@ export const TRANSACTION_STATUSES = ['completed', 'failed', 'pending'] as const;
 
 // Chart colors (for expenditure categories)
 export const CHART_COLORS = [
-    '#0d9488', // Primary teal
-    '#14b8a6', // Light teal
+    '#0f766e', // Primary green
+    '#0d9488', // Light primary
+    '#14b8a6', // Lighter teal
     '#5eead4', // Very light teal
-    '#2dd4bf', // Bright teal
-    '#0f766e', // Dark teal
-    '#115e59', // Very dark teal
+    '#281c59', // Secondary blue
+    '#5438a0', // Light secondary
 ] as const;
 
 // Time periods

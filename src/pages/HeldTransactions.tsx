@@ -61,9 +61,9 @@ export function HeldTransactions() {
                         <td className="px-4 py-2.5 text-gray-500">{Array.isArray(data?.lines) ? (data.lines as unknown[]).length : Array.isArray(data?.items) ? (data.items as unknown[]).length : '—'}</td>
                         <td className="px-4 py-2.5 text-right font-medium">{fmt(Number(data?.total ?? data?.grandTotal ?? 0))}</td>
                         <td className="px-4 py-2.5">
-                          <div className="flex gap-2">
+                          <div className="flex gap-1">
                             <button onClick={() => resume(item.id)} className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"><Play size={12} /> Resume</button>
-                            <button onClick={() => setConfirm({ id: item.id })} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
+                            <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
                           </div>
                         </td>
                       </tr>

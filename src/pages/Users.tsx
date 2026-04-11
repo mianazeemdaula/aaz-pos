@@ -73,9 +73,9 @@ export function Users() {
                         <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.status ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{item.status ? 'Active' : 'Inactive'}</span>
                       </td>
                       <td className="px-4 py-2.5">
-                        <div className="flex gap-2">
-                          <button onClick={() => { setForm({ ...item, password: '' }); setShowPass(false); setModal({ mode: 'edit', item }); }} className="text-gray-400 hover:text-primary-600"><Pencil size={14} /></button>
-                          <button onClick={() => setConfirm({ id: item.id })} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
+                        <div className="flex gap-1">
+                          <button onClick={() => { setForm({ ...item, password: '' }); setShowPass(false); setModal({ mode: 'edit', item }); }} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
+                          <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>

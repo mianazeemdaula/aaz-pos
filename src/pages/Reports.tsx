@@ -1,13 +1,13 @@
 import { useState, useCallback } from 'react';
 import type { ElementType } from 'react';
-import { BarChart2, ShoppingCart, Package, Users, DollarSign, Loader2, FileText, TrendingDown, BookOpen, Wallet, ArrowLeft, Calendar } from 'lucide-react';
+import { BarChart2, ShoppingCart, Package, Users, DollarSign, Loader2, FileText, TrendingDown, BookOpen, Wallet, ArrowLeft, Calendar, AlertTriangle, Sun } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
 import { SupplierSearch } from '../components/ui/SupplierSearch';
 import { AccountSelect } from '../components/ui/AccountSelect';
 import type { Customer, Supplier } from '../types/pos';
 
-type ReportId = 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement';
+type ReportId = 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement' | 'stock-alert' | 'stock-negative' | 'stock-low' | 'daily';
 
 interface ReportDef {
   id: ReportId;
@@ -15,14 +15,19 @@ interface ReportDef {
   description: string;
   icon: ElementType;
   color: string;
-  params: ('dates' | 'customer' | 'supplier' | 'account')[];
+  params: ('dates' | 'customer' | 'supplier' | 'account' | 'date' | 'stockFilter')[];
   endpoint: string | ((id: number) => string);
+  extraParams?: Record<string, string>;
 }
 
 const REPORTS: ReportDef[] = [
+  { id: 'daily', label: 'Daily Report', description: 'Comprehensive daily P&L: sales, purchases, expenses, salaries, payments', icon: Sun, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800', params: ['date'], endpoint: '/reports/daily' },
   { id: 'sales', label: 'Sales Report', description: 'Revenue, COGS, gross profit & all invoices', icon: ShoppingCart, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800', params: ['dates'], endpoint: '/reports/sales' },
   { id: 'purchases', label: 'Purchases Report', description: 'Purchase orders, total costs & due amounts', icon: Package, color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800', params: ['dates'], endpoint: '/reports/purchases' },
   { id: 'inventory', label: 'Inventory Report', description: 'Stock levels, inventory value & reorder alerts', icon: BarChart2, color: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800', params: [], endpoint: '/reports/inventory' },
+  { id: 'stock-alert', label: 'Stock Alert Report', description: 'All products with negative or low stock levels', icon: AlertTriangle, color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800', params: ['stockFilter'], endpoint: '/reports/stock', extraParams: { filter: 'alert' } },
+  { id: 'stock-negative', label: 'Negative Stock', description: 'Products with stock below zero (data integrity issue)', icon: AlertTriangle, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-800', params: ['stockFilter'], endpoint: '/reports/stock', extraParams: { filter: 'negative' } },
+  { id: 'stock-low', label: 'Low Stock Report', description: 'Products at or below their reorder level', icon: AlertTriangle, color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800', params: ['stockFilter'], endpoint: '/reports/stock', extraParams: { filter: 'low' } },
   { id: 'customers', label: 'Customer Balances', description: 'Outstanding receivables per customer', icon: Users, color: 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 border-cyan-100 dark:border-cyan-800', params: [], endpoint: '/reports/customer-balances' },
   { id: 'suppliers', label: 'Supplier Balances', description: 'Outstanding payables per supplier', icon: TrendingDown, color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800', params: [], endpoint: '/reports/supplier-balances' },
   { id: 'expenses', label: 'Expenses Report', description: 'All expenses by category & account', icon: DollarSign, color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800', params: ['dates'], endpoint: '/reports/expenses' },
@@ -40,6 +45,7 @@ export function Reports() {
   const active = REPORTS.find(r => r.id === activeId) ?? null;
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(today);
+  const [date, setDate] = useState(today);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [accountId, setAccountId] = useState<number | null>(null);
@@ -70,8 +76,9 @@ export function Reports() {
         endpoint = active.endpoint;
       }
 
-      const params: Record<string, string> = {};
+      const params: Record<string, string> = { ...(active.extraParams ?? {}) };
       if (active.params.includes('dates')) { params.from = from; params.to = to; }
+      if (active.params.includes('date')) { params.date = date; }
 
       const blob = await apiClient.getBlob(endpoint, { params });
       setPdfUrl(URL.createObjectURL(blob));
@@ -80,7 +87,7 @@ export function Reports() {
     } finally {
       setLoading(false);
     }
-  }, [active, from, to, customer, supplier, accountId, pdfUrl]);
+  }, [active, from, to, date, customer, supplier, accountId, pdfUrl]);
 
   const openReport = (id: ReportId) => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
@@ -130,6 +137,11 @@ export function Reports() {
                     <Calendar size={10} /> Date range
                   </span>
                 )}
+                {r.params.includes('date') && (
+                  <span className="inline-flex items-center gap-1 mt-2 text-xs text-gray-400">
+                    <Calendar size={10} /> Single date
+                  </span>
+                )}
               </div>
             </button>
           ))}
@@ -176,6 +188,9 @@ export function Reports() {
             <span className="text-gray-400 text-xs">to</span>
             <input type="date" value={to} onChange={e => setTo(e.target.value)} className={inputCls} />
           </>
+        )}
+        {active.params.includes('date') && (
+          <input type="date" value={date} onChange={e => setDate(e.target.value)} className={inputCls} />
         )}
 
         <button

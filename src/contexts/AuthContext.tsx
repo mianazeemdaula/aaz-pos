@@ -64,10 +64,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 return true;
             }
             setIsLoading(false);
-            return false;
-        } catch {
+            throw new Error('Invalid username or password');
+        } catch (err) {
             setIsLoading(false);
-            return false;
+            throw err instanceof Error ? err : new Error('Login failed. Please try again.');
         }
     };
 

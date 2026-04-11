@@ -1,4 +1,4 @@
-ï»¿import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Plus, Minus, Trash2, Save, Pause, Loader2, CheckCircle2, AlertCircle, X, UserPlus, Scan, Search } from 'lucide-react';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
 import { ProductSearchModal } from '../components/ui/ProductSearch';
@@ -701,7 +701,7 @@ export function Sale() {
 
         {/* Barcode / Scan Input */}
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <div className="relative flex-1">
               <Scan size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input
@@ -750,7 +750,7 @@ export function Sale() {
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <ShoppingCartIcon />
               <p className="text-sm mt-2">Cart is empty  scan a barcode or press F5 to search</p>
-              <p className="text-xs mt-1 text-gray-300">F2 Scan Â· F3 Qty Â· F5 Search Â· F7 Save Â· F8 Hold Â· F9 Held Â· F12 Clear</p>
+              <p className="text-xs mt-1 text-gray-300">F2 Scan · F3 Qty · F5 Search · F7 Save · F8 Hold · F9 Held · F12 Clear</p>
             </div>
           ) : (
             <table className="w-full text-xs">
@@ -777,7 +777,7 @@ export function Sale() {
                     <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-1.5">
                         <p className="font-medium text-gray-900 dark:text-gray-100">{item.product.name}</p>
-                        <p className="text-gray-400 text-xs">{item.variant.barcode} Â· {item.variant.name}</p>
+                        <p className="text-gray-400 text-xs">{item.variant.barcode} · {item.variant.name}</p>
                       </td>
                       <td>
                         {variants.length > 1 && (
@@ -788,7 +788,7 @@ export function Sale() {
                           >
                             {variants.map(v => (
                               <option key={v.id} value={v.id}>
-                                {v.name} (Ã—{v.factor})
+                                {v.name} (×{v.factor})
                               </option>
                             ))}
                           </select>
@@ -966,7 +966,7 @@ export function Sale() {
             disabled={saving || !cart.length}
             className="w-full py-2.5 px-4 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors">
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-            {saving ? 'Savingâ€¦' : isReturnCart ? `Process Return (F7)  ${fmt(Math.abs(grandTotal))}` : `Save Sale (F7)  ${fmt(grandTotal)}`}
+            {saving ? 'Saving…' : isReturnCart ? `Process Return (F7)  ${fmt(Math.abs(grandTotal))}` : `Save Sale (F7)  ${fmt(grandTotal)}`}
           </button>
           <p className="text-center text-xs text-gray-400 mt-2">
             F8 Hold &nbsp;&bull;&nbsp; F9 Held &nbsp;&bull;&nbsp; F12 Clear

@@ -16,26 +16,30 @@ const fmtK = (n: number) => n >= 1_000_000 ? `Rs ${(n / 1_000_000).toFixed(0)}M`
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 function KPI({
-  label, value, sub, change, icon: Icon, accent,
+  label, value, sub, change, icon: Icon, gradient, iconBg,
 }: {
   label: string;
   value: string;
   sub?: string;
   change?: number | null;
   icon: React.FC<{ size?: number; className?: string }>;
-  accent: string;
+  gradient: string;
+  iconBg: string;
 }) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 flex items-start gap-3">
-      <div className={`w-9 h-9 rounded-lg ${accent} flex items-center justify-center shrink-0`}>
-        <Icon size={16} className="text-white" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{label}</p>
-        <p className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">{value}</p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+    <div className={`rounded-xl p-4 ${gradient} relative overflow-hidden`}>
+      <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 60%)' }} />
+      <div className="relative">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-medium text-white/80 truncate">{label}</p>
+          <div className={`w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center`}>
+            <Icon size={15} className="text-white" />
+          </div>
+        </div>
+        <p className="text-xl font-extrabold text-white leading-tight">{value}</p>
+        {sub && <p className="text-xs text-white/70 mt-0.5">{sub}</p>}
         {change != null && (
-          <div className={`flex items-center gap-0.5 text-xs mt-0.5 font-medium ${change >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+          <div className={`flex items-center gap-0.5 text-xs mt-1 font-semibold ${change >= 0 ? 'text-green-200' : 'text-red-200'}`}>
             {change >= 0 ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
             {Math.abs(change)}% vs last month
           </div>
@@ -113,50 +117,65 @@ export function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
-          <p className="text-xs text-gray-400">{new Date().toLocaleDateString('en-PK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-2xl font-extrabold bg-linear-to-r from-secondary-700 via-secondary-600 to-primary-600 bg-clip-text text-transparent">Dashboard</h1>
+          <p className="text-xs text-gray-400 mt-0.5">{new Date().toLocaleDateString('en-PK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         {(pendingReturns ?? 0) > 0 && (
-          <div className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700 rounded-lg">
+          <div className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700 rounded-lg font-medium">
             <RotateCcw size={12} /> {pendingReturns} pending return{(pendingReturns ?? 0) > 1 ? 's' : ''}
           </div>
         )}
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Today Sales" value={fmt(today?.salesTotal ?? 0)}
           sub={`${today?.salesCount ?? 0} orders`}
           change={today?.vsYesterday?.salesGrowth ?? null}
-          icon={ShoppingCart} accent="bg-primary-600" />
+          icon={ShoppingCart}
+          gradient="bg-linear-to-br from-secondary-700 to-secondary-800"
+          iconBg="bg-white/20" />
         <KPI label="Month Sales" value={fmt(thisMonth?.salesTotal ?? 0)}
           sub={`${thisMonth?.salesCount ?? 0} orders`}
           change={changes?.salesGrowth ?? null}
-          icon={TrendingUp} accent="bg-blue-600" />
+          icon={TrendingUp}
+          gradient="bg-linear-to-br from-primary-500 to-primary-700"
+          iconBg="bg-white/20" />
         <KPI label="Month Purchases" value={fmt(thisMonth?.purchasesTotal ?? 0)}
           sub={`${thisMonth?.purchasesCount ?? 0} orders`}
           change={changes?.purchasesChange ?? null}
-          icon={ShoppingBag} accent="bg-indigo-600" />
+          icon={ShoppingBag}
+          gradient="bg-linear-to-br from-secondary-600 to-secondary-700"
+          iconBg="bg-white/20" />
         <KPI label="Net Profit" value={fmt(thisMonth?.netProfit ?? 0)}
           sub={`COGS ${fmt(thisMonth?.cogs ?? 0)}`}
           icon={thisMonth?.netProfit && thisMonth.netProfit >= 0 ? TrendingUp : TrendingDown}
-          accent={thisMonth?.netProfit && thisMonth.netProfit >= 0 ? 'bg-green-600' : 'bg-red-500'} />
+          gradient={(thisMonth?.netProfit ?? 0) >= 0 ? 'bg-linear-to-br from-emerald-500 to-green-600' : 'bg-linear-to-br from-red-500 to-rose-600'}
+          iconBg="bg-white/20" />
       </div>
 
       {/* Secondary KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Inventory Products" value={(inventory?.totalProducts ?? 0).toString()}
           sub={`Value ${fmtK(inventory?.totalInventoryValue ?? 0)}`}
-          icon={Package} accent="bg-purple-600" />
+          icon={Package}
+          gradient="bg-linear-to-br from-secondary-500 to-secondary-700"
+          iconBg="bg-white/20" />
         <KPI label="Low / Out of Stock" value={`${inventory?.lowStockCount ?? 0} / ${inventory?.outOfStockCount ?? 0}`}
-          icon={AlertCircle} accent={(inventory?.lowStockCount ?? 0) > 0 ? 'bg-amber-500' : 'bg-gray-400'} />
+          icon={AlertCircle}
+          gradient={(inventory?.lowStockCount ?? 0) > 0 ? 'bg-linear-to-br from-amber-500 to-orange-500' : 'bg-linear-to-br from-gray-500 to-gray-600'}
+          iconBg="bg-white/20" />
         <KPI label="Customers" value={(customers?.total ?? 0).toString()}
           sub={`${customers?.newThisMonth ?? 0} new this month`}
-          icon={Users} accent="bg-teal-600" />
+          icon={Users}
+          gradient="bg-linear-to-br from-primary-400 to-primary-600"
+          iconBg="bg-white/20" />
         <KPI label="Expenses" value={fmt(thisMonth?.expensesTotal ?? 0)}
           sub={`${thisMonth?.expensesCount ?? 0} entries`}
           change={changes?.expensesChange ?? null}
-          icon={TrendingDown} accent="bg-red-500" />
+          icon={TrendingDown}
+          gradient="bg-linear-to-br from-rose-500 to-red-600"
+          iconBg="bg-white/20" />
       </div>
 
       {/* Chart */}
@@ -176,12 +195,12 @@ export function Dashboard() {
           <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="gSales" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                <stop offset="5%" stopColor="#0f766e" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#0f766e" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="gPurchases" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                <stop offset="5%" stopColor="#281c59" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#281c59" stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" className="dark:stroke-gray-700" />
@@ -189,8 +208,8 @@ export function Dashboard() {
             <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v} />
             <Tooltip content={<ChartTip />} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-            <Area type="monotone" dataKey="Sales" stroke="#6366f1" strokeWidth={2} fill="url(#gSales)" dot={false} />
-            <Area type="monotone" dataKey="Purchases" stroke="#3b82f6" strokeWidth={2} fill="url(#gPurchases)" dot={false} />
+            <Area type="monotone" dataKey="Sales" stroke="#0f766e" strokeWidth={2} fill="url(#gSales)" dot={false} />
+            <Area type="monotone" dataKey="Purchases" stroke="#281c59" strokeWidth={2} fill="url(#gPurchases)" dot={false} />
             <Area type="monotone" dataKey="Expenses" stroke="#ef4444" strokeWidth={1.5} fill="none" dot={false} />
           </AreaChart>
         </ResponsiveContainer>

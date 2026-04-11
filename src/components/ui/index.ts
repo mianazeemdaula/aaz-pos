@@ -13,3 +13,5 @@ export { ProductSearch } from './ProductSearch';
 export { PrintConfirmDialog } from './PrintConfirmDialog';
 export { QuickCustomerAdd } from './QuickCustomerAdd';
 export { QuickSupplierAdd } from './QuickSupplierAdd';
+export { QuickCategoryAdd } from './QuickCategoryAdd';
+export { QuickBrandAdd } from './QuickBrandAdd';

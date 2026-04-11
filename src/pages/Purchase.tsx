@@ -614,7 +614,7 @@ export function Purchase() {
 
         {/* Barcode + Search */}
         <div className="p-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <div className="relative flex-1">
               <Scan size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
               <input

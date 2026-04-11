@@ -322,7 +322,7 @@ export function Settings() {
           </h2>
 
           {/* Connection type selector */}
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             {(['USB', 'NETWORK', 'SHARED'] as PrinterType[]).map(t => (
               <button
                 key={t}
@@ -380,7 +380,7 @@ export function Settings() {
 
           {/* Connection type */}
           <Field label="Connection Type">
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               {(['USB', 'IP', 'SHARED'] as const).map(t => (
                 <button
                   key={t}
@@ -497,7 +497,7 @@ export function Settings() {
 
           {/* Paper size */}
           <Field label="Paper Size">
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               {(['Mm58', 'Mm80'] as const).map(size => (
                 <button
                   key={size}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Printer, X, Loader2 } from 'lucide-react';
 
 interface PrintConfirmDialogProps {
@@ -18,9 +18,8 @@ export function PrintConfirmDialog({
 }: PrintConfirmDialogProps) {
     const [printing, setPrinting] = useState(false);
 
-    if (!open) return null;
-
     const handlePrint = async () => {
+        if (printing) return;
         setPrinting(true);
         try {
             await onPrint();
@@ -30,6 +29,19 @@ export function PrintConfirmDialog({
             setPrinting(false);
         }
     };
+
+    useEffect(() => {
+        if (!open) return;
+        const handler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && !printing) { onSkip(); }
+            if (e.key === 'Enter' && !printing) { e.preventDefault(); handlePrint(); }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, printing]);
+
+    if (!open) return null;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -52,9 +64,10 @@ export function PrintConfirmDialog({
                         type="button"
                         onClick={onSkip}
                         disabled={printing}
-                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 flex items-center gap-1.5"
                     >
                         Skip
+                        <kbd className="hidden sm:inline-block text-[10px] px-1 py-0.5 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded font-mono">Esc</kbd>
                     </button>
                     <button
                         type="button"
@@ -64,6 +77,7 @@ export function PrintConfirmDialog({
                     >
                         {printing ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
                         {printing ? 'Printing...' : 'Print'}
+                        {!printing && <kbd className="hidden sm:inline-block text-[10px] px-1 py-0.5 bg-primary-500 border border-primary-400 rounded font-mono">↵</kbd>}
                     </button>
                 </div>
             </div>

@@ -422,7 +422,7 @@ export function AdvanceBookings() {
                             </span>
                         </div>
                         <div className="flex justify-between gap-2 pt-1">
-                            <div className="flex gap-2">
+                            <div className="flex gap-1">
                                 {viewBooking.status === 'PENDING' && (
                                     <button onClick={() => { updateStatus(viewBooking.id, 'CONFIRMED'); setViewBooking(null); }}
                                         className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
@@ -465,7 +465,7 @@ export function AdvanceBookings() {
                         {/* Customer */}
                         <div className="relative">
                             <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Customer (optional)</label>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1">
                                 <input
                                     value={custQuery}
                                     onChange={e => { setCustQuery(e.target.value); if (!e.target.value) setForm(p => ({ ...p, customerId: null, customerName: '' })); }}

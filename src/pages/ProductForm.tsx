@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Save, X, Upload } from 'lucide-react';
 import { productService, categoryService, brandService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { QuickCategoryAdd } from '../components/ui/QuickCategoryAdd';
+import { QuickBrandAdd } from '../components/ui/QuickBrandAdd';
 import { API_CONFIG } from '../config/api';
 import type { Product, Category, Brand, ProductVariant } from '../types/pos';
 
@@ -30,7 +32,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
     return (
         <div className="flex items-center gap-3">
             {imgSrc ? (
-                <div className="relative w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
+                <div className="relative w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0">
                     <img src={imgSrc} alt="Product" className="w-full h-full object-cover" />
                     <button type="button" onClick={() => onChange('')}
                         className="absolute top-0 right-0 p-0.5 bg-red-500 text-white rounded-bl-lg">
@@ -150,7 +152,7 @@ function VariantFields({ v, onChange, showRemove, onRemove }: {
                     )}
                     {showRemove && (
                         <button type="button" onClick={onRemove}
-                            className="text-gray-400 hover:text-red-500">
+                            className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors">
                             <X size={14} />
                         </button>
                     )}
@@ -231,6 +233,10 @@ export function ProductForm() {
     // ── Reference data ──
     const [catRoots, setCatRoots] = useState<Category[]>([]);
     const [brands, setBrands] = useState<Brand[]>([]);
+
+    // ── Quick-add dialogs ──
+    const [quickAddCat, setQuickAddCat] = useState(false);
+    const [quickAddBrand, setQuickAddBrand] = useState(false);
 
     // ── UI state ──
     const [saving, setSaving] = useState(false);
@@ -511,17 +517,29 @@ export function ProductForm() {
                     </div>
                     <div>
                         <label className={lbl}>Category *</label>
-                        <select value={form.categoryId ?? ''} onChange={e => f('categoryId', e.target.value ? Number(e.target.value) : undefined)} className={inp}>
-                            <option value="">Select category...</option>
-                            {renderCatOptions(catRoots)}
-                        </select>
+                        <div className="flex gap-1.5 items-center">
+                            <select value={form.categoryId ?? ''} onChange={e => f('categoryId', e.target.value ? Number(e.target.value) : undefined)} className={`${inp} flex-1`}>
+                                <option value="">Select category...</option>
+                                {renderCatOptions(catRoots)}
+                            </select>
+                            <button type="button" onClick={() => setQuickAddCat(true)} title="Add new category"
+                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-700 transition-colors">
+                                <Plus size={14} />
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label className={lbl}>Brand</label>
-                        <select value={form.brandId ?? ''} onChange={e => f('brandId', e.target.value ? Number(e.target.value) : undefined)} className={inp}>
-                            <option value="">None</option>
-                            {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
+                        <div className="flex gap-1.5 items-center">
+                            <select value={form.brandId ?? ''} onChange={e => f('brandId', e.target.value ? Number(e.target.value) : undefined)} className={`${inp} flex-1`}>
+                                <option value="">None</option>
+                                {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                            <button type="button" onClick={() => setQuickAddBrand(true)} title="Add new brand"
+                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-700 transition-colors">
+                                <Plus size={14} />
+                            </button>
+                        </div>
                     </div>
                     <div className="md:col-span-2">
                         <label className={lbl}>Description</label>
@@ -649,8 +667,8 @@ export function ProductForm() {
                                                     </td>
                                                     <td className="px-3 py-2">
                                                         <div className="flex gap-1.5 justify-end">
-                                                            <button onClick={() => startEditVariant(v)} className="text-gray-400 hover:text-primary-600"><Pencil size={13} /></button>
-                                                            <button onClick={() => setVariantConfirm({ variantId: v.id })} className="text-gray-400 hover:text-red-500"><Trash2 size={13} /></button>
+                                                            <button onClick={() => startEditVariant(v)} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={13} /></button>
+                                                            <button onClick={() => setVariantConfirm({ variantId: v.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={13} /></button>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -674,7 +692,7 @@ export function ProductForm() {
                                             className="accent-primary-600" />
                                         Set as default
                                     </label>
-                                    <div className="flex gap-2">
+                                    <div className="flex gap-1">
                                         <button onClick={cancelEditVariant}
                                             className="px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50">
                                             Cancel
@@ -710,6 +728,32 @@ export function ProductForm() {
             <ConfirmDialog open={!!variantConfirm} title="Delete Variant"
                 message="This will permanently delete this variant." variant="danger"
                 confirmLabel="Delete" onConfirm={deleteVariant} onCancel={() => setVariantConfirm(null)} />
+
+            {/* Quick-add Category */}
+            <QuickCategoryAdd
+                open={quickAddCat}
+                onClose={() => setQuickAddCat(false)}
+                onCreated={(cat) => {
+                    // Reload categories and select the new one
+                    categoryService.list({}).then(r => {
+                        const cats = Array.isArray(r) ? r : (Array.isArray((r as any)?.data) ? (r as any).data : []);
+                        setCatRoots(cats.filter((c: Category) => !c.parentId));
+                    }).catch(() => { });
+                    f('categoryId', cat.id);
+                    setQuickAddCat(false);
+                }}
+            />
+
+            {/* Quick-add Brand */}
+            <QuickBrandAdd
+                open={quickAddBrand}
+                onClose={() => setQuickAddBrand(false)}
+                onCreated={(brand) => {
+                    setBrands(prev => [...prev, brand]);
+                    f('brandId', brand.id);
+                    setQuickAddBrand(false);
+                }}
+            />
         </div>
     );
 }

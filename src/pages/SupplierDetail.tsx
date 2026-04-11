@@ -39,10 +39,10 @@ export function SupplierDetail() {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <h2 className="text-sm font-semibold mb-3">Contact Info</h2>
           <dl className="space-y-1.5 text-sm">
-            {supplier.phone && <div className="flex gap-2"><dt className="text-gray-500 w-24">Phone</dt><dd>{formatPhone(supplier.phone)}</dd></div>}
-            {supplier.email && <div className="flex gap-2"><dt className="text-gray-500 w-24">Email</dt><dd>{supplier.email}</dd></div>}
-            {supplier.city && <div className="flex gap-2"><dt className="text-gray-500 w-24">City</dt><dd>{supplier.city}</dd></div>}
-            {supplier.ntn && <div className="flex gap-2"><dt className="text-gray-500 w-24">NTN</dt><dd>{supplier.ntn}</dd></div>}
+            {supplier.phone && <div className="flex gap-1"><dt className="text-gray-500 w-24">Phone</dt><dd>{formatPhone(supplier.phone)}</dd></div>}
+            {supplier.email && <div className="flex gap-1"><dt className="text-gray-500 w-24">Email</dt><dd>{supplier.email}</dd></div>}
+            {supplier.city && <div className="flex gap-1"><dt className="text-gray-500 w-24">City</dt><dd>{supplier.city}</dd></div>}
+            {supplier.ntn && <div className="flex gap-1"><dt className="text-gray-500 w-24">NTN</dt><dd>{supplier.ntn}</dd></div>}
           </dl>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
