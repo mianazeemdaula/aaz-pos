@@ -63,7 +63,6 @@ const MENU: MenuGroup[] = [
     items: [
       { label: 'Reports', icon: BarChart3, path: '/reports' },
       { label: 'Users', icon: User, path: '/users' },
-      { label: 'Admin Panel', icon: ShieldCheck, path: '/admin' },
       { label: 'Settings', icon: Settings, path: '/settings' },
     ],
   },

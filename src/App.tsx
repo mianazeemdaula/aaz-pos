@@ -97,7 +97,7 @@ function App() {
               <Route path="stock-adjustments" element={<ErrorBoundary><StockAdjustments /></ErrorBoundary>} />
               <Route path="advance-bookings" element={<ErrorBoundary><AdvanceBookings /></ErrorBoundary>} />
               <Route path="settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
-              <Route path="admin" element={<ErrorBoundary><Admin /></ErrorBoundary>} />
+              <Route path="admin" element={<Navigate to="/settings" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>
           </Route>

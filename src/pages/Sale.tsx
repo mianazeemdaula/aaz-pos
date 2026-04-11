@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Plus, Minus, Trash2, Save, Pause, Loader2, CheckCircle2, AlertCircle, X, UserPlus, Scan, Search } from 'lucide-react';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
+import { QuickCustomerAdd } from '../components/ui/QuickCustomerAdd';
 import { ProductSearchModal } from '../components/ui/ProductSearch';
 import { PrintConfirmDialog } from '../components/ui/PrintConfirmDialog';
-import { saleService, heldService, productService, accountService, customerService } from '../services/pos.service';
+import { saleService, heldService, productService, accountService } from '../services/pos.service';
 import { fbrService } from '../services/fbr.service';
 import { FBRPaymentMode, FBRInvoiceType } from '../types/fbr';
 import { FBR_CONFIG } from '../config/api';
@@ -169,9 +170,6 @@ export function Sale() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   const [showNewCustomer, setShowNewCustomer] = useState(false);
-  const [newCustName, setNewCustName] = useState('');
-  const [newCustPhone, setNewCustPhone] = useState('');
-  const [savingCustomer, setSavingCustomer] = useState(false);
 
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [pendingPrintData, setPendingPrintData] = useState<SaleInvoiceData | null>(null);
@@ -529,22 +527,7 @@ export function Sale() {
     }
   }, [cart, customer, accounts, accountAmounts, grandTotal, paidTotal, invoiceDiscount, note, showToast, clearCart, subtotal, itemDiscountTotal, taxTotal, change]);
 
-  const saveNewCustomer = async () => {
-    if (!newCustName.trim()) return;
-    setSavingCustomer(true);
-    try {
-      const c = await customerService.create({ name: newCustName.trim(), phone: newCustPhone.trim() || undefined, active: true });
-      setCustomer(c);
-      setShowNewCustomer(false);
-      setNewCustName('');
-      setNewCustPhone('');
-    } catch (e: unknown) {
-      console.error('[saveNewCustomer]', e);
-      showToast('error', parseError(e, 'Failed to create customer'));
-    } finally {
-      setSavingCustomer(false);
-    }
-  };
+
 
   const holdSaleRef = useRef<() => void>(() => { });
   holdSaleRef.current = holdSale;
@@ -646,55 +629,11 @@ export function Sale() {
         onSkip={() => { setPendingPrintData(null); setShowPrintDialog(false); }}
       />
 
-      {showNewCustomer && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-sm p-5 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-                <UserPlus size={16} /> New Customer
-              </h3>
-              <button onClick={() => setShowNewCustomer(false)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Name *</label>
-                <input
-                  autoFocus
-                  type="text"
-                  value={newCustName}
-                  onChange={e => setNewCustName(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveNewCustomer()}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Phone</label>
-                <input
-                  type="text"
-                  value={newCustPhone}
-                  onChange={e => setNewCustPhone(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && saveNewCustomer()}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => { setShowNewCustomer(false); setNewCustName(''); setNewCustPhone(''); }}
-                className="flex-1 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
-                Cancel
-              </button>
-              <button
-                onClick={saveNewCustomer}
-                disabled={!newCustName.trim() || savingCustomer}
-                className="flex-1 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg text-sm font-medium disabled:opacity-50 flex items-center justify-center gap-1.5">
-                {savingCustomer ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <QuickCustomerAdd
+        open={showNewCustomer}
+        onClose={() => setShowNewCustomer(false)}
+        onCreated={(c) => { setCustomer(c); setShowNewCustomer(false); }}
+      />
 
       {/*  LEFT: Cart Panel  */}
       <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-h-0">
@@ -750,7 +689,7 @@ export function Sale() {
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <ShoppingCartIcon />
               <p className="text-sm mt-2">Cart is empty  scan a barcode or press F5 to search</p>
-              <p className="text-xs mt-1 text-gray-300">F2 Scan · F3 Qty · F5 Search · F7 Save · F8 Hold · F9 Held · F12 Clear</p>
+              <p className="text-xs mt-1 text-gray-300">F2 Scan &middot; F3 Qty &middot; F5 Search &middot; F7 Save &middot; F8 Hold &middot; F9 Held &middot; F12 Clear</p>
             </div>
           ) : (
             <table className="w-full text-xs">
@@ -777,7 +716,7 @@ export function Sale() {
                     <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-1.5">
                         <p className="font-medium text-gray-900 dark:text-gray-100">{item.product.name}</p>
-                        <p className="text-gray-400 text-xs">{item.variant.barcode} · {item.variant.name}</p>
+                        <p className="text-gray-400 text-xs">{item.variant.barcode} &middot; {item.variant.name}</p>
                       </td>
                       <td>
                         {variants.length > 1 && (
@@ -788,7 +727,7 @@ export function Sale() {
                           >
                             {variants.map(v => (
                               <option key={v.id} value={v.id}>
-                                {v.name} (×{v.factor})
+                                {v.name} (Ã—{v.factor})
                               </option>
                             ))}
                           </select>
@@ -870,7 +809,7 @@ export function Sale() {
               <UserPlus size={11} /> New <span className="text-gray-400 ml-0.5">(F11)</span>
             </button>
           </div>
-          <CustomerSearch value={customer} onSelect={setCustomer} inputRef={customerInputRef} />
+          <CustomerSearch value={customer} onSelect={setCustomer} inputRef={customerInputRef} onCreateNew={() => setShowNewCustomer(true)} />
         </div>
 
         {/* Payments */}
@@ -966,7 +905,7 @@ export function Sale() {
             disabled={saving || !cart.length}
             className="w-full py-2.5 px-4 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors">
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-            {saving ? 'Saving…' : isReturnCart ? `Process Return (F7)  ${fmt(Math.abs(grandTotal))}` : `Save Sale (F7)  ${fmt(grandTotal)}`}
+            {saving ? 'Savingâ€¦' : isReturnCart ? `Process Return (F7) Â· ${fmt(Math.abs(grandTotal))}` : `Save Sale (F7) Â· ${fmt(grandTotal)}`}
           </button>
           <p className="text-center text-xs text-gray-400 mt-2">
             F8 Hold &nbsp;&bull;&nbsp; F9 Held &nbsp;&bull;&nbsp; F12 Clear

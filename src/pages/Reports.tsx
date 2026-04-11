@@ -80,7 +80,7 @@ export function Reports() {
       if (active.params.includes('dates')) { params.from = from; params.to = to; }
       if (active.params.includes('date')) { params.date = date; }
 
-      const blob = await apiClient.getBlob(endpoint, { params });
+      const blob = await apiClient.getBlob(endpoint, { params, timeout: 120_000 });
       setPdfUrl(URL.createObjectURL(blob));
     } catch {
       setError('Failed to generate report. Please try again.');
