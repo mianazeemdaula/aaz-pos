@@ -32,6 +32,6 @@ export default defineConfig(async () => ({
   preview: {
     host: '0.0.0.0',
     port: 4002,
-    allowedHosts: ['pos.txdevs.com', 'localhost', '127.0.0.1'],
+    allowedHosts: ['pos.aazify.com', 'localhost', '127.0.0.1'],
   }
 }));
