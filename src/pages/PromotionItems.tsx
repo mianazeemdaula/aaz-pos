@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, Search, X, Package, Save } from 'lucide-react';
-import { promotionService, productService } from '../services/pos.service';
-import type { Promotion, Product, ProductVariant } from '../types/pos';
+import { ArrowLeft, Loader2, Search, X, Package, Save, Filter, CheckSquare } from 'lucide-react';
+import { promotionService, productService, brandService, categoryService } from '../services/pos.service';
+import type { Promotion, Product, ProductVariant, Brand, Category } from '../types/pos';
 
 const inp = 'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500';
+const selectCls = 'px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500 min-w-35';
 const card = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4';
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -22,6 +23,22 @@ export function PromotionItems() {
     const [productSearch, setProductSearch] = useState('');
     const [productLoading, setProductLoading] = useState(false);
 
+    // Filters
+    const [brands, setBrands] = useState<Brand[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [filterBrandId, setFilterBrandId] = useState<number | null>(null);
+    const [filterCategoryId, setFilterCategoryId] = useState<number | null>(null);
+
+    useEffect(() => {
+        Promise.all([
+            brandService.list({ pageSize: 500 }),
+            categoryService.list({ pageSize: 500 }),
+        ]).then(([b, c]) => {
+            setBrands(b.data ?? []);
+            setCategories(c.data ?? []);
+        }).catch(() => { });
+    }, []);
+
     useEffect(() => {
         promotionService.get(promoId).then(promo => {
             setPromotion(promo);
@@ -30,19 +47,23 @@ export function PromotionItems() {
             .finally(() => setLoading(false));
     }, [promoId, navigate]);
 
-    const searchProducts = useCallback(async (q: string) => {
+    const searchProducts = useCallback(async (q: string, brandId: number | null, categoryId: number | null) => {
         setProductLoading(true);
         try {
-            const r = await productService.list({ q, pageSize: 50 });
+            const params: Record<string, unknown> = { pageSize: 50 };
+            if (q) params.q = q;
+            if (brandId) params.brandId = brandId;
+            if (categoryId) params.categoryId = categoryId;
+            const r = await productService.list(params);
             setProducts(r.data ?? []);
         } catch { setProducts([]); }
         finally { setProductLoading(false); }
     }, []);
 
     useEffect(() => {
-        const timer = setTimeout(() => searchProducts(productSearch), 300);
+        const timer = setTimeout(() => searchProducts(productSearch, filterBrandId, filterCategoryId), 300);
         return () => clearTimeout(timer);
-    }, [productSearch, searchProducts]);
+    }, [productSearch, filterBrandId, filterCategoryId, searchProducts]);
 
     const toggleVariant = (variantId: number) => {
         setSelectedVariantIds(prev =>
@@ -63,6 +84,20 @@ export function PromotionItems() {
     const removeVariant = (variantId: number) => {
         setSelectedVariantIds(prev => prev.filter(id => id !== variantId));
     };
+
+    const selectAllVisible = () => {
+        const allVisibleIds = products.flatMap(p => (p.variants ?? []).map(v => v.id));
+        setSelectedVariantIds(prev => [...new Set([...prev, ...allVisibleIds])]);
+    };
+
+    const deselectAllVisible = () => {
+        const allVisibleIds = new Set(products.flatMap(p => (p.variants ?? []).map(v => v.id)));
+        setSelectedVariantIds(prev => prev.filter(id => !allVisibleIds.has(id)));
+    };
+
+    const allVisibleSelected = products.length > 0 && products.every(p =>
+        (p.variants ?? []).every(v => selectedVariantIds.includes(v.id))
+    );
 
     const selectedVariantDetails = useMemo(() => {
         const map = new Map<number, { variant: ProductVariant; productName: string }>();
@@ -174,12 +209,50 @@ export function PromotionItems() {
                         className={`${inp} pl-9`} />
                 </div>
 
+                {/* Brand & Category Filters */}
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <Filter size={14} className="text-gray-400 shrink-0" />
+                    <select
+                        value={filterCategoryId ?? ''}
+                        onChange={e => setFilterCategoryId(e.target.value ? Number(e.target.value) : null)}
+                        className={selectCls}
+                    >
+                        <option value="">All Categories</option>
+                        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <select
+                        value={filterBrandId ?? ''}
+                        onChange={e => setFilterBrandId(e.target.value ? Number(e.target.value) : null)}
+                        className={selectCls}
+                    >
+                        <option value="">All Brands</option>
+                        {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                    {(filterBrandId || filterCategoryId) && (
+                        <button onClick={() => { setFilterBrandId(null); setFilterCategoryId(null); }}
+                            className="text-xs text-gray-500 hover:text-red-500 flex items-center gap-1">
+                            <X size={12} /> Clear filters
+                        </button>
+                    )}
+                    <div className="ml-auto flex items-center gap-2">
+                        {products.length > 0 && (
+                            <button
+                                onClick={allVisibleSelected ? deselectAllVisible : selectAllVisible}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            >
+                                <CheckSquare size={13} />
+                                {allVisibleSelected ? 'Deselect All Visible' : 'Select All Visible'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
                 <div className="max-h-[50vh] overflow-y-auto space-y-1 rounded-lg border border-gray-100 dark:border-gray-700">
                     {productLoading ? (
                         <div className="flex justify-center py-6"><Loader2 size={16} className="text-primary-600 animate-spin" /></div>
                     ) : products.length === 0 ? (
                         <p className="text-xs text-gray-400 text-center py-6">
-                            {productSearch ? 'No products found' : 'Search to find products'}
+                            {(productSearch || filterBrandId || filterCategoryId) ? 'No products found' : 'Search or use filters to find products'}
                         </p>
                     ) : (
                         products.map(product => {

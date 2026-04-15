@@ -65,7 +65,9 @@ export const fbrService = {
             const data: FBRInvoiceResponse = await response.json();
 
             if (data.Code !== '100') {
-                const errorDetails = data.Errors?.join(', ') || data.Response;
+                const errorDetails = Array.isArray(data.Errors)
+                    ? data.Errors.join(', ')
+                    : (typeof data.Errors === 'string' ? data.Errors : JSON.stringify(data.Errors ?? data.Response));
                 throw new Error(`FBR invoice generation failed: ${errorDetails}`);
             }
 

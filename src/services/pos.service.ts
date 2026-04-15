@@ -92,6 +92,7 @@ export const saleService = {
   get: (id: number) => apiClient.get<Sale>(API_ENDPOINTS.sales.detail(id)),
   create: (data: object) => apiClient.post<Sale>(API_ENDPOINTS.sales.create, data),
   delete: (id: number) => apiClient.delete(API_ENDPOINTS.sales.delete(id)),
+  updateTaxInvoice: (id: number, taxInvoiceId: string) => apiClient.patch<Sale>(API_ENDPOINTS.sales.updateTaxInvoice(id), { taxInvoiceId }),
 };
 
 // ---- Purchases ----

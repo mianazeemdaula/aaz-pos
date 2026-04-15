@@ -163,7 +163,7 @@ export function SaleReturns() {
                       const due = Math.max(0, s.totalAmount - s.paidAmount);
                       return (
                         <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
-                          <td className="px-4 py-1.5 font-medium text-gray-900 dark:text-gray-100">{s.taxInvoiceId ?? `#${s.id}`}</td>
+                          <td className="px-4 py-1.5 font-medium text-gray-900 dark:text-gray-100">{s.id ?? `#${s.id}`}</td>
                           <td className="px-4 py-1.5 text-gray-500">{new Date(s.createdAt).toLocaleDateString()}</td>
                           <td className="px-4 py-1.5 text-gray-700 dark:text-gray-300">{s.customer?.name ?? 'Walk-in'}</td>
                           <td className="px-4 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(s.totalAmount)}</td>

@@ -9,7 +9,7 @@ import type { Product, Category } from '../types/pos';
 const fmt = (n: number | null | undefined) =>
   n != null ? `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 
-const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
+const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) + " " + new Date(d).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
 
 // ─── Category helpers ────────────────────────────────────────────────────────
 function extractCats(r: unknown): Category[] {
@@ -332,7 +332,7 @@ export function Products() {
                             <div className="space-y-0.5">
                               {item.variants!.map(v => (
                                 <div key={v.id} className="flex items-center gap-1.5 text-xs">
-                                  <span className="text-gray-600 dark:text-gray-400 min-w-[60px]">{v.name}</span>
+                                  <span className="text-gray-600 dark:text-gray-400 min-w-15">{v.name}</span>
                                   <span className="text-gray-400">×{v.factor}</span>
                                   <span className="text-gray-900 dark:text-gray-100 font-medium">{fmt(v.price)}</span>
                                   {v.retail != null && v.retail !== v.price && <span className="text-gray-400">R:{fmt(v.retail)}</span>}

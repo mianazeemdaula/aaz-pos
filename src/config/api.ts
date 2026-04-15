@@ -104,6 +104,7 @@ export const API_ENDPOINTS = {
         create: '/sales',
         detail: (id: number) => `/sales/${id}`,
         delete: (id: number) => `/sales/${id}`,
+        updateTaxInvoice: (id: number) => `/sales/${id}/tax-invoice`,
     },
     purchases: {
         list: '/purchases',

@@ -1,11 +1,10 @@
-﻿import { useState, useEffect } from 'react';
+﻿import { useState } from 'react';
 import {
   Save, Loader2, Wifi, Usb, Database,
   Download, Upload, CheckCircle2, AlertCircle, RefreshCw,
-  Users, User, ShieldCheck, Building2,
+  Users, User, ShieldCheck,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { settingsService } from '../services/pos.service';
 import { apiClient } from '../services/api';
 import { API_ENDPOINTS } from '../config/api';
 import { saveThermalConfig, loadThermalConfig, listPrinters, type ThermalPrinterConfig, type PrinterInfo } from '../utils/thermalPrinter';
@@ -19,7 +18,7 @@ interface FbrSettings {
   enabled: boolean;
 }
 
-type Tab = 'business' | 'thermal' | 'database' | 'fbr' | 'admin';
+type Tab = 'thermal' | 'database' | 'fbr' | 'admin';
 
 // --- Field helper ---
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -36,13 +35,7 @@ const inputCls = 'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gr
 // --- Main Component ---
 export function Settings() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState<Tab>('business');
-
-  // Business settings (from server)
-  const [serverData, setServerData] = useState<Record<string, unknown>>({});
-  const [serverLoading, setServerLoading] = useState(false);
-  const [serverSaving, setServerSaving] = useState(false);
-  const [serverMsg, setServerMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [tab, setTab] = useState<Tab>('thermal');
 
   // Database
   const [dbBusy, setDbBusy] = useState(false);
@@ -65,28 +58,6 @@ export function Settings() {
   });
   const [fbrSaving, setFbrSaving] = useState(false);
   const [fbrMsg, setFbrMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  // Load server settings on mount
-  useEffect(() => {
-    setServerLoading(true);
-    settingsService.get().then(setServerData).catch(() => { }).finally(() => setServerLoading(false));
-  }, []);
-
-  // Handlers
-  const saveServerSettings = async () => {
-    setServerSaving(true);
-    setServerMsg(null);
-    try {
-      await settingsService.update(serverData);
-      setServerMsg({ ok: true, text: 'Business settings saved.' });
-    } catch (e: unknown) {
-      setServerMsg({ ok: false, text: e instanceof Error ? e.message : 'Save failed' });
-    } finally {
-      setServerSaving(false);
-    }
-  };
-
-  const sf = (key: string, val: unknown) => setServerData(p => ({ ...p, [key]: val }));
 
   const handleBackup = async () => {
     setDbBusy(true);
@@ -165,7 +136,6 @@ export function Settings() {
 
   // Tab definitions
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'business', label: 'Business', icon: <Building2 size={14} /> },
     { id: 'thermal', label: 'Thermal Printer', icon: <Usb size={14} /> },
     { id: 'database', label: 'Database', icon: <Database size={14} /> },
     { id: 'fbr', label: 'FBR', icon: <Wifi size={14} /> },
@@ -193,44 +163,6 @@ export function Settings() {
           </button>
         ))}
       </div>
-
-      {/* Tab: Business Info */}
-      {tab === 'business' && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
-            <Building2 size={15} className="text-primary-500" /> Business Info
-          </h2>
-          {serverLoading ? (
-            <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 size={14} className="animate-spin" /> Loading...</div>
-          ) : (
-            <>
-              {[
-                { key: 'businessName', label: 'Business Name' },
-                { key: 'address', label: 'Address' },
-                { key: 'phone', label: 'Phone' },
-                { key: 'ntn', label: 'NTN' },
-                { key: 'strn', label: 'STRN' },
-              ].map(({ key, label }) => (
-                <Field key={key} label={label}>
-                  <input value={String(serverData[key] ?? '')} onChange={e => sf(key, e.target.value)} className={inputCls} />
-                </Field>
-              ))}
-              <Field label="Default Tax Rate (%)">
-                <input type="number" min={0} step="0.01" value={Number(serverData.defaultTaxRate ?? 0)} onChange={e => sf('defaultTaxRate', Number(e.target.value))} className={inputCls} />
-              </Field>
-              <Field label="Currency">
-                <input value={String(serverData.currency ?? 'PKR')} onChange={e => sf('currency', e.target.value)} className={inputCls} />
-              </Field>
-
-              <StatusMsg msg={serverMsg} />
-
-              <div className="flex justify-end pt-1">
-                <SaveBtn loading={serverSaving} onClick={saveServerSettings} label="Save Business Settings" />
-              </div>
-            </>
-          )}
-        </div>
-      )}
 
       {/* Tab: Thermal Printer */}
       {tab === 'thermal' && (

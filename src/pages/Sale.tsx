@@ -233,8 +233,8 @@ export function Sale() {
     setBarcodeError('');
     try {
       const variant = await productService.getVariantByBarcode(bc.toUpperCase().trim());
-      if (variant && variant.productId) {
-        const fullProduct = await productService.get(variant.productId);
+      if (variant && variant.product) {
+        const fullProduct = variant.product as Product;
         const matchedVariant = fullProduct.variants?.find(v => v.barcode === variant.barcode) ?? variant;
         addToCart(fullProduct, matchedVariant);
       }
@@ -443,80 +443,108 @@ export function Sale() {
         payments: paymentEntries,
       };
 
+      // Snapshot cart data for print & FBR before clearing
+      const cartSnapshot = cart.map(i => ({ ...i }));
+      const snapshotCustomer = customer;
+      const snapshotSubtotal = subtotal;
+      const snapshotItemDiscountTotal = itemDiscountTotal;
+      const snapshotTaxTotal = taxTotal;
+      const snapshotGrandTotal = grandTotal;
+      const snapshotPaidTotal = paidTotal;
+      const snapshotChange = change;
+      const snapshotInvoiceDiscount = invoiceDiscount;
+
       const sale = await saleService.create(salePayload);
 
-      if (FBR_CONFIG.enabled && !isReturnCart) {
-        try {
-          const saleVal = cart.reduce((a, i) => {
-            const { afterDisc, taxAmt } = computeLine(i);
-            return a + (i.taxMethod === 'INCLUSIVE' ? afterDisc - taxAmt : afterDisc);
-          }, 0);
-          const taxAmt = cart.reduce((a, i) => a + computeLine(i).taxAmt, 0);
-          const discAmt = cart.reduce((a, i) => a + computeLine(i).discAmt, 0) + invoiceDiscount;
-          const totalQty = cart.reduce((a, i) => a + i.qty, 0);
-          const hasBankPayment = paymentEntries.some(p => p.accountId == 2);
-          await fbrService.generateInvoice({
-            InvoiceNumber: '',
-            POSID: FBR_CONFIG.posId,
-            USIN: String(sale.id),
-            DateTime: new Date(sale.createdAt).toISOString().replace('T', ' ').slice(0, 19),
-            SaleValue: saleVal,
-            BuyerNTN: customer?.ntn ?? undefined,
-            BuyerCNIC: customer?.cnic ?? undefined,
-            BuyerName: customer?.name,
-            TotalSaleValue: saleVal,
-            TotalQuantity: totalQty,
-            TotalTaxCharged: taxAmt,
-            Discount: discAmt,
-            FurtherTax: 0,
-            TotalBillAmount: saleVal + taxAmt,
-            PaymentMode: hasBankPayment ? FBRPaymentMode.CARD : FBRPaymentMode.CASH,
-            InvoiceType: FBRInvoiceType.NEW,
-            Items: cart.map(i => {
-              const lc = computeLine(i);
-              const itemSaleVal = i.taxMethod === 'INCLUSIVE' ? lc.afterDisc - lc.taxAmt : lc.afterDisc;
-              return {
-                ItemCode: i.variant.barcode ?? String(i.variant.id),
-                ItemName: i.variant.product?.name ?? i.variant.name,
-                Quantity: i.qty,
-                PCTCode: i.hsCode || '00000000',
-                TaxRate: i.taxRate,
-                TaxCharged: lc.taxAmt,
-                TotalAmount: lc.lineTotal,
-                SaleValue: itemSaleVal,
-                InvoiceType: FBRInvoiceType.NEW,
-                Discount: lc.discAmt,
-              };
-            }),
-          });
-        } catch (e: unknown) {
-          console.error('[FBR submit]', e);
-          showToast('error', `Sale saved but FBR failed: ${parseError(e, 'FBR submission failed')}`);
-          setSaving(false);
-          return;
-        }
-      }
-
+      // Build print data immediately (FBR ID added later if available)
       const printData: SaleInvoiceData = {
         sale,
-        items: cart.map(i => ({
+        items: cartSnapshot.map(i => ({
           name: i.variant.product?.name ?? i.variant.name,
           qty: i.qty,
           price: i.price,
           discount: i.discount,
           total: computeLine(i).lineTotal,
         })),
-        customer: customer ?? null,
-        subtotal,
-        discountAmount: itemDiscountTotal + invoiceDiscount,
-        taxAmount: taxTotal,
-        grandTotal,
-        paidAmount: paidTotal,
-        changeAmount: Math.max(0, change),
+        customer: snapshotCustomer ?? null,
+        subtotal: snapshotSubtotal,
+        discountAmount: snapshotItemDiscountTotal + snapshotInvoiceDiscount,
+        taxAmount: snapshotTaxTotal,
+        grandTotal: snapshotGrandTotal,
+        paidAmount: snapshotPaidTotal,
+        changeAmount: Math.max(0, snapshotChange),
       };
 
+      // Clear cart immediately so user can start next sale
       clearCart();
-      showToast('success', `Sale #${sale.invoiceNumber ?? sale.id} saved!`);
+      showToast('success', `Sale #${sale.id} saved!`);
+
+      // FBR: fire-and-forget — don't block the UI
+      if (FBR_CONFIG.enabled && !isReturnCart) {
+        const fbrPromise = (async () => {
+          try {
+            const saleVal = cartSnapshot.reduce((a, i) => {
+              const { afterDisc, taxAmt } = computeLine(i);
+              return a + (i.taxMethod === 'INCLUSIVE' ? afterDisc - taxAmt : afterDisc);
+            }, 0);
+            const taxAmt = cartSnapshot.reduce((a, i) => a + computeLine(i).taxAmt, 0);
+            const discAmt = cartSnapshot.reduce((a, i) => a + computeLine(i).discAmt, 0) + snapshotInvoiceDiscount;
+            const totalQty = cartSnapshot.reduce((a, i) => a + i.qty, 0);
+            const hasBankPayment = paymentEntries.some(p => p.accountId == 2);
+            const fbrResponse = await fbrService.generateInvoice({
+              InvoiceNumber: '',
+              POSID: FBR_CONFIG.posId,
+              USIN: String(sale.id),
+              DateTime: new Date(sale.createdAt).toISOString().replace('T', ' ').slice(0, 19),
+              SaleValue: saleVal,
+              BuyerNTN: snapshotCustomer?.ntn ?? undefined,
+              BuyerCNIC: snapshotCustomer?.cnic ?? undefined,
+              BuyerName: snapshotCustomer?.name,
+              TotalSaleValue: saleVal,
+              TotalQuantity: totalQty,
+              TotalTaxCharged: taxAmt,
+              Discount: discAmt,
+              FurtherTax: 0,
+              TotalBillAmount: saleVal + taxAmt,
+              PaymentMode: hasBankPayment ? FBRPaymentMode.CARD : FBRPaymentMode.CASH,
+              InvoiceType: FBRInvoiceType.NEW,
+              Items: cartSnapshot.map(i => {
+                const lc = computeLine(i);
+                const itemSaleVal = i.taxMethod === 'INCLUSIVE' ? lc.afterDisc - lc.taxAmt : lc.afterDisc;
+                return {
+                  ItemCode: i.variant.barcode ?? String(i.variant.id),
+                  ItemName: i.variant.product?.name ?? i.variant.name,
+                  Quantity: i.qty,
+                  PCTCode: i.hsCode || '00000000',
+                  TaxRate: i.taxRate,
+                  TaxCharged: lc.taxAmt,
+                  TotalAmount: lc.lineTotal,
+                  SaleValue: itemSaleVal,
+                  InvoiceType: FBRInvoiceType.NEW,
+                  Discount: lc.discAmt,
+                };
+              }),
+            });
+
+            const fbrInvoiceId = fbrResponse.InvoiceNumber;
+            if (fbrInvoiceId) {
+              // Persist FBR invoice number to the sale record
+              saleService.updateTaxInvoice(sale.id, fbrInvoiceId).catch(err =>
+                console.error('[FBR save taxInvoiceId]', err)
+              );
+              // Update print data with FBR info
+              printData.fbrInvoiceId = fbrInvoiceId;
+              printData.fbrQrUrl = `https://tp.fbr.gov.pk/InvoiceVerification?InvoiceNo=${encodeURIComponent(fbrInvoiceId)}`;
+              setPendingPrintData(prev => prev ? { ...prev, fbrInvoiceId, fbrQrUrl: printData.fbrQrUrl } : prev);
+            }
+          } catch (e: unknown) {
+            console.error('[FBR submit]', e);
+          }
+        })();
+        // Wait briefly for FBR (up to 3s) before showing print dialog
+        await Promise.race([fbrPromise, new Promise(r => setTimeout(r, 3000))]);
+      }
+
       setPendingPrintData(printData);
       setShowPrintDialog(true);
     } catch (e: unknown) {
@@ -525,7 +553,7 @@ export function Sale() {
     } finally {
       setSaving(false);
     }
-  }, [cart, customer, accounts, accountAmounts, grandTotal, paidTotal, invoiceDiscount, note, showToast, clearCart, subtotal, itemDiscountTotal, taxTotal, change]);
+  }, [cart, customer, accounts, accountAmounts, grandTotal, paidTotal, invoiceDiscount, note, showToast, clearCart, subtotal, itemDiscountTotal, taxTotal, change, isReturnCart]);
 
 
 
