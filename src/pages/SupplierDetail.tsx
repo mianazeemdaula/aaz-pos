@@ -5,7 +5,7 @@ import { supplierService } from '../services/pos.service';
 import { formatPhone } from '../utils/formatters';
 import type { Supplier, SupplierLedgerEntry } from '../types/pos';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function SupplierDetail() {
   const { id } = useParams<{ id: string }>();

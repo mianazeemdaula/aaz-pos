@@ -8,7 +8,7 @@ import type { Account } from '../types/pos';
 
 const PAGE_SIZE = 20;
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function Accounts() {
   const [items, setItems] = useState<Account[]>([]);

@@ -14,7 +14,8 @@ class ApiClient {
     private authToken: string | null = null;
 
     constructor() {
-        this.baseURL = API_CONFIG.baseURL;
+        const saved = localStorage.getItem('pos_api_url');
+        this.baseURL = saved || API_CONFIG.baseURL;
         this.timeout = API_CONFIG.timeout;
         this.defaultHeaders = { ...API_CONFIG.headers };
     }
@@ -24,6 +25,16 @@ class ApiClient {
      */
     public setBaseURL(url: string): void {
         this.baseURL = url;
+        localStorage.setItem('pos_api_url', url);
+    }
+
+    public getBaseURL(): string {
+        return this.baseURL;
+    }
+
+    public resetBaseURL(): void {
+        localStorage.removeItem('pos_api_url');
+        this.baseURL = API_CONFIG.baseURL;
     }
 
     /** @deprecated kept for compatibility */

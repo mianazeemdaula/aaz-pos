@@ -7,7 +7,7 @@ import { ProductSearchModal } from '../components/ui/ProductSearch';
 import { QuickCustomerAdd } from '../components/ui/QuickCustomerAdd';
 import type { AdvanceBooking, Customer, ProductVariant } from '../types/pos';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const STATUS_BADGE: Record<string, string> = {
     PENDING: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',

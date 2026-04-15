@@ -18,6 +18,7 @@ import type { Product, ProductVariant, Supplier, HeldPurchase, Account } from '.
 interface CartItem {
   product: Product
   & { barcode?: string }
+  variant: ProductVariant;
   qty: number;
   totalCost: number; // total for this line (qty × unitCost), user-entered
   discount: number;  // discount in Rs (amount)
@@ -26,7 +27,7 @@ interface CartItem {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function parseError(e: unknown, fallback: string): string {
   if (e instanceof Error) return e.message;
@@ -83,8 +84,8 @@ function HeldPurchasesModal({
 
   useEffect(() => {
     heldService
-      .listPurchases({ pageSize: 50 })
-      .then(r => setHeld(r.data.filter(p => p.status === 'HELD')))
+      .listPurchases({ pageSize: 50, status: 'HELD' })
+      .then(r => setHeld(r?.data ?? []))
       .catch(() => { })
       .finally(() => setLoading(false));
   }, []);
@@ -299,17 +300,16 @@ export function Purchase() {
     const product = v.product;
     if (!product) return;
     setCart(prev => {
-      const idx = prev.findIndex(i => i.product.id === product.id);
+      const idx = prev.findIndex(i => i.variant.id === v.id);
       if (idx >= 0) {
         const next = [...prev];
         const cur = next[idx];
         const unitCost = cur.qty > 0 ? cur.totalCost / cur.qty : 0;
-        next[idx] = { ...cur, qty: cur.qty + v.factor, totalCost: (cur.qty + v.factor) * unitCost };
+        next[idx] = { ...cur, qty: cur.qty + 1, totalCost: (cur.qty + 1) * unitCost };
         return next;
       }
-      const unitCost = product.avgCostPrice || v.wholesale || v.price || 0;
       const sellingPrice = v.price || 0;
-      return [{ product, qty: v.factor, totalCost: unitCost, discount: 0, unitRate: sellingPrice }, ...prev];
+      return [{ product, variant: { ...v, product }, qty: 1, totalCost: 0, discount: 0, unitRate: sellingPrice }, ...prev];
     });
     setBarcode('');
     setTimeout(() => barcodeRef.current?.focus(), 30);
@@ -366,6 +366,15 @@ export function Purchase() {
 
   const removeItem = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx));
 
+  const changeVariant = (idx: number, variantId: number) => {
+    setCart(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      const newVariant = item.product.variants?.find(v => v.id === variantId);
+      if (!newVariant) return item;
+      return { ...item, variant: { ...newVariant, product: item.product }, unitRate: newVariant.price || 0 };
+    }));
+  };
+
   const clearCart = useCallback(() => {
     setCart([]);
     setSupplier(null);
@@ -394,11 +403,23 @@ export function Purchase() {
           accountAmounts,
           items: cart.map(i => ({
             productId: i.product.id,
+            variantId: i.variant.id,
             qty: i.qty,
             totalCost: i.totalCost,
             unitCost: i.qty > 0 ? i.totalCost / i.qty : 0,
             discount: i.discount,
             sellingPrice: i.unitRate,
+            variantSnapshot: {
+              id: i.variant.id,
+              productId: i.variant.productId,
+              name: i.variant.name,
+              barcode: i.variant.barcode,
+              price: i.variant.price,
+              retail: i.variant.retail,
+              wholesale: i.variant.wholesale,
+              factor: i.variant.factor,
+              isDefault: i.variant.isDefault,
+            },
             productSnapshot: {
               id: i.product.id,
               name: i.product.name,
@@ -409,6 +430,17 @@ export function Purchase() {
               active: i.product.active,
               category: i.product.category,
               brand: i.product.brand,
+              variants: i.product.variants?.map(v => ({
+                id: v.id,
+                productId: v.productId,
+                name: v.name,
+                barcode: v.barcode,
+                price: v.price,
+                retail: v.retail,
+                wholesale: v.wholesale,
+                factor: v.factor,
+                isDefault: v.isDefault,
+              })),
             },
           })),
         },
@@ -425,10 +457,12 @@ export function Purchase() {
     const data = held.purchaseData as {
       items?: {
         productId: number;
+        variantId?: number;
         qty?: number;
         totalCost?: number;
         discount?: number;
         productSnapshot?: Product;
+        variantSnapshot?: ProductVariant;
       }[];
       refNo?: string;
       supplierSnapshot?: Supplier | null;
@@ -440,6 +474,7 @@ export function Purchase() {
     const items = data?.items ?? [];
     const newCart: CartItem[] = items.map(item => {
       const snap = item.productSnapshot;
+      const varSnap = item.variantSnapshot as any;
       const product: Product = snap?.id
         ? snap
         : {
@@ -452,7 +487,19 @@ export function Purchase() {
           active: true,
           categoryId: 0,
         };
-      return { product, qty: item.qty ?? 1, totalCost: item.totalCost ?? 0, discount: item.discount ?? 0, unitRate: (item as any).sellingPrice ?? 0 };
+      const variant: ProductVariant = varSnap?.id ? { ...varSnap, product } : {
+        id: item.variantId ?? 0,
+        productId: item.productId,
+        name: 'unit',
+        barcode: '',
+        price: (item as any).sellingPrice ?? 0,
+        retail: null,
+        wholesale: null,
+        factor: 1,
+        isDefault: true,
+        product,
+      };
+      return { product, variant, qty: item.qty ?? 1, totalCost: item.totalCost ?? 0, discount: item.discount ?? 0, unitRate: (item as any).sellingPrice ?? 0 };
     });
     setCart(newCart);
     setRefNo(data?.refNo ?? '');
@@ -494,6 +541,8 @@ export function Purchase() {
           const discountPerUnit = i.qty > 0 ? i.discount / i.qty : 0;
           return {
             productId: i.product.id,
+            variantId: i.variant.id,
+            factor: i.variant.factor,
             quantity: i.qty,
             unitCost,
             sellingPrice: i.unitRate,
@@ -657,6 +706,7 @@ export function Purchase() {
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
                   <th className="text-left px-3 py-2 font-medium text-gray-500">Product</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500">Variant</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-28">Qty</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-32">Total Cost</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-20">Disc (Rs)</th>
@@ -673,16 +723,35 @@ export function Purchase() {
                   const netTotal = item.totalCost - item.discount;
                   const profitPerUnit = item.unitRate - unitCost;
                   const profitTotal = profitPerUnit * item.qty;
+                  const variants = item.product.variants ?? [];
                   return (
-                    <tr key={item.product.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-1.5">
                         <p className="font-medium text-gray-900 dark:text-gray-100">{item.product.name}</p>
-                        <p className="text-gray-400 text-[11px]">
-                          {item.product.barcode && <span className="mr-1">{item.product.barcode}</span>}
+                        <p className="text-gray-400 text-[11px] whitespace-nowrap">
+                          {item.variant.barcode && <span className="mr-1">{item.variant.barcode}</span>}
                           <span>@ {fmt(unitCost)}/unit</span>
+                          {item.variant.factor > 1 && <span className="ml-1 text-primary-500">×{item.variant.factor}</span>}
                         </p>
                       </td>
-                      <td className="px-2 py-1.5">
+                      <td className="px-1 py-1.5">
+                        {variants.length > 1 ? (
+                          <select
+                            value={item.variant.id}
+                            onChange={e => changeVariant(idx, Number(e.target.value))}
+                            className="text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 max-w-32"
+                          >
+                            {variants.map(v => (
+                              <option key={v.id} value={v.id}>
+                                {v.name} (×{v.factor})
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-xs text-gray-500">{item.variant.name}</span>
+                        )}
+                      </td>
+                      <td className="px-1 py-1.5">
                         <div className="flex items-center justify-center gap-1">
                           <button onClick={() => updateQty(idx, -1)} className="w-5 h-5 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center"><Minus size={10} /></button>
                           <input
@@ -697,22 +766,21 @@ export function Purchase() {
                           <button onClick={() => updateQty(idx, 1)} className="w-5 h-5 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center"><Plus size={10} /></button>
                         </div>
                       </td>
-                      <td className="px-2 py-1.5">
+                      <td className="px-1 py-1.5">
                         <input type="number" value={item.totalCost} min={0} step="0.01" onChange={e => updateField(idx, 'totalCost', Number(e.target.value))}
                           className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
                       </td>
-                      <td className="px-2 py-1.5">
+                      <td className="px-1 py-1.5">
                         <input type="number" value={item.discount} min={0} step="0.01" onChange={e => updateField(idx, 'discount', Number(e.target.value))}
                           className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
                       </td>
-                      <td className="px-2 py-1.5">
-                        <input type="number" value={item.unitRate} min={0} step="0.01" onChange={e => updateField(idx, 'unitRate', Number(e.target.value))}
-                          className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 py-0.5 px-1 text-xs" />
+                      <td className="px-1 py-1.5 ">
+                        <p className='text-right w-full'> {item.unitRate}</p>
                       </td>
-                      <td className={`px-2 py-1.5 text-right text-xs font-medium ${profitTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      <td className={`px-1 py-1.5 text-right text-xs font-medium ${profitTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                         {profitTotal !== 0 ? fmt(profitTotal) : '—'}
                       </td>
-                      <td className="px-2 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(netTotal)}</td>
+                      <td className="px-1 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(netTotal)}</td>
                       <td className="px-1 py-1.5">
                         <button onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500 dark:hover:text-red-400"><Trash2 size={13} /></button>
                       </td>

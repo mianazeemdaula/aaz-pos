@@ -5,7 +5,7 @@ import { customerService } from '../services/pos.service';
 import { formatCNIC, formatPhone } from '../utils/formatters';
 import type { Customer, CustomerLedgerEntry } from '../types/pos';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function CustomerDetail() {
   const { id } = useParams<{ id: string }>();

@@ -9,7 +9,7 @@ import type {
   Employee, EmployeeAdvance, SalarySlip, Expense, RecurringExpense,
   Package, Promotion, AdvanceBooking, StockMovement, HeldSale, HeldPurchase,
   DashboardStats, User, CustomerLedgerEntry, SupplierLedgerEntry,
-  CustomerPayment, SupplierPayment,
+  CustomerPayment, SupplierPayment, TaxSchedule,
 } from '../types/pos';
 
 // ---- Accounts ----
@@ -230,4 +230,10 @@ export const userService = {
 export const settingsService = {
   get: () => apiClient.get<Record<string, unknown>>(API_ENDPOINTS.settings.get),
   update: (data: object) => apiClient.put<Record<string, unknown>>(API_ENDPOINTS.settings.update, data),
+};
+
+// ---- Tax Schedules ----
+export const taxScheduleService = {
+  list: () => apiClient.get<TaxSchedule[]>(API_ENDPOINTS.taxSchedules.list),
+  get: (id: number) => apiClient.get<TaxSchedule>(API_ENDPOINTS.taxSchedules.detail(id)),
 };

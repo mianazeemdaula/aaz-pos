@@ -7,7 +7,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { MONTH_NAMES, getMonthName } from '../utils/formatters';
 import type { SalarySlip, Employee, Account } from '../types/pos';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-amber-100 text-amber-700',

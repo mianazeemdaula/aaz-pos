@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Save, X, Upload } from 'lucide-react';
-import { productService, categoryService, brandService } from '../services/pos.service';
+import { productService, categoryService, brandService, taxScheduleService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { QuickCategoryAdd } from '../components/ui/QuickCategoryAdd';
 import { QuickBrandAdd } from '../components/ui/QuickBrandAdd';
 import { API_CONFIG } from '../config/api';
-import type { Product, Category, Brand, ProductVariant } from '../types/pos';
+import type { Product, Category, Brand, ProductVariant, TaxSchedule } from '../types/pos';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const serverOrigin = API_CONFIG.baseURL.replace(/\/api\/?$/, '');
@@ -53,7 +53,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmt = (n: number | null | undefined) =>
-    n != null ? `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}` : '—';
+    n != null ? `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 
 function extractCats(r: unknown): Category[] {
     if (Array.isArray(r)) return r;
@@ -123,13 +123,25 @@ const variantFromExisting = (v: ProductVariant): VariantDraft => ({
     factor: v.factor, isDefault: v.isDefault,
 });
 
+// ─── Strip leading zeros on blur ─────────────────────────────────────────────
+const stripLeadingZeros = (e: React.FocusEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val && val !== '0' && /^0+\d/.test(val)) {
+        e.target.value = String(Number(val));
+        e.target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+};
+
 // ─── Variant Fields Row ──────────────────────────────────────────────────────
-function VariantFields({ v, onChange, showRemove, onRemove }: {
+function VariantFields({ v, onChange, showRemove, onRemove, lockNameFactor }: {
     v: VariantDraft;
     onChange: (field: keyof VariantDraft, val: unknown) => void;
     showRemove?: boolean;
     onRemove?: () => void;
+    lockNameFactor?: boolean;
 }) {
+    const wholesaleErr = v.wholesale !== '' && v.price > 0 && Number(v.wholesale) > v.price;
+    const retailErr = v.retail !== '' && v.price > 0 && Number(v.retail) > v.price;
     return (
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -159,10 +171,10 @@ function VariantFields({ v, onChange, showRemove, onRemove }: {
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 <div>
                     <label className={lbl}>Variant Name *</label>
-                    <input value={v.name} onChange={e => onChange('name', e.target.value)} className={inp} placeholder="e.g. Unit, Dozen" />
+                    <input value={v.name} onChange={e => onChange('name', e.target.value)} className={`${inp} ${lockNameFactor ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : ''}`} placeholder="e.g. Unit, Dozen" readOnly={lockNameFactor} />
                 </div>
                 <div>
                     <label className={lbl}>Barcode *</label>
@@ -170,24 +182,23 @@ function VariantFields({ v, onChange, showRemove, onRemove }: {
                 </div>
                 <div>
                     <label className={lbl}>Factor</label>
-                    <input type="number" value={v.factor} min={1} step="1" onChange={e => onChange('factor', Number(e.target.value) || 1)} className={inp} />
+                    <input type="number" value={v.factor} min={1} step="1" onChange={e => onChange('factor', Number(e.target.value) || 1)} onBlur={stripLeadingZeros} className={`${inp} ${lockNameFactor ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : ''}`} readOnly={lockNameFactor} />
                 </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <div>
                     <label className={lbl}>Sale Price *</label>
-                    <input type="number" value={v.price} min={0} step="0.01" onChange={e => onChange('price', Number(e.target.value))} className={inp} />
+                    <input type="number" value={v.price} min={0} step="0.01" onChange={e => onChange('price', Number(e.target.value))} onBlur={stripLeadingZeros} className={inp} />
                 </div>
                 <div>
                     <label className={lbl}>Wholesale Price</label>
                     <input type="number" value={v.wholesale === '' ? '' : v.wholesale} min={0} step="0.01"
-                        onChange={e => onChange('wholesale', e.target.value === '' ? '' : Number(e.target.value))} className={inp} placeholder="Optional" />
+                        onChange={e => onChange('wholesale', e.target.value === '' ? '' : Number(e.target.value))} onBlur={stripLeadingZeros} className={`${inp} ${wholesaleErr ? 'border-red-400 ring-1 ring-red-400' : ''}`} placeholder="Optional" />
+                    {wholesaleErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
                 </div>
                 <div>
                     <label className={lbl}>Retail Price</label>
                     <input type="number" value={v.retail === '' ? '' : v.retail} min={0} step="0.01"
-                        onChange={e => onChange('retail', e.target.value === '' ? '' : Number(e.target.value))} className={inp} placeholder="Optional" />
+                        onChange={e => onChange('retail', e.target.value === '' ? '' : Number(e.target.value))} onBlur={stripLeadingZeros} className={`${inp} ${retailErr ? 'border-red-400 ring-1 ring-red-400' : ''}`} placeholder="Optional" />
+                    {retailErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
                 </div>
             </div>
         </div>
@@ -212,8 +223,9 @@ export function ProductForm() {
         allowNegative: false,
         imageUrl: '',
         hsCode: '',
-        taxMethod: 'EXCLUSIVE' as 'EXCLUSIVE' | 'INCLUSIVE',
+        taxMethod: 'INCLUSIVE' as 'EXCLUSIVE' | 'INCLUSIVE',
         taxRate: 0,
+        taxSchduleId: undefined as number | undefined,
         active: true,
         isService: false,
         showBarcodePrice: true,
@@ -233,6 +245,7 @@ export function ProductForm() {
     // ── Reference data ──
     const [catRoots, setCatRoots] = useState<Category[]>([]);
     const [brands, setBrands] = useState<Brand[]>([]);
+    const [taxSchedules, setTaxSchedules] = useState<TaxSchedule[]>([]);
 
     // ── Quick-add dialogs ──
     const [quickAddCat, setQuickAddCat] = useState(false);
@@ -242,7 +255,7 @@ export function ProductForm() {
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // ── Load categories & brands ──
+    // ── Load categories & brands & tax schedules ──
     useEffect(() => {
         categoryService.list({}).then(r => {
             const cats = extractCats(r);
@@ -250,6 +263,9 @@ export function ProductForm() {
         }).catch(() => { });
         brandService.list({ pageSize: 200 }).then(r =>
             setBrands(Array.isArray(r?.data) ? r.data : [])
+        ).catch(() => { });
+        taxScheduleService.list().then(r =>
+            setTaxSchedules(Array.isArray(r) ? r : [])
         ).catch(() => { });
     }, []);
 
@@ -268,8 +284,9 @@ export function ProductForm() {
                 allowNegative: p.allowNegative ?? false,
                 imageUrl: p.imageUrl || '',
                 hsCode: p.hsCode || '',
-                taxMethod: p.taxMethod || 'EXCLUSIVE',
+                taxMethod: p.taxMethod || 'INCLUSIVE',
                 taxRate: p.taxRate ?? 0,
+                taxSchduleId: p.taxSchduleId ?? undefined,
                 active: p.active ?? true,
                 isService: p.isService ?? false,
                 showBarcodePrice: p.showBarcodePrice ?? true,
@@ -427,6 +444,7 @@ export function ProductForm() {
                 hsCode: form.hsCode || undefined,
                 taxMethod: form.taxMethod,
                 taxRate: form.taxRate,
+                taxSchduleId: form.taxSchduleId || undefined,
                 active: form.active,
                 isService: form.isService,
                 showBarcodePrice: form.showBarcodePrice,
@@ -459,8 +477,14 @@ export function ProductForm() {
     };
 
     // ── Validation ──
+    const variantPricesValid = (vs: VariantDraft[]) => vs.every(v => {
+        if (v.wholesale !== '' && Number(v.wholesale) > v.price) return false;
+        if (v.retail !== '' && Number(v.retail) > v.price) return false;
+        return true;
+    });
+    const hasZeroPrice = !isEdit && variants.some(v => v.price === 0);
     const canSave = form.name && form.categoryId && (
-        isEdit || (variants.length > 0 && variants.every(v => v.barcode && v.price > 0))
+        isEdit || (variants.length > 0 && variants.every(v => v.barcode && v.price >= 0) && variantPricesValid(variants))
     );
 
     // ── Loading state ──
@@ -499,19 +523,31 @@ export function ProductForm() {
                         className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                         Cancel
                     </button>
-                    <button onClick={handleSave} disabled={!canSave || saving}
+                    <button onClick={() => {
+                        if (hasZeroPrice && !window.confirm('One or more variants have a sale price of Rs 0. Are you sure you want to save?')) return;
+                        handleSave();
+                    }} disabled={!canSave || saving}
                         className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg">
                         {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                         {isEdit ? 'Save Changes' : 'Create Product'}
                     </button>
+                    {hasZeroPrice && (
+                        <p className="text-xs text-amber-500 ml-2">⚠ Some variants have Rs 0 sale price</p>
+                    )}
                 </div>
             </div>
 
-            {/* ── Product Information ── */}
+            {/* ── Product Details ── */}
             <div className={card}>
-                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Product Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="md:col-span-2">
+                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Product Details</h2>
+
+                {/* Row 1: Name, Category, Brand */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label className={lbl}>Product Image</label>
+                        <ImageUpload value={form.imageUrl} onChange={(url) => f('imageUrl', url)} />
+                    </div>
+                    <div>
                         <label className={lbl}>Product Name *</label>
                         <input value={form.name} onChange={e => f('name', e.target.value)} className={inp} placeholder="Enter product name" />
                     </div>
@@ -541,25 +577,29 @@ export function ProductForm() {
                             </button>
                         </div>
                     </div>
-                    <div className="md:col-span-2">
-                        <label className={lbl}>Description</label>
-                        <textarea value={form.description} onChange={e => f('description', e.target.value)} rows={2}
-                            className={`${inp} resize-none`} placeholder="Optional product description" />
-                    </div>
-                    <div className="md:col-span-2">
-                        <label className={lbl}>Product Image</label>
-                        <ImageUpload value={form.imageUrl} onChange={(url) => f('imageUrl', url)} />
-                    </div>
                 </div>
-            </div>
 
-            {/* ── Inventory & Tax ── */}
-            <div className={card}>
-                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Inventory &amp; Tax</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                {/* Divider */}
+                <hr className="my-4 border-gray-200 dark:border-gray-700" />
+
+                {/* Row 3: Tax Fields */}
+                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">Tax</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
-                        <label className={lbl}>Reorder Level</label>
-                        <input type="number" value={form.reorderLevel} min={0} onChange={e => f('reorderLevel', Number(e.target.value))} className={inp} />
+                        <label className={lbl}>Tax Schedule</label>
+                        <select value={form.taxSchduleId ?? ''} onChange={e => {
+                            const schedId = e.target.value ? Number(e.target.value) : undefined;
+                            f('taxSchduleId', schedId);
+                            if (schedId) {
+                                const sched = taxSchedules.find(s => s.id === schedId);
+                                if (sched) {
+                                    setForm(prev => ({ ...prev, taxSchduleId: schedId, taxRate: sched.rate, hsCode: sched.hscode || prev.hsCode }));
+                                }
+                            }
+                        }} className={inp}>
+                            <option value="">None (manual)</option>
+                            {taxSchedules.map(s => <option key={s.id} value={s.id}>{s.name} ({s.rate}%)</option>)}
+                        </select>
                     </div>
                     <div>
                         <label className={lbl}>HS Code</label>
@@ -572,20 +612,37 @@ export function ProductForm() {
                     <div>
                         <label className={lbl}>Tax Method</label>
                         <select value={form.taxMethod} onChange={e => f('taxMethod', e.target.value)} className={inp}>
-                            <option value="EXCLUSIVE">Exclusive (added on top)</option>
                             <option value="INCLUSIVE">Inclusive (included in price)</option>
+                            <option value="EXCLUSIVE">Exclusive (added on top)</option>
                         </select>
                     </div>
                 </div>
-            </div>
 
-            {/* ── Product Options ── */}
-            <div className={card}>
-                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Options</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4">
+                {/* Divider */}
+                <hr className="my-4 border-gray-200 dark:border-gray-700" />
+
+                {/* Row 4: Inventory */}
+                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">Inventory</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div>
+                        <label className={lbl}>Reorder Level</label>
+                        <input type="number" value={form.reorderLevel} min={0} onChange={e => f('reorderLevel', Number(e.target.value))} className={inp} />
+                    </div>
+                    <div className="flex items-end pb-1">
+                        <Toggle checked={form.allowNegative} onChange={v => f('allowNegative', v)} label="Allow Negative Stock" />
+                    </div>
+                    <div className="flex items-end pb-1">
+                        <Toggle checked={form.isService} onChange={v => f('isService', v)} label="Is Service (no inventory)" />
+                    </div>
+                </div>
+
+                {/* Divider */}
+                <hr className="my-4 border-gray-200 dark:border-gray-700" />
+
+                {/* Row 5: Options */}
+                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">Options</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3">
                     <Toggle checked={form.active} onChange={v => f('active', v)} label="Active" />
-                    <Toggle checked={form.allowNegative} onChange={v => f('allowNegative', v)} label="Allow Negative Stock" />
-                    <Toggle checked={form.isService} onChange={v => f('isService', v)} label="Is Service (no inventory)" />
                     <Toggle checked={form.showBarcodePrice} onChange={v => f('showBarcodePrice', v)} label="Show Barcode Price" />
                     <Toggle checked={form.isFavorite} onChange={v => f('isFavorite', v)} label="Favorite" />
                     <Toggle checked={form.saleBelowCost} onChange={v => f('saleBelowCost', v)} label="Allow Sale Below Cost" />
@@ -718,7 +775,8 @@ export function ProductForm() {
                             <VariantFields key={v._key} v={v}
                                 onChange={(field, val) => updateAddVariant(v._key, field, val)}
                                 showRemove={variants.length > 1}
-                                onRemove={() => removeVariant(v._key)} />
+                                onRemove={() => removeVariant(v._key)}
+                                lockNameFactor={v.isDefault} />
                         ))}
                     </div>
                 )}

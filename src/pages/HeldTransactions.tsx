@@ -8,7 +8,7 @@ import type { HeldSale } from '../types/pos';
 
 const PAGE_SIZE = 20;
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function HeldTransactions() {
   const [items, setItems] = useState<HeldSale[]>([]);
@@ -20,7 +20,7 @@ export function HeldTransactions() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await heldService.listSales({ page, pageSize: PAGE_SIZE }); setItems(r.data ?? []); setTotal(r.pagination?.total ?? 0); }
+    try { const r = await heldService.listSales({ page, pageSize: PAGE_SIZE, status: 'HELD' }); setItems(r?.data ?? []); setTotal(r?.pagination?.total ?? 0); }
     catch { setItems([]); } finally { setLoading(false); }
   }, [page]);
 
@@ -57,9 +57,15 @@ export function HeldTransactions() {
                     return (
                       <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-4 py-2.5 text-gray-500">{new Date(item.createdAt).toLocaleString()}</td>
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">{String((data?.customer as Record<string, unknown>)?.name ?? data?.customerName ?? item.note ?? '—')}</td>
-                        <td className="px-4 py-2.5 text-gray-500">{Array.isArray(data?.lines) ? (data.lines as unknown[]).length : Array.isArray(data?.items) ? (data.items as unknown[]).length : '—'}</td>
-                        <td className="px-4 py-2.5 text-right font-medium">{fmt(Number(data?.total ?? data?.grandTotal ?? 0))}</td>
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">{String((data?.customerSnapshot as Record<string, unknown>)?.name ?? (data?.customer as Record<string, unknown>)?.name ?? data?.customerName ?? item.note ?? '—')}</td>
+                        <td className="px-4 py-2.5 text-gray-500">{Array.isArray(data?.items) ? (data.items as unknown[]).length : Array.isArray(data?.lines) ? (data.lines as unknown[]).length : '—'}</td>
+                        <td className="px-4 py-2.5 text-right font-medium">
+                          {(() => {
+                            const items = Array.isArray(data?.items) ? (data.items as { qty?: number; price?: number; totalCost?: number }[]) : [];
+                            const total = items.reduce((acc, i) => acc + ((i.qty ?? 0) * (i.price ?? 0) || i.totalCost || 0), 0);
+                            return fmt(total || Number(data?.total ?? data?.grandTotal ?? 0));
+                          })()}
+                        </td>
                         <td className="px-4 py-2.5">
                           <div className="flex gap-1">
                             <button onClick={() => resume(item.id)} className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"><Play size={12} /> Resume</button>

@@ -4,6 +4,9 @@ import { MainLayout, ProtectedRoute } from './components/layout';
 import { Login } from './pages/Login';
 import "./App.css";
 
+// Detect if running inside Tauri desktop shell
+const isTauri = !!(window as any).__TAURI_INTERNALS__;
+
 class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null };
   static getDerivedStateFromError(error: Error) { return { error }; }
@@ -48,11 +51,16 @@ const Accounts = lazy(() => import('./pages/Accounts').then(m => ({ default: m.A
 const Users = lazy(() => import('./pages/Users').then(m => ({ default: m.Users })));
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
-const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
+// const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
 const HeldTransactions = lazy(() => import('./pages/HeldTransactions').then(m => ({ default: m.HeldTransactions })));
 const Promotions = lazy(() => import('./pages/Promotions').then(m => ({ default: m.Promotions })));
+const PromotionForm = lazy(() => import('./pages/PromotionForm').then(m => ({ default: m.PromotionForm })));
+const PromotionItems = lazy(() => import('./pages/PromotionItems').then(m => ({ default: m.PromotionItems })));
 const StockAdjustments = lazy(() => import('./pages/StockAdjustments').then(m => ({ default: m.StockAdjustments })));
 const AdvanceBookings = lazy(() => import('./pages/AdvanceBookings').then(m => ({ default: m.AdvanceBookings })));
+const Returns = lazy(() => import('./pages/Returns').then(m => ({ default: m.Returns })));
+const Payments = lazy(() => import('./pages/Payments').then(m => ({ default: m.Payments })));
+const Home = lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
 
 const Spinner = () => (
   <div className="flex items-center justify-center min-h-50">
@@ -65,8 +73,10 @@ function App() {
     <BrowserRouter>
       <Suspense fallback={<Spinner />}>
         <Routes>
+          {/* Landing page only for web app, Tauri goes straight to login */}
+          {!isTauri && <Route path="/home" element={<Home />} />}
           <Route path="/login" element={<Login />} />
-          <Route index element={<Navigate to="/login" replace />} />
+          <Route index element={<Navigate to={isTauri ? "/login" : "/home"} replace />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<MainLayout />}>
               <Route path="dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
@@ -94,8 +104,13 @@ function App() {
               <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
               <Route path="held" element={<ErrorBoundary><HeldTransactions /></ErrorBoundary>} />
               <Route path="promotions" element={<ErrorBoundary><Promotions /></ErrorBoundary>} />
+              <Route path="promotions/new" element={<ErrorBoundary><PromotionForm /></ErrorBoundary>} />
+              <Route path="promotions/:id/edit" element={<ErrorBoundary><PromotionForm /></ErrorBoundary>} />
+              <Route path="promotions/:id/items" element={<ErrorBoundary><PromotionItems /></ErrorBoundary>} />
               <Route path="stock-adjustments" element={<ErrorBoundary><StockAdjustments /></ErrorBoundary>} />
               <Route path="advance-bookings" element={<ErrorBoundary><AdvanceBookings /></ErrorBoundary>} />
+              <Route path="returns" element={<ErrorBoundary><Returns /></ErrorBoundary>} />
+              <Route path="payments" element={<ErrorBoundary><Payments /></ErrorBoundary>} />
               <Route path="settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
               <Route path="admin" element={<Navigate to="/settings" replace />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

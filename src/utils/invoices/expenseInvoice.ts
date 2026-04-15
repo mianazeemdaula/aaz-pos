@@ -9,7 +9,7 @@ import {
 } from '../thermalPrinter';
 import { loadThermalConfig } from '../thermalPrinter';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export interface ExpenseInvoiceData {
     expense: Expense;

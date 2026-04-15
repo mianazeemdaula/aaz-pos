@@ -3,7 +3,7 @@ import {
   LayoutDashboard, ShoppingCart, ShoppingBag, Package, Users, Truck,
   UserCheck, Receipt, TrendingDown, Wallet, BarChart3, Settings,
   Menu, X, ChevronDown, LogOut, User, Tag, Bookmark,
-  Layers, RefreshCw, Gift, Pause, Sliders, ArrowDownCircle, ArrowUpCircle, CalendarCheck, ShieldCheck
+  Layers, RefreshCw, Gift, Pause, Sliders, CalendarCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '../../contexts';
@@ -11,22 +11,27 @@ import { useAuth } from '../../contexts';
 type MenuItem = { label: string; icon: React.FC<{ size?: number; className?: string }>; path: string };
 type MenuGroup = { heading: string; items: MenuItem[] };
 
+/** Paths a CASHIER is allowed to visit */
+const CASHIER_PATHS = new Set(['/sale', '/sale/returns']);
+
 const MENU: MenuGroup[] = [
   {
-    heading: 'Sales',
+    heading: 'Quick Actions',
     items: [
       { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
       { label: 'New Sale', icon: ShoppingCart, path: '/sale' },
-      { label: 'Sale & Returns', icon: RefreshCw, path: '/sale/returns' },
+      { label: 'New Purchase', icon: ShoppingBag, path: '/purchase' },
       { label: 'Advance Bookings', icon: CalendarCheck, path: '/advance-bookings' },
-      { label: 'Held', icon: Pause, path: '/held' },
     ],
   },
   {
-    heading: 'Purchases',
+    heading: 'History',
     items: [
-      { label: 'New Purchase', icon: ShoppingBag, path: '/purchase' },
-      { label: 'Purchase Returns', icon: RefreshCw, path: '/purchase/returns' },
+      { label: 'Held', icon: Pause, path: '/held' },
+      { label: 'Sales', icon: ShoppingCart, path: '/sale/returns' },
+      { label: 'Purchases', icon: ShoppingBag, path: '/purchase/returns' },
+      { label: 'Returns', icon: RefreshCw, path: '/returns' },
+      { label: 'Payments', icon: Wallet, path: '/payments' },
     ],
   },
   {
@@ -42,9 +47,9 @@ const MENU: MenuGroup[] = [
     heading: 'Parties',
     items: [
       { label: 'Customers', icon: Users, path: '/customers' },
-      { label: 'Customer Payments', icon: ArrowDownCircle, path: '/customer-payments' },
+      // { label: 'Customer Payments', icon: ArrowDownCircle, path: '/customer-payments' },
       { label: 'Suppliers', icon: Truck, path: '/suppliers' },
-      { label: 'Supplier Payments', icon: ArrowUpCircle, path: '/supplier-payments' },
+      // { label: 'Supplier Payments', icon: ArrowUpCircle, path: '/supplier-payments' },
     ],
   },
   {
@@ -78,6 +83,11 @@ export function MainLayout() {
   const handleLogout = () => { logout(); navigate('/login'); };
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
+  const isCashier = user?.role === 'CASHIER';
+  const visibleMenu = isCashier
+    ? MENU.map(g => ({ ...g, items: g.items.filter(i => CASHIER_PATHS.has(i.path)) })).filter(g => g.items.length > 0)
+    : MENU;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex">
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
@@ -100,7 +110,7 @@ export function MainLayout() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-2 px-2">
-          {MENU.map(group => (
+          {visibleMenu.map(group => (
             <div key={group.heading} className="mb-3">
               <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{group.heading}</p>
               {group.items.map(item => {

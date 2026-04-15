@@ -1,8 +1,11 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
+/** Paths a CASHIER is allowed to visit */
+const CASHIER_PATHS = ['/sale', '/sale/returns'];
+
 export function ProtectedRoute() {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { user, isAuthenticated, isLoading } = useAuth();
     const location = useLocation();
 
     if (isLoading) {
@@ -19,6 +22,11 @@ export function ProtectedRoute() {
     if (!isAuthenticated) {
         // Redirect to login, but save the location they were trying to access
         return <Navigate to="/login" state={{ from: location }} replace />;
+    }
+
+    // Cashiers can only access New Sale and Sales History
+    if (user?.role === 'CASHIER' && !CASHIER_PATHS.includes(location.pathname)) {
+        return <Navigate to="/sale" replace />;
     }
 
     return <Outlet />;

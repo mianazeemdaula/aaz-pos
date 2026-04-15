@@ -7,7 +7,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { formatCNIC, formatPhone, handleCNICInput, handlePhoneInput, MONTH_NAMES, getMonthName } from '../utils/formatters';
 import type { Employee, EmployeeAdvance, Account } from '../types/pos';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface EmployeeForm {
   name?: string;

@@ -47,7 +47,7 @@ function computeLine(item: CartItem) {
   return { gross, discAmt, afterDisc, taxAmt, lineTotal };
 }
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function parseError(e: unknown, fallback: string): string {
   if (e instanceof Error) return e.message;
@@ -68,8 +68,8 @@ function HeldSalesModal({ onLoad, onClose }: {
   const selectedRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
-    heldService.listSales({ pageSize: 50 })
-      .then(r => setHeldSales(r.data.filter(s => s.status === 'HELD')))
+    heldService.listSales({ pageSize: 50, status: 'HELD' })
+      .then(r => setHeldSales(r?.data ?? []))
       .catch(() => { })
       .finally(() => setLoading(false));
   }, []);

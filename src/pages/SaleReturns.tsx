@@ -1,12 +1,10 @@
-﻿import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Eye, Printer, RotateCcw, Loader2, X } from 'lucide-react';
 import { saleService } from '../services/pos.service';
 import { Pagination } from '../components/ui/Pagination';
 import type { Sale } from '../types/pos';
 
-type Tab = 'history' | 'returns';
-
-const fmt = (n: number) => `Rs ${Math.abs(n).toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${Math.abs(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = new Date().toISOString().slice(0, 10);
 const mon = today.slice(0, 8) + '01';
 
@@ -34,8 +32,6 @@ function printSaleReceipt(s: Sale, isReturn = false) {
 }
 
 export function SaleReturns() {
-  const [tab, setTab] = useState<Tab>('history');
-
   const [sales, setSales] = useState<Sale[]>([]);
   const [salesPage, setSalesPage] = useState(1);
   const [salesTotalPages, setSalesTotalPages] = useState(1);
@@ -44,14 +40,6 @@ export function SaleReturns() {
   const [salesTo, setSalesTo] = useState(today);
   const [salesQ, setSalesQ] = useState('');
   const [salesLoading, setSalesLoading] = useState(false);
-
-  const [returnTxns, setReturnTxns] = useState<Sale[]>([]);
-  const [retPage, setRetPage] = useState(1);
-  const [retTotalPages, setRetTotalPages] = useState(1);
-  const [retTotal, setRetTotal] = useState(0);
-  const [retFrom, setRetFrom] = useState(mon);
-  const [retTo, setRetTo] = useState(today);
-  const [retLoading, setRetLoading] = useState(false);
 
   const [viewSale, setViewSale] = useState<Sale | null>(null);
   const [viewLoading, setViewLoading] = useState(false);
@@ -80,17 +68,7 @@ export function SaleReturns() {
     } catch { setSales([]); } finally { setSalesLoading(false); }
   }, [salesFrom, salesTo, salesQ]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadReturnTxns = useCallback(async (page: number, from = retFrom, to = retTo) => {
-    setRetLoading(true);
-    try {
-      const r = await saleService.list({ page, pageSize: 15, from, to, type: 'RETURN' });
-      setReturnTxns(r.data); setRetPage(r.pagination.page);
-      setRetTotalPages(r.pagination.totalPages); setRetTotal(r.pagination.total);
-    } catch { setReturnTxns([]); } finally { setRetLoading(false); }
-  }, [retFrom, retTo]); // eslint-disable-line react-hooks/exhaustive-deps
-
   useEffect(() => { loadSales(1, mon, today, ''); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (tab === 'returns') loadReturnTxns(1, retFrom, retTo); }, [tab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openView = async (sale: Sale) => {
     setViewLoading(true);
@@ -134,8 +112,7 @@ export function SaleReturns() {
       });
       setReturnSale(null);
       showToast('success', 'Return processed successfully');
-      loadReturnTxns(1, retFrom, retTo);
-      if (tab === 'history') loadSales(salesPage, salesFrom, salesTo, salesQ);
+      loadSales(salesPage, salesFrom, salesTo, salesQ);
     } catch (e: unknown) {
       const ae = e as { error?: { message?: string } };
       showToast('error', ae?.error?.message ?? 'Failed to process return');
@@ -145,8 +122,6 @@ export function SaleReturns() {
   const handleFromChange = (v: string) => { setSalesFrom(v); loadSales(1, v, salesTo, salesQ); };
   const handleToChange = (v: string) => { setSalesTo(v); loadSales(1, salesFrom, v, salesQ); };
   const handleSearch = () => loadSales(1, salesFrom, salesTo, salesQ);
-  const handleRetFromChange = (v: string) => { setRetFrom(v); loadReturnTxns(1, v, retTo); };
-  const handleRetToChange = (v: string) => { setRetTo(v); loadReturnTxns(1, retFrom, v); };
 
   return (
     <div className="space-y-4">
@@ -158,248 +133,196 @@ export function SaleReturns() {
       )}
 
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Sales</h1>
-        <div className="flex gap-1">
-          {(['history', 'returns'] as Tab[]).map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-1.5 text-sm rounded-lg capitalize transition-colors ${tab === t ? 'bg-primary-600 text-white' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-primary-300'}`}>
-              {t === 'history' ? 'Sales History' : 'Returns'}
-            </button>
-          ))}
-        </div>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Sales History</h1>
       </div>
 
-      {tab === 'history' && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-            <input type="date" value={salesFrom} onChange={e => handleFromChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
-            <span className="text-gray-400 text-sm">to</span>
-            <input type="date" value={salesTo} onChange={e => handleToChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
-            <div className="relative flex-1 min-w-40">
-              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={salesQ} onChange={e => setSalesQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Search customer..." className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
-            </div>
-            <button onClick={handleSearch} className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">Search</button>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
+          <input type="date" value={salesFrom} onChange={e => handleFromChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
+          <span className="text-gray-400 text-sm">to</span>
+          <input type="date" value={salesTo} onChange={e => handleToChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
+          <div className="relative flex-1 min-w-40">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={salesQ} onChange={e => setSalesQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Search customer..." className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            {salesLoading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
-              : sales.length === 0 ? <p className="text-center text-gray-400 py-10 text-sm">No sales found</p>
-                : (
-                  <table className="w-full text-sm">
-                    <thead><tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 text-left text-xs text-gray-500">
-                      <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Customer</th>
-                      <th className="px-4 py-2.5 text-right">Total</th><th className="px-4 py-2.5 text-right">Paid</th>
-                      <th className="px-4 py-2.5 text-right">Due</th><th className="px-4 py-2.5 text-right">Items</th>
-                      <th className="px-4 py-2.5 text-right">Cashier</th><th className="px-4 py-2.5 text-center">Actions</th>
-                    </tr></thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {sales.map(s => {
-                        const due = Math.max(0, s.totalAmount - s.paidAmount);
-                        return (
-                          <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
-                            <td className="px-4 py-1.5 font-medium text-gray-900 dark:text-gray-100">{s.taxInvoiceId ?? `#${s.id}`}</td>
-                            <td className="px-4 py-1.5 text-gray-500">{new Date(s.createdAt).toLocaleDateString()}</td>
-                            <td className="px-4 py-1.5 text-gray-700 dark:text-gray-300">{s.customer?.name ?? 'Walk-in'}</td>
-                            <td className="px-4 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(s.totalAmount)}</td>
-                            <td className="px-4 py-1.5 text-right text-green-600">{fmt(s.paidAmount)}</td>
-                            <td className={`px-4 py-1.5 text-right font-medium ${due > 0 ? 'text-red-600' : 'text-gray-400'}`}>{due > 0 ? fmt(due) : ''}</td>
-                            <td className="px-4 py-1.5 text-right">{s.items?.length ?? 0}</td>
-                            <td className="px-4 py-1.5 text-right">{s.user?.name ?? ''}</td>
-                            <td className="px-4 py-1.5">
-                              <div className="flex items-center gap-0.5 justify-end">
-                                <button onClick={() => openView(s)} disabled={viewLoading} title="View" className="p-1.5 text-gray-400 hover:text-primary-600 rounded disabled:opacity-40"><Eye size={14} /></button>
-                                <button onClick={() => printSaleReceipt(s)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
-                                <button onClick={() => openReturn(s)} title="Create return" className="p-1.5 text-gray-400 hover:text-orange-500 rounded"><RotateCcw size={14} /></button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-            {!salesLoading && salesTotalPages > 1 && (
-              <Pagination currentPage={salesPage} totalPages={salesTotalPages} totalItems={salesTotal} itemsPerPage={15} onPageChange={p => loadSales(p, salesFrom, salesTo, salesQ)} />
-            )}
-          </div>
+          <button onClick={handleSearch} className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">Search</button>
         </div>
-      )}
-
-      {tab === 'returns' && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-            <input type="date" value={retFrom} onChange={e => handleRetFromChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
-            <span className="text-gray-400 text-sm">to</span>
-            <input type="date" value={retTo} onChange={e => handleRetToChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
-            <span className="ml-auto text-xs text-gray-500">{retTotal} return(s) found</span>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            {retLoading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
-              : returnTxns.length === 0 ? <p className="text-center text-gray-400 py-10 text-sm">No return transactions found</p>
-                : (
-                  <table className="w-full text-sm">
-                    <thead><tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 text-left text-xs text-gray-500">
-                      <th className="px-4 py-2.5">Return #</th><th className="px-4 py-2.5">Date</th>
-                      <th className="px-4 py-2.5">Customer</th><th className="px-4 py-2.5 text-right">Refund</th>
-                      <th className="px-4 py-2.5 text-right">Items</th><th className="px-4 py-2.5 text-center">Actions</th>
-                    </tr></thead>
-                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                      {returnTxns.map(r => (
-                        <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                          <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">
-                            <span className="text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 rounded mr-1.5">RTN</span>#{r.id}
-                          </td>
-                          <td className="px-4 py-2.5 text-gray-500">{new Date(r.createdAt).toLocaleDateString()}</td>
-                          <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">{r.customer?.name ?? 'Walk-in'}</td>
-                          <td className="px-4 py-2.5 text-right font-semibold text-orange-600">{fmt(r.totalAmount)}</td>
-                          <td className="px-4 py-2.5 text-right">{r.items?.length ?? 0}</td>
-                          <td className="px-4 py-2.5">
-                            <div className="flex justify-center gap-1">
-                              <button onClick={() => openView(r)} disabled={viewLoading} title="View" className="p-1.5 text-gray-400 hover:text-primary-600 rounded disabled:opacity-40"><Eye size={14} /></button>
-                              <button onClick={() => printSaleReceipt(r, true)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          {salesLoading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+            : sales.length === 0 ? <p className="text-center text-gray-400 py-10 text-sm">No sales found</p>
+              : (
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 text-left text-xs text-gray-500">
+                    <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Customer</th>
+                    <th className="px-4 py-2.5 text-right">Total</th><th className="px-4 py-2.5 text-right">Paid</th>
+                    <th className="px-4 py-2.5 text-right">Due</th><th className="px-4 py-2.5 text-right">Items</th>
+                    <th className="px-4 py-2.5 text-right">Cashier</th><th className="px-4 py-2.5 text-center">Actions</th>
+                  </tr></thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                    {sales.map(s => {
+                      const due = Math.max(0, s.totalAmount - s.paidAmount);
+                      return (
+                        <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
+                          <td className="px-4 py-1.5 font-medium text-gray-900 dark:text-gray-100">{s.taxInvoiceId ?? `#${s.id}`}</td>
+                          <td className="px-4 py-1.5 text-gray-500">{new Date(s.createdAt).toLocaleDateString()}</td>
+                          <td className="px-4 py-1.5 text-gray-700 dark:text-gray-300">{s.customer?.name ?? 'Walk-in'}</td>
+                          <td className="px-4 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(s.totalAmount)}</td>
+                          <td className="px-4 py-1.5 text-right text-green-600">{fmt(s.paidAmount)}</td>
+                          <td className={`px-4 py-1.5 text-right font-medium ${due > 0 ? 'text-red-600' : 'text-gray-400'}`}>{due > 0 ? fmt(due) : ''}</td>
+                          <td className="px-4 py-1.5 text-right">{s.items?.length ?? 0}</td>
+                          <td className="px-4 py-1.5 text-right">{s.user?.name ?? ''}</td>
+                          <td className="px-4 py-1.5">
+                            <div className="flex items-center gap-0.5 justify-end">
+                              <button onClick={() => openView(s)} disabled={viewLoading} title="View" className="p-1.5 text-gray-400 hover:text-primary-600 rounded disabled:opacity-40"><Eye size={14} /></button>
+                              <button onClick={() => printSaleReceipt(s)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
+                              <button onClick={() => openReturn(s)} title="Create return" className="p-1.5 text-gray-400 hover:text-orange-500 rounded"><RotateCcw size={14} /></button>
                             </div>
                           </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+          {!salesLoading && salesTotalPages > 1 && (
+            <Pagination currentPage={salesPage} totalPages={salesTotalPages} totalItems={salesTotal} itemsPerPage={15} onPageChange={p => loadSales(p, salesFrom, salesTo, salesQ)} />
+          )}
+        </div>
+      </div>
+
+      {
+        viewSale && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setViewSale(null)}>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                  {viewSale.totalAmount < 0 ? 'Return' : 'Sale'} {viewSale.taxInvoiceId ?? `#${viewSale.id}`}
+                  {viewSale.totalAmount < 0 && <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">RETURN</span>}
+                </h3>
+                <button onClick={() => setViewSale(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+              </div>
+              <div className="overflow-y-auto p-5 space-y-4 flex-1">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="text-gray-500">Date: </span>{new Date(viewSale.createdAt).toLocaleString()}</div>
+                  <div><span className="text-gray-500">Customer: </span>{viewSale.customer?.name ?? 'Walk-in'}</div>
+                  <div><span className="text-gray-500">Cashier: </span>{viewSale.user?.name ?? ''}</div>
+                  {viewSale.taxInvoiceId && <div><span className="text-gray-500">FBR Invoice: </span>{viewSale.taxInvoiceId}</div>}
+                </div>
+                {(viewSale.items ?? []).length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Items</p>
+                    <table className="w-full text-sm">
+                      <thead><tr className="text-xs text-gray-500 border-b border-gray-100 dark:border-gray-700">
+                        <th className="text-left py-1">Product</th><th className="text-right py-1">Qty</th>
+                        <th className="text-right py-1">Price</th><th className="text-right py-1">Total</th>
+                      </tr></thead>
+                      <tbody>
+                        {(viewSale.items ?? []).map((item, i) => (
+                          <tr key={i} className="border-b border-gray-50 dark:border-gray-700">
+                            <td className="py-1.5">{item.variant?.product?.name ?? `#${item.variant?.barcode}`}</td>
+                            <td className={`py-1.5 text-right ${item.quantity < 0 ? 'text-orange-600 font-semibold' : ''}`}>{item.quantity}</td>
+                            <td className="py-1.5 text-right">{fmt(item.unitPrice)}</td>
+                            <td className={`py-1.5 text-right font-medium ${(item.totalPrice ?? 0) < 0 ? 'text-orange-600' : ''}`}>
+                              {fmt(item.totalPrice ?? item.quantity * item.unitPrice)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-            {!retLoading && retTotalPages > 1 && (
-              <Pagination currentPage={retPage} totalPages={retTotalPages} totalItems={retTotal} itemsPerPage={15} onPageChange={p => loadReturnTxns(p, retFrom, retTo)} />
-            )}
-          </div>
-        </div>
-      )}
-
-      {viewSale && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setViewSale(null)}>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                {viewSale.totalAmount < 0 ? 'Return' : 'Sale'} {viewSale.taxInvoiceId ?? `#${viewSale.id}`}
-                {viewSale.totalAmount < 0 && <span className="ml-2 text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded">RETURN</span>}
-              </h3>
-              <button onClick={() => setViewSale(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
-            </div>
-            <div className="overflow-y-auto p-5 space-y-4 flex-1">
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><span className="text-gray-500">Date: </span>{new Date(viewSale.createdAt).toLocaleString()}</div>
-                <div><span className="text-gray-500">Customer: </span>{viewSale.customer?.name ?? 'Walk-in'}</div>
-                <div><span className="text-gray-500">Cashier: </span>{viewSale.user?.name ?? ''}</div>
-                {viewSale.taxInvoiceId && <div><span className="text-gray-500">FBR Invoice: </span>{viewSale.taxInvoiceId}</div>}
+                <div className="grid grid-cols-3 gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm">
+                  <div><p className="text-xs text-gray-500">{viewSale.totalAmount < 0 ? 'Refund' : 'Total'}</p>
+                    <p className={`font-semibold ${viewSale.totalAmount < 0 ? 'text-orange-600' : ''}`}>{fmt(viewSale.totalAmount)}</p>
+                  </div>
+                  <div><p className="text-xs text-gray-500">Discount</p><p className="font-semibold text-orange-600">{fmt(viewSale.discount)}</p></div>
+                  <div><p className="text-xs text-gray-500">Tax</p><p className="font-semibold">{fmt(viewSale.taxAmount)}</p></div>
+                </div>
+                {(viewSale.payments ?? []).length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Payments</p>
+                    {(viewSale.payments ?? []).map((p, i) => (
+                      <div key={i} className="flex justify-between text-sm py-1">
+                        <span className="text-gray-600 dark:text-gray-400">{p.account?.name ?? 'Cash'}</span>
+                        <span className="font-medium">{fmt(p.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              {(viewSale.items ?? []).length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Items</p>
-                  <table className="w-full text-sm">
-                    <thead><tr className="text-xs text-gray-500 border-b border-gray-100 dark:border-gray-700">
-                      <th className="text-left py-1">Product</th><th className="text-right py-1">Qty</th>
-                      <th className="text-right py-1">Price</th><th className="text-right py-1">Total</th>
-                    </tr></thead>
-                    <tbody>
-                      {(viewSale.items ?? []).map((item, i) => (
-                        <tr key={i} className="border-b border-gray-50 dark:border-gray-700">
-                          <td className="py-1.5">{item.variant?.product?.name ?? `#${item.variant?.barcode}`}</td>
-                          <td className={`py-1.5 text-right ${item.quantity < 0 ? 'text-orange-600 font-semibold' : ''}`}>{item.quantity}</td>
-                          <td className="py-1.5 text-right">{fmt(item.unitPrice)}</td>
-                          <td className={`py-1.5 text-right font-medium ${(item.totalPrice ?? 0) < 0 ? 'text-orange-600' : ''}`}>
-                            {fmt(item.totalPrice ?? item.quantity * item.unitPrice)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <div className="grid grid-cols-3 gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm">
-                <div><p className="text-xs text-gray-500">{viewSale.totalAmount < 0 ? 'Refund' : 'Total'}</p>
-                  <p className={`font-semibold ${viewSale.totalAmount < 0 ? 'text-orange-600' : ''}`}>{fmt(viewSale.totalAmount)}</p>
-                </div>
-                <div><p className="text-xs text-gray-500">Discount</p><p className="font-semibold text-orange-600">{fmt(viewSale.discount)}</p></div>
-                <div><p className="text-xs text-gray-500">Tax</p><p className="font-semibold">{fmt(viewSale.taxAmount)}</p></div>
-              </div>
-              {(viewSale.payments ?? []).length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Payments</p>
-                  {(viewSale.payments ?? []).map((p, i) => (
-                    <div key={i} className="flex justify-between text-sm py-1">
-                      <span className="text-gray-600 dark:text-gray-400">{p.account?.name ?? 'Cash'}</span>
-                      <span className="font-medium">{fmt(p.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2 px-5 py-3 border-t border-gray-200 dark:border-gray-700">
-              <button onClick={() => printSaleReceipt(viewSale, (viewSale.totalAmount ?? 0) < 0)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">
-                <Printer size={13} /> Print
-              </button>
-              {(viewSale.totalAmount ?? 0) >= 0 && (
-                <button onClick={() => { setViewSale(null); openReturn(viewSale); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 text-sm rounded-lg">
-                  <RotateCcw size={13} /> Return
+              <div className="flex gap-2 px-5 py-3 border-t border-gray-200 dark:border-gray-700">
+                <button onClick={() => printSaleReceipt(viewSale, (viewSale.totalAmount ?? 0) < 0)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">
+                  <Printer size={13} /> Print
                 </button>
-              )}
-              <button onClick={() => setViewSale(null)} className="ml-auto px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">Close</button>
+                {(viewSale.totalAmount ?? 0) >= 0 && (
+                  <button onClick={() => { setViewSale(null); openReturn(viewSale); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 text-sm rounded-lg">
+                    <RotateCcw size={13} /> Return
+                  </button>
+                )}
+                <button onClick={() => setViewSale(null)} className="ml-auto px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">Close</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {returnSale && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                Return  Sale #{returnSale.id}
-                {returnSale.customer && <span className="ml-2 text-sm font-normal text-gray-500">({returnSale.customer.name})</span>}
-              </h3>
-              <button onClick={() => setReturnSale(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
-            </div>
-            <div className="overflow-y-auto p-5 space-y-3 flex-1">
-              <p className="text-xs text-gray-500">Enter quantity to return (0 = skip):</p>
-              {returnItems.map((item, i) => (
-                <div key={i} className="flex items-center gap-3 py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{item.name}</p>
-                    <p className="text-xs text-gray-400">Rs {item.unitPrice} &times; max {item.maxQty}</p>
+      {
+        returnSale && (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+                  Return  Sale #{returnSale.id}
+                  {returnSale.customer && <span className="ml-2 text-sm font-normal text-gray-500">({returnSale.customer.name})</span>}
+                </h3>
+                <button onClick={() => setReturnSale(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
+              </div>
+              <div className="overflow-y-auto p-5 space-y-3 flex-1">
+                <p className="text-xs text-gray-500">Enter quantity to return (0 = skip):</p>
+                {returnItems.map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{item.name}</p>
+                      <p className="text-xs text-gray-400">Rs {item.unitPrice} &times; max {item.maxQty}</p>
+                    </div>
+                    <input type="number" min={0} max={item.maxQty} value={item.qty}
+                      onChange={e => {
+                        const v = Math.min(item.maxQty, Math.max(0, parseInt(e.target.value) || 0));
+                        setReturnItems(prev => prev.map((x, n) => n === i ? { ...x, qty: v } : x));
+                      }}
+                      className="w-16 text-center px-1 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none"
+                    />
                   </div>
-                  <input type="number" min={0} max={item.maxQty} value={item.qty}
-                    onChange={e => {
-                      const v = Math.min(item.maxQty, Math.max(0, parseInt(e.target.value) || 0));
-                      setReturnItems(prev => prev.map((x, n) => n === i ? { ...x, qty: v } : x));
-                    }}
-                    className="w-16 text-center px-1 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none"
-                  />
-                </div>
-              ))}
-              {returnItems.some(i => i.qty > 0) && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-sm">
-                  <div className="flex justify-between font-semibold text-orange-700 dark:text-orange-400">
-                    <span>Total Refund</span>
-                    <span>Rs {returnItems.reduce((s, i) => s + i.qty * i.unitPrice, 0).toLocaleString('en-PK')}</span>
+                ))}
+                {returnItems.some(i => i.qty > 0) && (
+                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-sm">
+                    <div className="flex justify-between font-semibold text-orange-700 dark:text-orange-400">
+                      <span>Total Refund</span>
+                      <span>Rs {returnItems.reduce((s, i) => s + i.qty * i.unitPrice, 0).toLocaleString('en-PK')}</span>
+                    </div>
+                    <p className="text-xs text-orange-600 mt-1">
+                      {returnSale.customerId ? 'Will be credited to customer account' : 'Walk-in return  issue cash refund manually'}
+                    </p>
                   </div>
-                  <p className="text-xs text-orange-600 mt-1">
-                    {returnSale.customerId ? 'Will be credited to customer account' : 'Walk-in return  issue cash refund manually'}
-                  </p>
-                </div>
-              )}
-              <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)}
-                placeholder="Reason for return (optional)" rows={2}
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none resize-none" />
-            </div>
-            <div className="flex gap-2 px-5 py-3 border-t border-gray-200 dark:border-gray-700">
-              <button onClick={() => setReturnSale(null)} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50">Cancel</button>
-              <button onClick={submitReturn} disabled={returnLoading || !returnItems.some(i => i.qty > 0)}
-                className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm rounded-lg">
-                {returnLoading ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
-                Process Return
-              </button>
+                )}
+                <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)}
+                  placeholder="Reason for return (optional)" rows={2}
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none resize-none" />
+              </div>
+              <div className="flex gap-2 px-5 py-3 border-t border-gray-200 dark:border-gray-700">
+                <button onClick={() => setReturnSale(null)} className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button onClick={submitReturn} disabled={returnLoading || !returnItems.some(i => i.qty > 0)}
+                  className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-sm rounded-lg">
+                  {returnLoading ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                  Process Return
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }

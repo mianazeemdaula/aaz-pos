@@ -201,4 +201,8 @@ export const API_ENDPOINTS = {
         backup: '/settings/backup',
         restore: '/settings/restore',
     },
+    taxSchedules: {
+        list: '/tax-schedules',
+        detail: (id: number) => `/tax-schedules/${id}`,
+    },
 } as const;

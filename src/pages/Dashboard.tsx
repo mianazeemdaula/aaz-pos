@@ -11,7 +11,7 @@ import {
 import { reportService } from '../services/pos.service';
 import type { DashboardStats } from '../types/pos';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtK = (n: number) => n >= 1_000_000 ? `Rs ${(n / 1_000_000).toFixed(0)}M` : n >= 1_000 ? `Rs ${(n / 1_000).toFixed(0)}K` : `Rs ${(n).toFixed(0)}`;
 
 // ─── Stat card ────────────────────────────────────────────────────────────────

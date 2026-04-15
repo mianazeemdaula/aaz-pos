@@ -3,7 +3,7 @@ import { Search, X, Loader2 } from 'lucide-react';
 import { productService, categoryService, brandService } from '../../services/pos.service';
 import type { Product, ProductVariant, Category, Brand } from '../../types/pos';
 
-const _fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const _fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface ProductSearchProps {
   onSelect: (variant: ProductVariant) => void;
@@ -281,7 +281,10 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
                     <tr
                       key={p.id}
                       data-selected={isSelected}
-                      onClick={() => setSelectedIdx(idx)}
+                      onClick={() => {
+                        const variant = p.variants?.find(v => v.isDefault) ?? p.variants?.[0];
+                        if (variant) { onSelect({ ...variant, product: p }); onClose(); }
+                      }}
                       className={`border-b border-gray-100 dark:border-gray-700 last:border-0 transition-colors cursor-pointer ${isSelected
                         ? 'bg-primary-50 dark:bg-primary-900/30'
                         : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'

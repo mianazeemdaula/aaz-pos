@@ -3,13 +3,13 @@
  */
 import type { Sale, Customer } from '../../types/pos';
 import {
-    title, textLeft, textCenter, line, feed, table, cell,
+    title, textLeft, textCenter, line, feed, table, cell, qrCode, image,
     buildPrintJob, printDocument,
     type PrintSection, type PrintJobRequest,
 } from '../thermalPrinter';
 import { loadThermalConfig } from '../thermalPrinter';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d: string) => {
     const dt = new Date(d);
     return dt.toLocaleDateString('en-PK') + ' ' + dt.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
@@ -25,11 +25,18 @@ export interface SaleInvoiceData {
     grandTotal: number;
     paidAmount: number;
     changeAmount: number;
+    fbrInvoiceId?: string | null;
+    fbrQrUrl?: string | null;
 }
 
 export function buildSaleInvoiceSections(data: SaleInvoiceData): PrintSection[] {
     const config = loadThermalConfig();
     const sections: PrintSection[] = [];
+
+    // Logo (if configured)
+    if (config.businessLogoPath) {
+        sections.push(image(config.businessLogoPath));
+    }
 
     // Header
     sections.push(title(config.businessName));
@@ -42,6 +49,13 @@ export function buildSaleInvoiceSections(data: SaleInvoiceData): PrintSection[] 
     sections.push(textCenter('SALE INVOICE', true));
     sections.push(textLeft(`Invoice: ${data.sale.invoiceNumber ?? `#${data.sale.id}`}`));
     sections.push(textLeft(`Date: ${fmtDate(data.sale.createdAt)}`));
+
+    // FBR Invoice ID
+    const fbrId = data.fbrInvoiceId || data.sale.taxInvoiceId;
+    if (fbrId) {
+        sections.push(textLeft(`FBR Invoice #: ${fbrId}`));
+    }
+
     if (data.customer) {
         sections.push(textLeft(`Customer: ${data.customer.name}`));
         if (data.customer.phone) sections.push(textLeft(`Phone: ${data.customer.phone}`));
@@ -93,6 +107,17 @@ export function buildSaleInvoiceSections(data: SaleInvoiceData): PrintSection[] 
     }
     if (data.changeAmount > 0) {
         sections.push(textLeft(`Change: ${fmt(data.changeAmount)}`));
+    }
+
+    // FBR QR Code
+    const fbrQr = data.fbrQrUrl || (fbrId ? `https://tp.fbr.gov.pk/InvoiceVerification?InvoiceNo=${encodeURIComponent(fbrId)}` : null);
+    if (fbrQr) {
+        sections.push(line('-'));
+        sections.push(textCenter('Verify this invoice:', false));
+        sections.push(qrCode(fbrQr, 6));
+        if (fbrId) {
+            sections.push(textCenter(`FBR #: ${fbrId}`, false));
+        }
     }
 
     // Footer

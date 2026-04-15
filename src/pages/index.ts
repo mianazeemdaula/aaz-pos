@@ -1,5 +1,6 @@
 // Pages – POS System
 export { Login } from './Login';
+export { Home } from './Home';
 export { Admin } from './Admin';
 export { Dashboard } from './Dashboard';
 export { Sale } from './Sale';

@@ -8,7 +8,7 @@ import { AccountSelect } from '../components/ui/AccountSelect';
 import { Modal } from '../components/ui/Modal';
 import type { Customer, CustomerPayment } from '../types/pos';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 0 })}`;
+const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface PaymentForm {
     amount: string;

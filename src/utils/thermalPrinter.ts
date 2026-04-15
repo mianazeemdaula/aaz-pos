@@ -44,6 +44,7 @@ export type PrintSection =
     | { Drawer: { pin: number; pulse_time: number } }
     | { Qr: { data: string; size: number; error_correction: string; model: number; align?: string } }
     | { Barcode: { data: string; barcode_type: string; width: number; height: number; text_position: string; align?: string } }
+    | { Image: { path: string; align?: string } }
     | { Table: { columns: number; column_widths?: number[]; header?: TextCell[]; body: TextCell[][]; truncate?: boolean } }
     | { Line: { character: string } }
     | { GlobalStyles: GlobalStyles };
@@ -64,6 +65,7 @@ export interface ThermalPrinterConfig {
     businessAddress?: string;
     businessPhone?: string;
     businessNTN?: string;
+    businessLogoPath?: string; // Path to logo image for receipt header
 }
 
 const THERMAL_CONFIG_KEY = 'thermal_printer_config';
@@ -174,4 +176,12 @@ export const table = (
 export const cell = (text: string, align?: 'left' | 'center' | 'right', bold?: boolean): TextCell => ({
     text,
     styles: align || bold ? { align, bold } : null,
+});
+
+export const qrCode = (data: string, size = 6): PrintSection => ({
+    Qr: { data, size, error_correction: 'M', model: 2, align: 'center' },
+});
+
+export const image = (path: string, align = 'center'): PrintSection => ({
+    Image: { path, align },
 });

@@ -1,5 +1,13 @@
 // POS System Types  aligned with DB schema
 
+export interface TaxSchedule {
+    id: number;
+    name: string;
+    hscode?: string | null;
+    rate: number;
+    createdAt?: string;
+}
+
 export interface User {
     id: number;
     username: string;
@@ -113,6 +121,7 @@ export interface Product {
     brand?: Brand | null;
     category?: Category;
     variants?: ProductVariant[];
+    taxSchdule?: TaxSchedule | null;
 }
 
 export interface SaleItem {
