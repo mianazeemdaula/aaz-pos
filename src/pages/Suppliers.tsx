@@ -19,7 +19,7 @@ export function Suppliers() {
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<{ mode: 'add' | 'edit'; item?: Supplier } | null>(null);
   const [confirm, setConfirm] = useState<{ id: number } | null>(null);
-  const [form, setForm] = useState<Partial<Supplier>>({});
+  const [form, setForm] = useState<Partial<Supplier> & { openingBalance?: number }>({});
   const [saving, setSaving] = useState(false);
   const PAGE_SIZE = 20;
 
@@ -48,7 +48,7 @@ export function Suppliers() {
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const f = (key: keyof Supplier, val: unknown) => setForm(p => ({ ...p, [key]: val }));
+  const f = (key: keyof Supplier | 'openingBalance', val: unknown) => setForm(p => ({ ...p, [key]: val }));
 
   return (
     <div className="space-y-4">
@@ -112,6 +112,8 @@ export function Suppliers() {
               <input value={form.ntn ?? ''} onChange={e => f('ntn', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
             <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">City</label>
               <input value={form.city ?? ''} onChange={e => f('city', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
+            {modal?.mode === 'add' && <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Opening Balance</label>
+              <input type="number" value={form.openingBalance ?? 0} onChange={e => f('openingBalance', Number(e.target.value))} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>}
             <div className="col-span-2"><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Address</label>
               <textarea value={form.address ?? ''} onChange={e => f('address', e.target.value)} rows={2} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none outline-none focus:ring-2 focus:ring-primary-500" /></div>
           </div>

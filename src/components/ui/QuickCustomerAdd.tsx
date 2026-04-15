@@ -12,10 +12,11 @@ interface QuickCustomerAddProps {
 export function QuickCustomerAdd({ open, onClose, onCreated }: QuickCustomerAddProps) {
     const [name, setName] = useState('');
     const [phone, setPhone] = useState('');
+    const [openingBalance, setOpeningBalance] = useState<number>(0);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
 
-    const reset = () => { setName(''); setPhone(''); setError(''); };
+    const reset = () => { setName(''); setPhone(''); setOpeningBalance(0); setError(''); };
     const handleClose = () => { reset(); onClose(); };
 
     const save = async () => {
@@ -23,7 +24,7 @@ export function QuickCustomerAdd({ open, onClose, onCreated }: QuickCustomerAddP
         setSaving(true);
         setError('');
         try {
-            const c = await customerService.create({ name: name.trim(), phone: phone.trim() || undefined, active: true });
+            const c = await customerService.create({ name: name.trim(), phone: phone.trim() || undefined, active: true, ...(openingBalance !== 0 && { openingBalance }) });
             reset();
             onCreated(c);
         } catch (e: unknown) {
@@ -62,6 +63,16 @@ export function QuickCustomerAdd({ open, onClose, onCreated }: QuickCustomerAddP
                             type="text"
                             value={phone}
                             onChange={e => setPhone(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && save()}
+                            className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Opening Balance</label>
+                        <input
+                            type="number"
+                            value={openingBalance}
+                            onChange={e => setOpeningBalance(Number(e.target.value))}
                             onKeyDown={e => e.key === 'Enter' && save()}
                             className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
                         />
