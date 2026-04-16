@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Pencil, Trash2, Loader2, RefreshCw } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { Pagination } from '../components/ui/Pagination';
 import { expenseService, recurringExpenseService, accountService } from '../services/pos.service';
 import { AccountSelect } from '../components/ui/AccountSelect';
