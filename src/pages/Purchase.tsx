@@ -10,10 +10,13 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { PrintConfirmDialog } from '../components/ui/PrintConfirmDialog';
 import { QuickSupplierAdd } from '../components/ui/QuickSupplierAdd';
 import { purchaseService, heldService, productService, accountService } from '../services/pos.service';
+import { useSaleSettings } from '../hooks/useSaleSettings';
 import { printPurchaseInvoice, type PurchaseInvoiceData } from '../utils/invoices';
 import type { Product, ProductVariant, Supplier, HeldPurchase, Account } from '../types/pos';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+type DiscountType = 'PERCENTAGE' | 'FIXED';
 
 interface CartItem {
   product: Product
@@ -21,8 +24,14 @@ interface CartItem {
   variant: ProductVariant;
   qty: number;
   totalCost: number; // total for this line (qty × unitCost), user-entered
-  discount: number;  // discount in Rs (amount)
+  discount: number;  // discount value (Rs if FIXED, % if PERCENTAGE)
+  discountType: DiscountType;
   unitRate: number;  // intended selling price per unit (for profit display)
+}
+
+function getDiscountAmount(item: CartItem): number {
+  if (item.discountType === 'FIXED') return item.discount;
+  return item.totalCost * item.discount / 100;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -201,6 +210,8 @@ export function Purchase() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [pendingPrintData, setPendingPrintData] = useState<PurchaseInvoiceData | null>(null);
 
+  const { allowPriceChange, allowDiscountTypeSwitch } = useSaleSettings();
+
   // Refs
   const barcodeRef = useRef<HTMLInputElement>(null);
   const firstAccountRef = useRef<HTMLInputElement>(null);
@@ -210,8 +221,8 @@ export function Purchase() {
   const holdRef = useRef<() => void>(() => { });
 
   // Derived totals
-  const itemNetTotal = cart.reduce((a, i) => a + (i.totalCost - i.discount), 0);
-  const itemDiscountTotal = cart.reduce((a, i) => a + i.discount, 0);
+  const itemNetTotal = cart.reduce((a, i) => a + (i.totalCost - getDiscountAmount(i)), 0);
+  const itemDiscountTotal = cart.reduce((a, i) => a + getDiscountAmount(i), 0);
   const grandTotal = Math.max(0, itemNetTotal - invoiceDiscount + invoiceTax + invoiceExpenses);
   const paidTotal = Object.values(accountAmounts).reduce((a, v) => a + (parseFloat(v) || 0), 0);
   const balance = paidTotal - grandTotal;
@@ -272,7 +283,7 @@ export function Purchase() {
   useEffect(() => {
     const draft = loadDraft();
     if (!draft?.cart?.length) return;
-    setCart(draft.cart);
+    setCart(draft.cart.map(i => ({ ...i, discountType: i.discountType ?? 'FIXED' as DiscountType })));
     setSupplier(draft.supplier ?? null);
     setNote(draft.note ?? '');
     setRefNo(draft.refNo ?? '');
@@ -309,7 +320,7 @@ export function Purchase() {
         return next;
       }
       const sellingPrice = v.price || 0;
-      return [{ product, variant: { ...v, product }, qty: 1, totalCost: 0, discount: 0, unitRate: sellingPrice }, ...prev];
+      return [{ product, variant: { ...v, product }, qty: 1, totalCost: 0, discount: 0, discountType: 'FIXED' as DiscountType, unitRate: sellingPrice }, ...prev];
     });
     setBarcode('');
     setTimeout(() => barcodeRef.current?.focus(), 30);
@@ -408,6 +419,7 @@ export function Purchase() {
             totalCost: i.totalCost,
             unitCost: i.qty > 0 ? i.totalCost / i.qty : 0,
             discount: i.discount,
+            discountType: i.discountType,
             sellingPrice: i.unitRate,
             variantSnapshot: {
               id: i.variant.id,
@@ -499,7 +511,7 @@ export function Purchase() {
         isDefault: true,
         product,
       };
-      return { product, variant, qty: item.qty ?? 1, totalCost: item.totalCost ?? 0, discount: item.discount ?? 0, unitRate: (item as any).sellingPrice ?? 0 };
+      return { product, variant, qty: item.qty ?? 1, totalCost: item.totalCost ?? 0, discount: item.discount ?? 0, discountType: ((item as any).discountType as DiscountType) ?? 'FIXED', unitRate: (item as any).sellingPrice ?? 0 };
     });
     setCart(newCart);
     setRefNo(data?.refNo ?? '');
@@ -538,7 +550,8 @@ export function Purchase() {
         note: note || undefined,
         items: cart.map(i => {
           const unitCost = i.qty > 0 ? i.totalCost / i.qty : 0;
-          const discountPerUnit = i.qty > 0 ? i.discount / i.qty : 0;
+          const discAmt = getDiscountAmount(i);
+          const discountPerUnit = i.qty > 0 ? discAmt / i.qty : 0;
           return {
             productId: i.product.id,
             variantId: i.variant.id,
@@ -546,7 +559,7 @@ export function Purchase() {
             quantity: i.qty,
             unitCost,
             sellingPrice: i.unitRate,
-            totalCost: i.totalCost - i.discount,
+            totalCost: i.totalCost - discAmt,
             discount: discountPerUnit,
             taxAmount: 0,
           };
@@ -560,8 +573,8 @@ export function Purchase() {
           name: i.product.name,
           qty: i.qty,
           unitCost: i.qty > 0 ? i.totalCost / i.qty : 0,
-          discount: i.discount,
-          total: i.totalCost - i.discount,
+          discount: getDiscountAmount(i),
+          total: i.totalCost - getDiscountAmount(i),
         })),
         supplier: supplier ?? null,
         subtotal: itemNetTotal + itemDiscountTotal,
@@ -709,7 +722,7 @@ export function Purchase() {
                   <th className="text-left px-2 py-2 font-medium text-gray-500">Variant</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-28">Qty</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-32">Total Cost</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-20">Disc (Rs)</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Disc</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-28">Sale Rate</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Profit</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Net</th>
@@ -720,8 +733,10 @@ export function Purchase() {
                 {cart.map((item, idx) => {
                   const isFirst = idx === 0;
                   const unitCost = item.qty > 0 ? item.totalCost / item.qty : 0;
-                  const netTotal = item.totalCost - item.discount;
-                  const profitPerUnit = item.unitRate - unitCost;
+                  const discAmt = getDiscountAmount(item);
+                  const netTotal = item.totalCost - discAmt;
+                  const netUnitCost = item.qty > 0 ? netTotal / item.qty : 0;
+                  const profitPerUnit = item.unitRate - netUnitCost;
                   const profitTotal = profitPerUnit * item.qty;
                   const variants = item.product.variants ?? [];
                   return (
@@ -771,11 +786,27 @@ export function Purchase() {
                           className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
                       </td>
                       <td className="px-1 py-1.5">
-                        <input type="number" value={item.discount} min={0} step="0.01" onChange={e => updateField(idx, 'discount', Number(e.target.value))}
-                          className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
+                        <div className="flex items-center gap-0.5">
+                          <input type="number" value={item.discount} min={0} max={item.discountType === 'PERCENTAGE' ? 100 : undefined} step="0.01"
+                            onChange={e => updateField(idx, 'discount', item.discountType === 'PERCENTAGE' ? Math.min(100, Math.max(0, Number(e.target.value))) : Math.max(0, Number(e.target.value)))}
+                            className="w-14 text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
+                          <button
+                            onClick={() => allowDiscountTypeSwitch && setCart(prev => prev.map((ci, i) => i === idx ? { ...ci, discountType: ci.discountType === 'PERCENTAGE' ? 'FIXED' : 'PERCENTAGE', discount: 0 } : ci))}
+                            disabled={!allowDiscountTypeSwitch}
+                            className={`text-[10px] font-medium px-1 py-0.5 rounded border shrink-0 ${!allowDiscountTypeSwitch ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600'} ${item.discountType === 'PERCENTAGE' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 border-blue-200 dark:border-blue-800' : 'bg-green-50 dark:bg-green-900/30 text-green-600 border-green-200 dark:border-green-800'}`}
+                          >
+                            {item.discountType === 'PERCENTAGE' ? '%' : 'Rs'}
+                          </button>
+                        </div>
                       </td>
-                      <td className="px-1 py-1.5 ">
-                        <p className='text-right w-full'> {item.unitRate}</p>
+                      <td className="px-1 py-1.5">
+                        {allowPriceChange ? (
+                          <input type="number" value={item.unitRate} min={0} step="0.01"
+                            onChange={e => updateField(idx, 'unitRate', Number(e.target.value))}
+                            className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
+                        ) : (
+                          <p className='text-right w-full'>{item.unitRate}</p>
+                        )}
                       </td>
                       <td className={`px-1 py-1.5 text-right text-xs font-medium ${profitTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                         {profitTotal !== 0 ? fmt(profitTotal) : '—'}

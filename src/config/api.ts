@@ -195,12 +195,16 @@ export const API_ENDPOINTS = {
         customerLedgerPdf: (customerId: number) => `/reports/customer-ledger/${customerId}`,
         supplierLedgerPdf: (supplierId: number) => `/reports/supplier-ledger/${supplierId}`,
         accountStatementPdf: (accountId: number) => `/reports/account-statement/${accountId}`,
+        supplierBusinessPdf: (supplierId: number) => `/reports/supplier-business/${supplierId}`,
     },
     settings: {
         get: '/settings',
         update: '/settings',
         backup: '/settings/backup',
         restore: '/settings/restore',
+        app: '/settings/app',
+        allUsersSettings: '/settings/users',
+        userSettings: (userId: number) => `/settings/users/${userId}`,
     },
     taxSchedules: {
         list: '/tax-schedules',

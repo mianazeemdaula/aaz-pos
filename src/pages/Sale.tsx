@@ -5,6 +5,7 @@ import { QuickCustomerAdd } from '../components/ui/QuickCustomerAdd';
 import { ProductSearchModal } from '../components/ui/ProductSearch';
 import { PrintConfirmDialog } from '../components/ui/PrintConfirmDialog';
 import { saleService, heldService, productService, accountService } from '../services/pos.service';
+import { useSaleSettings } from '../hooks/useSaleSettings';
 import { fbrService } from '../services/fbr.service';
 import { FBRPaymentMode, FBRInvoiceType } from '../types/fbr';
 import { FBR_CONFIG } from '../config/api';
@@ -12,6 +13,7 @@ import { printSaleInvoice, type SaleInvoiceData } from '../utils/invoices';
 import type { Product, ProductVariant, Customer, Account, HeldSale } from '../types/pos';
 
 type PriceType = 'MRP' | 'Retail' | 'Wholesale';
+type DiscountType = 'PERCENTAGE' | 'FIXED';
 
 interface CartItem {
   product: Product;
@@ -20,6 +22,7 @@ interface CartItem {
   priceType: PriceType;
   price: number;
   discount: number;
+  discountType: DiscountType;
   taxRate: number;
   taxMethod: 'EXCLUSIVE' | 'INCLUSIVE';
   hsCode: string;
@@ -33,7 +36,7 @@ function getVariantPrice(variant: ProductVariant, pt: PriceType): number {
 
 function computeLine(item: CartItem) {
   const gross = item.qty * item.price;
-  const discAmt = gross * item.discount / 100;
+  const discAmt = item.discountType === 'FIXED' ? item.discount * item.qty : gross * item.discount / 100;
   const afterDisc = gross - discAmt;
   let taxAmt: number;
   let lineTotal: number;
@@ -175,6 +178,8 @@ export function Sale() {
   const [pendingPrintData, setPendingPrintData] = useState<SaleInvoiceData | null>(null);
   const [returnMode, setReturnMode] = useState(false);
 
+  const { allowPriceChange, allowDiscountTypeSwitch } = useSaleSettings();
+
   const barcodeRef = useRef<HTMLInputElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
   const firstAccountRef = useRef<HTMLInputElement>(null);
@@ -218,6 +223,7 @@ export function Sale() {
         priceType,
         price: getVariantPrice(variant, priceType),
         discount: 0,
+        discountType: 'PERCENTAGE' as DiscountType,
         taxRate: product.taxRate ?? 0,
         taxMethod: product.taxMethod ?? 'EXCLUSIVE',
         hsCode: product.hsCode ?? '',
@@ -294,6 +300,7 @@ export function Sale() {
             qty: i.qty,
             price: i.price,
             discount: i.discount,
+            discountType: i.discountType,
             priceType: i.priceType,
             taxMethod: i.taxMethod,
             variantSnapshot: {
@@ -399,6 +406,7 @@ export function Sale() {
         priceType: (item.priceType as PriceType) ?? 'MRP',
         price: item.price ?? 0,
         discount: item.discount ?? 0,
+        discountType: (item.discountType as DiscountType) ?? 'PERCENTAGE',
         taxRate: product.taxRate ?? 0,
         taxMethod: product.taxMethod ?? 'EXCLUSIVE',
         hsCode: product.hsCode ?? '',
@@ -436,7 +444,7 @@ export function Sale() {
           variantId: i.variant.id,
           qty: i.qty,
           unitPrice: i.price,
-          discount: i.discount,
+          discount: i.discountType === 'FIXED' ? i.discount : i.price * i.discount / 100,
           taxRate: i.taxRate,
           hsCode: i.hsCode,
         })),
@@ -727,7 +735,7 @@ export function Sale() {
                   <th className="text-left px-3 py-2 font-medium text-gray-500">Varient</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-28">Qty</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-32">Price</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-16">Disc%</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Disc</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-20">Tax</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Total</th>
                   <th className="w-8"></th>
@@ -782,7 +790,8 @@ export function Sale() {
                             <select
                               value={item.priceType}
                               onChange={e => changePriceType(idx, e.target.value as PriceType)}
-                              className="text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1"
+                              disabled={!allowPriceChange}
+                              className={`text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 ${!allowPriceChange ? 'opacity-60 cursor-not-allowed' : ''}`}
                             >
                               <option value="MRP">MRP</option>
                               {hasRetail && <option value="Retail">Retail</option>}
@@ -791,12 +800,28 @@ export function Sale() {
                           ) : (
                             <span className="text-[10px] text-gray-400">MRP</span>
                           )}
-                          <span className="font-medium text-gray-900 dark:text-gray-100">{item.price.toFixed(2)}</span>
+                          {allowPriceChange ? (
+                            <input type="number" value={item.price} min={0} step="0.01"
+                              onChange={e => updateField(idx, 'price', Math.max(0, Number(e.target.value)))}
+                              className="w-20 text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 text-xs font-medium" />
+                          ) : (
+                            <span className="font-medium text-gray-900 dark:text-gray-100">{item.price.toFixed(2)}</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-2 py-1.5">
-                        <input type="number" value={item.discount} min={0} max={100} step="0.01" onChange={e => updateField(idx, 'discount', Math.min(100, Number(e.target.value)))}
-                          className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
+                        <div className="flex items-center gap-0.5">
+                          <input type="number" value={item.discount} min={0} max={item.discountType === 'PERCENTAGE' ? 100 : undefined} step="0.01"
+                            onChange={e => updateField(idx, 'discount', item.discountType === 'PERCENTAGE' ? Math.min(100, Math.max(0, Number(e.target.value))) : Math.max(0, Number(e.target.value)))}
+                            className="w-14 text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
+                          <button
+                            onClick={() => allowDiscountTypeSwitch && setCart(prev => prev.map((ci, i) => i === idx ? { ...ci, discountType: ci.discountType === 'PERCENTAGE' ? 'FIXED' : 'PERCENTAGE', discount: 0 } : ci))}
+                            disabled={!allowDiscountTypeSwitch}
+                            className={`text-[10px] font-medium px-1 py-0.5 rounded border shrink-0 ${!allowDiscountTypeSwitch ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600'} ${item.discountType === 'PERCENTAGE' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 border-blue-200 dark:border-blue-800' : 'bg-green-50 dark:bg-green-900/30 text-green-600 border-green-200 dark:border-green-800'}`}
+                          >
+                            {item.discountType === 'PERCENTAGE' ? '%' : 'Rs'}
+                          </button>
+                        </div>
 
                       </td>
                       <td className="px-2 py-1.5 text-right flex">

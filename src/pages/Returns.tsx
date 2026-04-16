@@ -133,10 +133,12 @@ export function Returns() {
                     <RotateCcw size={20} className="text-orange-500" />
                     Returns
                 </h1>
-                <div className="flex gap-1">
+                <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
                     {([{ key: 'sale-returns' as Tab, label: 'Sale Returns' }, { key: 'purchase-returns' as Tab, label: 'Purchase Returns' }]).map(t => (
                         <button key={t.key} onClick={() => setTab(t.key)}
-                            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${tab === t.key ? 'bg-primary-600 text-white' : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-primary-300'}`}>
+                            className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium ${tab === t.key
+                                ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
                             {t.label}
                         </button>
                     ))}

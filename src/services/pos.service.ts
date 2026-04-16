@@ -231,6 +231,11 @@ export const userService = {
 export const settingsService = {
   get: () => apiClient.get<Record<string, unknown>>(API_ENDPOINTS.settings.get),
   update: (data: object) => apiClient.put<Record<string, unknown>>(API_ENDPOINTS.settings.update, data),
+  getApp: () => apiClient.get<Record<string, unknown>>(API_ENDPOINTS.settings.app),
+  updateApp: (data: object) => apiClient.put<Record<string, unknown>>(API_ENDPOINTS.settings.app, data),
+  getAllUsersSettings: () => apiClient.get<Record<number, Record<string, unknown>>>(API_ENDPOINTS.settings.allUsersSettings),
+  getUserSettings: (userId: number) => apiClient.get<Record<string, unknown>>(API_ENDPOINTS.settings.userSettings(userId)),
+  updateUserSettings: (userId: number, data: object) => apiClient.put<Record<string, unknown>>(API_ENDPOINTS.settings.userSettings(userId), data),
 };
 
 // ---- Tax Schedules ----

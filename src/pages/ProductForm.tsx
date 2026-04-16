@@ -172,13 +172,15 @@ function VariantFields({ v, onChange, showRemove, onRemove, lockNameFactor }: {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                <div>
-                    <label className={lbl}>Variant Name *</label>
-                    <input value={v.name} onChange={e => onChange('name', e.target.value)} className={`${inp} ${lockNameFactor ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : ''}`} placeholder="e.g. Unit, Dozen" readOnly={lockNameFactor} />
-                </div>
+
+
                 <div>
                     <label className={lbl}>Barcode *</label>
                     <input value={v.barcode} onChange={e => onChange('barcode', e.target.value)} className={inp} placeholder="Unique barcode" />
+                </div>
+                <div>
+                    <label className={lbl}>Variant Name *</label>
+                    <input value={v.name} onChange={e => onChange('name', e.target.value)} className={`${inp} ${lockNameFactor ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : ''}`} placeholder="e.g. Unit, Dozen" readOnly={lockNameFactor} />
                 </div>
                 <div>
                     <label className={lbl}>Factor</label>
@@ -583,7 +585,6 @@ export function ProductForm() {
                 <hr className="my-4 border-gray-200 dark:border-gray-700" />
 
                 {/* Row 3: Tax Fields */}
-                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">Tax</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
                         <label className={lbl}>Tax Schedule</label>
@@ -622,7 +623,6 @@ export function ProductForm() {
                 <hr className="my-4 border-gray-200 dark:border-gray-700" />
 
                 {/* Row 4: Inventory */}
-                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">Inventory</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
                         <label className={lbl}>Reorder Level</label>

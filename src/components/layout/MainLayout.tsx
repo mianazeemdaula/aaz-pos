@@ -58,7 +58,6 @@ const MENU: MenuGroup[] = [
       { label: 'Employees', icon: UserCheck, path: '/employees' },
       { label: 'Salary Slips', icon: Receipt, path: '/salary-slips' },
       { label: 'Expenses', icon: TrendingDown, path: '/expenses' },
-      { label: 'Recurring Expenses', icon: RefreshCw, path: '/recurring-expenses' },
       { label: 'Accounts', icon: Wallet, path: '/accounts' },
       { label: 'Promotions', icon: Gift, path: '/promotions' },
     ],
@@ -81,7 +80,10 @@ export function MainLayout() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const handleLogout = () => { logout(); navigate('/login'); };
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
+  const isActive = (path: string) => {
+    if (path === '/sale' || path === '/purchase') return location.pathname === path;
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
 
   const isCashier = user?.role === 'CASHIER';
   const visibleMenu = isCashier

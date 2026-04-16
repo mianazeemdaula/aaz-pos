@@ -46,7 +46,6 @@ const SupplierPayments = lazy(() => import('./pages/SupplierPayments').then(m =>
 const Employees = lazy(() => import('./pages/Employees').then(m => ({ default: m.Employees })));
 const SalarySlips = lazy(() => import('./pages/SalarySlips').then(m => ({ default: m.SalarySlips })));
 const Expenses = lazy(() => import('./pages/Expenses').then(m => ({ default: m.Expenses })));
-const RecurringExpenses = lazy(() => import('./pages/RecurringExpenses').then(m => ({ default: m.RecurringExpenses })));
 const Accounts = lazy(() => import('./pages/Accounts').then(m => ({ default: m.Accounts })));
 const Users = lazy(() => import('./pages/Users').then(m => ({ default: m.Users })));
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
@@ -98,7 +97,6 @@ function App() {
               <Route path="employees" element={<ErrorBoundary><Employees /></ErrorBoundary>} />
               <Route path="salary-slips" element={<ErrorBoundary><SalarySlips /></ErrorBoundary>} />
               <Route path="expenses" element={<ErrorBoundary><Expenses /></ErrorBoundary>} />
-              <Route path="recurring-expenses" element={<ErrorBoundary><RecurringExpenses /></ErrorBoundary>} />
               <Route path="accounts" element={<ErrorBoundary><Accounts /></ErrorBoundary>} />
               <Route path="users" element={<ErrorBoundary><Users /></ErrorBoundary>} />
               <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
