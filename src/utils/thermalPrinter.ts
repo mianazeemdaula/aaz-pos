@@ -44,7 +44,7 @@ export type PrintSection =
     | { Drawer: { pin: number; pulse_time: number } }
     | { Qr: { data: string; size: number; error_correction: string; model: number; align?: string } }
     | { Barcode: { data: string; barcode_type: string; width: number; height: number; text_position: string; align?: string } }
-    | { Image: { path: string; align?: string } }
+    | { Image: { data: string; max_width: number; align: string; dithering: boolean; size: string } }
     | { Table: { columns: number; column_widths?: number[]; header?: TextCell[]; body: TextCell[][]; truncate?: boolean } }
     | { Line: { character: string } }
     | { GlobalStyles: GlobalStyles };
@@ -178,10 +178,19 @@ export const cell = (text: string, align?: 'left' | 'center' | 'right', bold?: b
     styles: align || bold ? { align, bold } : null,
 });
 
-export const qrCode = (data: string, size = 6): PrintSection => ({
-    Qr: { data, size, error_correction: 'M', model: 2, align: 'center' },
+export const qrCode = (data: string, size = 6, align = 'center'): PrintSection => ({
+    Qr: { data, size, error_correction: 'M', model: 2, align },
 });
 
-export const image = (path: string, align = 'center'): PrintSection => ({
-    Image: { path, align },
+export const image = (base64Data: string, align = 'center'): PrintSection => ({
+    Image: { data: base64Data, max_width: 0, align, dithering: false, size: 'normal' },
 });
+
+/**
+ * Read a local file and return an Image print section with base64-encoded data.
+ */
+export async function imageFromFile(filePath: string, align = 'center'): Promise<PrintSection> {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const base64Data = await invoke<string>('read_file_base64', { path: filePath });
+    return image(base64Data, align);
+}

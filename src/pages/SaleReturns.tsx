@@ -2,33 +2,41 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Eye, Printer, RotateCcw, Loader2, X } from 'lucide-react';
 import { saleService } from '../services/pos.service';
 import { Pagination } from '../components/ui/Pagination';
+import { printSaleInvoice, type SaleInvoiceData } from '../utils/invoices';
 import type { Sale } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${Math.abs(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = new Date().toISOString().slice(0, 10);
 const mon = today.slice(0, 8) + '01';
 
-function printSaleReceipt(s: Sale, isReturn = false) {
-  const w = window.open('', '_blank', 'width=400,height=600');
-  if (!w) return;
-  const due = Math.max(0, s.totalAmount - s.paidAmount);
-  w.document.write(`<!DOCTYPE html><html><head><title>Receipt</title><style>
-    body{font-family:monospace;font-size:12px;width:300px;margin:10px auto}
-    h2{text-align:center;margin:0} hr{border-top:1px dashed #000}
-    .row{display:flex;justify-content:space-between} .bold{font-weight:bold}
-  </style></head><body>
-    <h2>${isReturn ? 'RETURN RECEIPT' : 'SALE RECEIPT'}</h2>
-    <p style="text-align:center">#${s.taxInvoiceId ?? s.id}</p><hr/>
-    <div class="row"><span>Date:</span><span>${new Date(s.createdAt).toLocaleString()}</span></div>
-    ${s.customer ? `<div class="row"><span>Customer:</span><span>${s.customer.name}</span></div>` : ''}
-    <hr/>
-    <div class="row bold"><span>${isReturn ? 'Refund Amount:' : 'Grand Total:'}</span><span>${fmt(s.totalAmount)}</span></div>
-    <hr/>
-    ${!isReturn && due > 0 ? `<div class="row"><span>Due:</span><span>${fmt(due)}</span></div>` : ''}
-    <hr/><p style="text-align:center">Thank you!</p>
-  </body></html>`);
-  w.print();
-  w.close();
+async function printSaleReceipt(saleId: number) {
+  try {
+    const s = await saleService.get(saleId);
+    const items = (s.items ?? []).map(i => ({
+      name: i.variant?.product?.name ?? `#${i.variant?.barcode ?? i.variantId}`,
+      qty: i.quantity,
+      price: i.unitPrice,
+      discount: i.discount,
+      total: i.totalPrice ?? i.quantity * i.unitPrice,
+    }));
+    const subtotal = items.reduce((sum, i) => sum + i.total, 0);
+    const printData: SaleInvoiceData = {
+      sale: s,
+      items,
+      customer: s.customer,
+      subtotal,
+      discountAmount: s.discount,
+      taxAmount: s.taxAmount,
+      grandTotal: s.totalAmount,
+      paidAmount: s.paidAmount,
+      changeAmount: s.changeAmount,
+      fbrInvoiceId: s.taxInvoiceId,
+      fbrQrUrl: s.taxInvoiceId ? `https://tp.fbr.gov.pk/InvoiceVerification?InvoiceNo=${encodeURIComponent(s.taxInvoiceId)}` : null,
+    };
+    await printSaleInvoice(printData);
+  } catch (e) {
+    console.error('Failed to print sale receipt:', e);
+  }
 }
 
 export function SaleReturns() {
@@ -174,7 +182,7 @@ export function SaleReturns() {
                           <td className="px-4 py-1.5">
                             <div className="flex items-center gap-0.5 justify-end">
                               <button onClick={() => openView(s)} disabled={viewLoading} title="View" className="p-1.5 text-gray-400 hover:text-primary-600 rounded disabled:opacity-40"><Eye size={14} /></button>
-                              <button onClick={() => printSaleReceipt(s)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
+                              <button onClick={() => printSaleReceipt(s.id)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
                               <button onClick={() => openReturn(s)} title="Create return" className="p-1.5 text-gray-400 hover:text-orange-500 rounded"><RotateCcw size={14} /></button>
                             </div>
                           </td>
@@ -251,7 +259,7 @@ export function SaleReturns() {
                 )}
               </div>
               <div className="flex gap-2 px-5 py-3 border-t border-gray-200 dark:border-gray-700">
-                <button onClick={() => printSaleReceipt(viewSale, (viewSale.totalAmount ?? 0) < 0)}
+                <button onClick={() => printSaleReceipt(viewSale.id)}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">
                   <Printer size={13} /> Print
                 </button>
