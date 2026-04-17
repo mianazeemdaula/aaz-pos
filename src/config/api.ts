@@ -46,6 +46,8 @@ export const API_ENDPOINTS = {
         detail: (id: number) => `/accounts/${id}`,
         update: (id: number) => `/accounts/${id}`,
         delete: (id: number) => `/accounts/${id}`,
+        transfer: '/accounts/transfer',
+        transfers: '/accounts/transfers',
     },
     customers: {
         list: '/customers',

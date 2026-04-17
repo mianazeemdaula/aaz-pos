@@ -6,6 +6,27 @@
 import { FBR_CONFIG } from '../config/api';
 import type { FBRHealthResponse, FBRInvoiceRequest, FBRInvoiceResponse } from '../types/fbr';
 
+const LS_FBR_KEY = 'pos_fbr_settings';
+
+function getLocalFbrSettings(): { url: string; enabled: boolean } | null {
+    try {
+        const raw = localStorage.getItem(LS_FBR_KEY);
+        if (raw) return JSON.parse(raw);
+    } catch { /* ignore */ }
+    return null;
+}
+
+function getEffectiveBaseURL(): string {
+    const local = getLocalFbrSettings();
+    return local?.url || FBR_CONFIG.baseURL;
+}
+
+function getEffectiveEnabled(): boolean {
+    const local = getLocalFbrSettings();
+    if (local !== null) return local.enabled;
+    return FBR_CONFIG.enabled;
+}
+
 export const fbrService = {
     /**
      * Check FBR service availability (Ping)
@@ -15,7 +36,7 @@ export const fbrService = {
         const timeoutId = setTimeout(() => controller.abort(), FBR_CONFIG.timeout);
 
         try {
-            const response = await fetch(`${FBR_CONFIG.baseURL}/get`, {
+            const response = await fetch(`${getEffectiveBaseURL()}/get`, {
                 signal: controller.signal,
                 headers: { 'Accept': 'application/xml, text/xml, */*' },
             });
@@ -46,7 +67,7 @@ export const fbrService = {
         const timeoutId = setTimeout(() => controller.abort(), FBR_CONFIG.timeout);
 
         try {
-            const response = await fetch(`${FBR_CONFIG.baseURL}/GetInvoiceNumberByModel`, {
+            const response = await fetch(`${getEffectiveBaseURL()}/GetInvoiceNumberByModel`, {
                 method: 'POST',
                 signal: controller.signal,
                 headers: {
@@ -85,7 +106,7 @@ export const fbrService = {
      * Check if FBR integration is enabled
      */
     isEnabled(): boolean {
-        return FBR_CONFIG.enabled;
+        return getEffectiveEnabled();
     },
 
     /**
@@ -94,8 +115,8 @@ export const fbrService = {
     getConfig() {
         return {
             posId: FBR_CONFIG.posId,
-            baseURL: FBR_CONFIG.baseURL,
-            enabled: FBR_CONFIG.enabled,
+            baseURL: getEffectiveBaseURL(),
+            enabled: getEffectiveEnabled(),
         };
     },
 

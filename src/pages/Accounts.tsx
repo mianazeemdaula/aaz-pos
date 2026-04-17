@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, ArrowRightLeft } from 'lucide-react';
 import { accountService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -19,6 +19,11 @@ export function Accounts() {
   const [confirm, setConfirm] = useState<{ id: number } | null>(null);
   const [form, setForm] = useState<Partial<Account>>({ type: 'ASSET' });
   const [saving, setSaving] = useState(false);
+
+  // Transfer state
+  const [transferModal, setTransferModal] = useState(false);
+  const [transferForm, setTransferForm] = useState({ fromAccountId: 0, toAccountId: 0, amount: 0, note: '' });
+  const [transferSaving, setTransferSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,12 +52,39 @@ export function Accounts() {
   const cashTotal = items.filter(a => a.type === 'ASSET').reduce((s, a) => s + (a.balance ?? 0), 0);
   const bankTotal = items.filter(a => a.type === 'LIABILITY').reduce((s, a) => s + (a.balance ?? 0), 0);
 
+  const openTransfer = () => {
+    setTransferForm({ fromAccountId: items[0]?.id ?? 0, toAccountId: items[1]?.id ?? 0, amount: 0, note: '' });
+    setTransferModal(true);
+  };
+
+  const doTransfer = async () => {
+    if (!transferForm.fromAccountId || !transferForm.toAccountId) { alert('Select both accounts'); return; }
+    if (transferForm.fromAccountId === transferForm.toAccountId) { alert('Source and destination must be different'); return; }
+    if (!transferForm.amount || transferForm.amount <= 0) { alert('Enter a valid amount'); return; }
+    setTransferSaving(true);
+    try {
+      await accountService.transfer({
+        fromAccountId: transferForm.fromAccountId,
+        toAccountId: transferForm.toAccountId,
+        amount: transferForm.amount,
+        note: transferForm.note || undefined,
+      });
+      setTransferModal(false);
+      load();
+    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Transfer failed'); }
+    finally { setTransferSaving(false); }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Accounts</h1>
-        <button onClick={() => { setForm({ type: 'ASSET', balance: 0 }); setModal({ mode: 'add' }); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg"><Plus size={14} /> Add Account</button>
+        <div className="flex gap-2">
+          <button onClick={openTransfer}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-sm rounded-lg"><ArrowRightLeft size={14} /> Transfer</button>
+          <button onClick={() => { setForm({ type: 'ASSET', balance: 0 }); setModal({ mode: 'add' }); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg"><Plus size={14} /> Add Account</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -72,11 +104,12 @@ export function Accounts() {
             : (
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
-                  <th className="px-4 py-2">Account Name</th><th className="px-4 py-2">Type</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2">Actions</th>
+                  <th className="px-4 py-2">Code</th><th className="px-4 py-2">Account Name</th><th className="px-4 py-2">Type</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2">Actions</th>
                 </tr></thead>
                 <tbody>
                   {items.map(item => (
                     <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 text-xs font-mono">{item.code}</td>
                       <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
                       <td className="px-4 py-2.5">
                         <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.type === 'ASSET' || item.type === 'INCOME' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{item.type}</span>
@@ -98,15 +131,20 @@ export function Accounts() {
 
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit Account' : 'Add Account'} size="sm">
         <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Account Code *</label>
+              <input value={form.code ?? ''} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="e.g. 1001"
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
+            <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Type</label>
+              <select value={form.type ?? 'ASSET'} onChange={e => setForm(p => ({ ...p, type: e.target.value as Account['type'] }))}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none">
+                <option value="ASSET">Asset</option><option value="LIABILITY">Liability</option><option value="EQUITY">Equity</option><option value="INCOME">Income</option><option value="EXPENSE">Expense</option>
+              </select>
+            </div>
+          </div>
           <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Account Name *</label>
             <input value={form.name ?? ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
-          <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Type</label>
-            <select value={form.type ?? 'ASSET'} onChange={e => setForm(p => ({ ...p, type: e.target.value as Account['type'] }))}
-              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none">
-              <option value="ASSET">Asset</option><option value="LIABILITY">Liability</option><option value="EQUITY">Equity</option><option value="INCOME">Income</option><option value="EXPENSE">Expense</option>
-            </select>
-          </div>
           {modal?.mode === 'add' && (
             <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Opening Balance</label>
               <input type="number" value={form.balance ?? 0} min={0} onChange={e => setForm(p => ({ ...p, balance: Number(e.target.value) }))}
@@ -114,13 +152,54 @@ export function Accounts() {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setModal(null)} className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-            <button onClick={save} disabled={saving || !form.name} className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
+            <button onClick={save} disabled={saving || !form.name || !form.code} className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
               {saving && <Loader2 size={13} className="animate-spin" />} Save
             </button>
           </div>
         </div>
       </Modal>
       <ConfirmDialog open={!!confirm} title="Delete Account" message="Delete this account? All transactions linked to it may be affected." variant="danger" confirmLabel="Delete" onConfirm={del} onCancel={() => setConfirm(null)} />
+
+      {/* Transfer Modal */}
+      <Modal open={transferModal} onClose={() => setTransferModal(false)} title="Transfer Between Accounts" size="sm">
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">From Account *</label>
+            <select value={transferForm.fromAccountId} onChange={e => setTransferForm(p => ({ ...p, fromAccountId: Number(e.target.value) }))}
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500">
+              <option value={0} disabled>Select source...</option>
+              {items.filter(a => a.active).map(a => <option key={a.id} value={a.id}>{a.name} ({fmt(a.balance ?? 0)})</option>)}
+            </select>
+          </div>
+          <div className="flex justify-center"><ArrowRightLeft size={16} className="text-gray-400 rotate-90" /></div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">To Account *</label>
+            <select value={transferForm.toAccountId} onChange={e => setTransferForm(p => ({ ...p, toAccountId: Number(e.target.value) }))}
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500">
+              <option value={0} disabled>Select destination...</option>
+              {items.filter(a => a.active && a.id !== transferForm.fromAccountId).map(a => <option key={a.id} value={a.id}>{a.name} ({fmt(a.balance ?? 0)})</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount *</label>
+            <input type="number" value={transferForm.amount || ''} min={1} step="0.01" onChange={e => setTransferForm(p => ({ ...p, amount: Number(e.target.value) }))}
+              placeholder="0.00"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Note</label>
+            <input value={transferForm.note} onChange={e => setTransferForm(p => ({ ...p, note: e.target.value }))} placeholder="Optional"
+              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <button onClick={() => setTransferModal(false)} className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
+            <button onClick={doTransfer} disabled={transferSaving || !transferForm.fromAccountId || !transferForm.toAccountId || !transferForm.amount}
+              className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
+              {transferSaving && <Loader2 size={13} className="animate-spin" />} <ArrowRightLeft size={13} /> Transfer
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

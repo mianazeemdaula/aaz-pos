@@ -10,16 +10,18 @@ export function useSaleSettings() {
     useEffect(() => {
         if (!user) return;
 
-        // Admin always has full access
-        if (user.role === 'ADMIN') {
-            setSettings({ allowPriceChange: true, allowDiscountTypeSwitch: true });
-            setLoading(false);
-            return;
-        }
-
         Promise.all([settingsService.getApp(), settingsService.getUserSettings(user.id)])
             .then(([app, usr]) => {
-                const resolve = (key: string) => usr[key] !== undefined ? !!usr[key] : app[key] !== false;
+                const resolve = (key: string) => {
+                    // Admin: always allowed unless global setting explicitly disabled AND no user override
+                    if (user.role === 'ADMIN') {
+                        const userVal = usr[key];
+                        if (userVal !== undefined) return !!userVal;
+                        // Admin defaults to true even when global is off, unless global explicitly set to false
+                        return app[key] !== false;
+                    }
+                    return usr[key] !== undefined ? !!usr[key] : app[key] !== false;
+                };
                 setSettings({
                     allowPriceChange: resolve('sale.allowPriceChange'),
                     allowDiscountTypeSwitch: resolve('sale.allowDiscountTypeSwitch'),

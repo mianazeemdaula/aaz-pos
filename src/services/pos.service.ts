@@ -18,6 +18,9 @@ export const accountService = {
   create: (data: Partial<Account>) => apiClient.post<Account>(API_ENDPOINTS.accounts.create, data),
   update: (id: number, data: Partial<Account>) => apiClient.put<Account>(API_ENDPOINTS.accounts.update(id), data),
   delete: (id: number) => apiClient.delete(API_ENDPOINTS.accounts.delete(id)),
+  transfer: (data: { fromAccountId: number; toAccountId: number; amount: number; note?: string }) =>
+    apiClient.post(API_ENDPOINTS.accounts.transfer, data),
+  listTransfers: (params?: object) => apiClient.get<PaginatedResponse<any>>(API_ENDPOINTS.accounts.transfers, { params }),
 };
 
 // ---- Customers ----
@@ -215,6 +218,12 @@ export const reportService = {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   },
+};
+
+// ---- Auth ----
+export const authService = {
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiClient.post<{ message: string }>(API_ENDPOINTS.auth.changePassword, { currentPassword, newPassword }),
 };
 
 // ---- Users ----

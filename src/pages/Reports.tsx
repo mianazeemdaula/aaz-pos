@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { ElementType } from 'react';
-import { BarChart2, ShoppingCart, Package, Users, DollarSign, Loader2, FileText, TrendingDown, BookOpen, Wallet, ArrowLeft, Calendar, AlertTriangle, Sun } from 'lucide-react';
+import { BarChart2, ShoppingCart, Package, Users, DollarSign, Loader2, FileText, TrendingDown, BookOpen, Wallet, ArrowLeft, AlertTriangle, Sun } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { apiClient } from '../services/api';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
 import { SupplierSearch } from '../components/ui/SupplierSearch';
@@ -41,6 +42,7 @@ const monthStart = today.slice(0, 8) + '01';
 const inputCls = 'px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500';
 
 export function Reports() {
+  const location = useLocation();
   const [activeId, setActiveId] = useState<ReportId | null>(null);
   const active = REPORTS.find(r => r.id === activeId) ?? null;
   const [from, setFrom] = useState(monthStart);
@@ -53,6 +55,15 @@ export function Reports() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Reset to reports home when user navigates to /reports (e.g. clicking sidebar link again)
+  useEffect(() => {
+    setActiveId(null);
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    setPdfUrl(null);
+    setError('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
 
   const generate = useCallback(async () => {
     if (!active) return;
@@ -113,39 +124,44 @@ export function Reports() {
 
   // ── Dashboard view ──────────────────────────────────────────────────────
   if (!active) {
+    const sections: { title: string; ids: ReportId[] }[] = [
+      { title: 'Financial', ids: ['daily', 'sales', 'purchases', 'expenses'] },
+      { title: 'Inventory', ids: ['inventory', 'stock-alert', 'stock-negative', 'stock-low'] },
+      { title: 'Party Balances', ids: ['customers', 'suppliers'] },
+      { title: 'Ledgers & Statements', ids: ['customer-ledger', 'supplier-ledger', 'account-statement'] },
+    ];
+
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Reports</h1>
           <p className="text-sm text-gray-400 mt-0.5">Select a report to generate</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {REPORTS.map(r => (
-            <button
-              key={r.id}
-              onClick={() => openReport(r.id)}
-              className={`group flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md hover:-translate-y-0.5 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700`}
-            >
-              <div className={`p-3 rounded-xl border ${r.color} shrink-0`}>
-                <r.icon size={22} />
+        {sections.map(section => {
+          const items = section.ids.map(id => REPORTS.find(r => r.id === id)!).filter(Boolean);
+          return (
+            <div key={section.title}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">{section.title}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                {items.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => openReport(r.id)}
+                    className="group flex items-center gap-3 p-3 rounded-lg border text-left transition-all hover:shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700"
+                  >
+                    <div className={`p-2 rounded-lg border ${r.color} shrink-0`}>
+                      <r.icon size={16} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900 dark:text-gray-100 text-sm group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">{r.label}</p>
+                      <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{r.description}</p>
+                    </div>
+                  </button>
+                ))}
               </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">{r.label}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">{r.description}</p>
-                {r.params.includes('dates') && (
-                  <span className="inline-flex items-center gap-1 mt-2 text-xs text-gray-400">
-                    <Calendar size={10} /> Date range
-                  </span>
-                )}
-                {r.params.includes('date') && (
-                  <span className="inline-flex items-center gap-1 mt-2 text-xs text-gray-400">
-                    <Calendar size={10} /> Single date
-                  </span>
-                )}
-              </div>
-            </button>
-          ))}
-        </div>
+            </div>
+          );
+        })}
       </div>
     );
   }

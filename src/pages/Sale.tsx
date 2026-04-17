@@ -488,7 +488,7 @@ export function Sale() {
       showToast('success', `Sale #${sale.id} saved!`);
 
       // FBR: fire-and-forget — don't block the UI
-      if (FBR_CONFIG.enabled && !isReturnCart) {
+      if (fbrService.isEnabled() && !isReturnCart) {
         const fbrPromise = (async () => {
           try {
             const saleVal = cartSnapshot.reduce((a, i) => {
@@ -731,13 +731,14 @@ export function Sale() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-                  <th className="text-left px-3 py-2 font-medium text-gray-500">Product</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-500 ">Product</th>
                   <th className="text-left px-3 py-2 font-medium text-gray-500">Varient</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-28">Qty</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-32">Price</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Disc</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-20">Tax</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Total</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Disc</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-20">Tax</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Rate</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Total</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
@@ -751,7 +752,7 @@ export function Sale() {
                   return (
                     <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-1.5">
-                        <p className="font-medium text-gray-900 dark:text-gray-100">{item.product.name}</p>
+                        <p className="font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.product.name}</p>
                         <p className="text-gray-400 text-xs">{item.variant.barcode} &middot; {item.variant.name}</p>
                       </td>
                       <td>
@@ -786,20 +787,6 @@ export function Sale() {
                       </td>
                       <td className="px-2 py-1.5 text-center">
                         <div className="flex flex-col items-center gap-0.5">
-                          {(hasRetail || hasWholesale) ? (
-                            <select
-                              value={item.priceType}
-                              onChange={e => changePriceType(idx, e.target.value as PriceType)}
-                              disabled={!allowPriceChange}
-                              className={`text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 ${!allowPriceChange ? 'opacity-60 cursor-not-allowed' : ''}`}
-                            >
-                              <option value="MRP">MRP</option>
-                              {hasRetail && <option value="Retail">Retail</option>}
-                              {hasWholesale && <option value="Wholesale">Wholesale</option>}
-                            </select>
-                          ) : (
-                            <span className="text-[10px] text-gray-400">MRP</span>
-                          )}
                           {allowPriceChange ? (
                             <input type="number" value={item.price} min={0} step="0.01"
                               onChange={e => updateField(idx, 'price', Math.max(0, Number(e.target.value)))}
@@ -809,7 +796,7 @@ export function Sale() {
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-1.5">
+                      <td className="px-1 py-1.5">
                         <div className="flex items-center gap-0.5">
                           <input type="number" value={item.discount} min={0} max={item.discountType === 'PERCENTAGE' ? 100 : undefined} step="0.01"
                             onChange={e => updateField(idx, 'discount', item.discountType === 'PERCENTAGE' ? Math.min(100, Math.max(0, Number(e.target.value))) : Math.max(0, Number(e.target.value)))}
@@ -822,7 +809,6 @@ export function Sale() {
                             {item.discountType === 'PERCENTAGE' ? '%' : 'Rs'}
                           </button>
                         </div>
-
                       </td>
                       <td className="px-2 py-1.5 text-right flex">
                         <span>
@@ -835,6 +821,24 @@ export function Sale() {
                             <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded mt-0.5 inline-block">Incl.</span>
                           )}
                         </span>
+                      </td>
+                      <td>
+                        <div className='text-center'>
+                          {(hasRetail || hasWholesale) ? (
+                            <select
+                              value={item.priceType}
+                              onChange={e => changePriceType(idx, e.target.value as PriceType)}
+                              disabled={!allowPriceChange}
+                              className={`text-xs w-14 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 ${!allowPriceChange ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            >
+                              <option value="MRP">MRP</option>
+                              {hasRetail && <option value="Retail">Retail</option>}
+                              {hasWholesale && <option value="Wholesale">Wholesale</option>}
+                            </select>
+                          ) : (
+                            <span className="text-[10px] text-gray-400">MRP</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-2 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(lc.lineTotal)}</td>
                       <td className="px-1 py-1.5">
@@ -895,7 +899,7 @@ export function Sale() {
             </div>
           )}
           <div className="flex items-center justify-between gap-2 pt-0.5 border-t border-gray-100 dark:border-gray-700 mt-2">
-            <span className="text-gray-500 text-xs font-medium">Invoice Discount</span>
+            <span className="text-gray-500 text-sm font-medium">Invoice Discount</span>
             <div className="flex items-center gap-1">
               <span className="text-green-600"></span>
               <input

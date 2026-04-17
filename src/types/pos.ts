@@ -231,7 +231,7 @@ export interface EmployeeAdvance {
     reason?: string | null;
     month: number;
     year: number;
-    status: 'PENDING' | 'DEDUCTED' | 'REPAID' | 'WAIVED';
+    status: 'PENDING' | 'APPROVED' | 'DEDUCTED' | 'REPAID' | 'WAIVED';
     deductedIn?: number | null;
     date: string;
     createdAt?: string;

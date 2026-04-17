@@ -403,13 +403,27 @@ export function Employees() {
                         <td className="px-3 py-2 text-gray-500">{adv.reason ?? '—'}</td>
                         <td className="px-3 py-2">
                           <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${adv.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                            adv.status === 'DEDUCTED' ? 'bg-green-100 text-green-700' :
-                              adv.status === 'REPAID' ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-500'
+                            adv.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                              adv.status === 'DEDUCTED' ? 'bg-green-100 text-green-700' :
+                                adv.status === 'REPAID' ? 'bg-blue-100 text-blue-700' :
+                                  'bg-gray-100 text-gray-500'
                             }`}>{adv.status}</span>
                         </td>
                         <td className="px-3 py-2">
                           {adv.status === 'PENDING' && (
+                            <div className="flex gap-1">
+                              <button onClick={() => advanceAction('approve', adv)}
+                                className="px-1.5 py-0.5 text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                                title="Approve this advance">Approve</button>
+                              <button onClick={() => advanceAction('repay', adv)}
+                                className="px-1.5 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                                title="Mark as repaid by employee">Repay</button>
+                              <button onClick={() => advanceAction('reject', adv)}
+                                className="px-1.5 py-0.5 text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded hover:bg-red-100 dark:hover:bg-red-900/40"
+                                title="Reject and reverse this advance">Reject</button>
+                            </div>
+                          )}
+                          {adv.status === 'APPROVED' && (
                             <div className="flex gap-1">
                               <button onClick={() => advanceAction('repay', adv)}
                                 className="px-1.5 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
