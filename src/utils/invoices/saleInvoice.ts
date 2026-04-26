@@ -45,7 +45,7 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData): Promise<P
     if (config.businessAddress) sections.push(textCenter(config.businessAddress));
     if (config.businessPhone) sections.push(textCenter(`Tel: ${config.businessPhone}`));
     if (config.businessNTN) sections.push(textCenter(`NTN: ${config.businessNTN}`));
-    sections.push(line('='));
+    sections.push(line('-'));
 
     // Invoice info
     sections.push(textCenter('SALE INVOICE', true));
@@ -129,8 +129,6 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData): Promise<P
     // Footer
     sections.push(line('-'));
     sections.push(textCenter('Thank you for your purchase!'));
-    sections.push(feed(3));
-
     return sections;
 }
 
