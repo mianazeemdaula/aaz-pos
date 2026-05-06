@@ -35,6 +35,7 @@ const Purchase = lazy(() => import('./pages/Purchase').then(m => ({ default: m.P
 const PurchaseReturns = lazy(() => import('./pages/PurchaseReturns').then(m => ({ default: m.PurchaseReturns })));
 const Products = lazy(() => import('./pages/Products').then(m => ({ default: m.Products })));
 const ProductForm = lazy(() => import('./pages/ProductForm').then(m => ({ default: m.ProductForm })));
+const ProductVariantsPage = lazy(() => import('./pages/ProductForm').then(m => ({ default: m.ProductVariantsPage })));
 const Categories = lazy(() => import('./pages/Categories').then(m => ({ default: m.Categories })));
 const Brands = lazy(() => import('./pages/Brands').then(m => ({ default: m.Brands })));
 const Customers = lazy(() => import('./pages/Customers').then(m => ({ default: m.Customers })));
@@ -86,6 +87,7 @@ function App() {
               <Route path="products" element={<ErrorBoundary><Products /></ErrorBoundary>} />
               <Route path="products/new" element={<ErrorBoundary><ProductForm /></ErrorBoundary>} />
               <Route path="products/:id/edit" element={<ErrorBoundary><ProductForm /></ErrorBoundary>} />
+              <Route path="products/:id/variants" element={<ErrorBoundary><ProductVariantsPage /></ErrorBoundary>} />
               <Route path="categories" element={<ErrorBoundary><Categories /></ErrorBoundary>} />
               <Route path="brands" element={<ErrorBoundary><Brands /></ErrorBoundary>} />
               <Route path="customers" element={<ErrorBoundary><Customers /></ErrorBoundary>} />

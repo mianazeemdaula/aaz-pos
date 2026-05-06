@@ -204,6 +204,7 @@ export const API_ENDPOINTS = {
         update: '/settings',
         backup: '/settings/backup',
         restore: '/settings/restore',
+        logo: '/settings/logo',
         app: '/settings/app',
         allUsersSettings: '/settings/users',
         userSettings: (userId: number) => `/settings/users/${userId}`,

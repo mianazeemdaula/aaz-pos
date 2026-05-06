@@ -66,6 +66,7 @@ export interface ThermalPrinterConfig {
     businessPhone?: string;
     businessNTN?: string;
     businessLogoPath?: string; // Path to logo image for receipt header
+    invoiceMode: 'html' | 'native'; // HTML image pipeline vs ESC/POS text
 }
 
 const THERMAL_CONFIG_KEY = 'thermal_printer_config';
@@ -79,6 +80,7 @@ const DEFAULT_CONFIG: ThermalPrinterConfig = {
     businessAddress: '',
     businessPhone: '',
     businessNTN: '',
+    invoiceMode: 'html',
 };
 
 export function saveThermalConfig(config: ThermalPrinterConfig): void {

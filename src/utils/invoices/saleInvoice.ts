@@ -1,20 +1,46 @@
 /**
  * Sale Invoice Generator for Thermal Printer
+ *
+ * Uses an HTML → html2canvas → PNG image pipeline for a rich, styled receipt.
+ * Falls back to the original ESC/POS text mode if image rendering fails.
  */
 import type { Sale, Customer } from '../../types/pos';
 import {
-    title, textLeft, textCenter, textRight, line, feed, table, cell, imageFromFile,
+    feed,
     buildPrintJob, printDocument,
+    loadThermalConfig,
     type PrintSection, type PrintJobRequest,
 } from '../thermalPrinter';
-import { loadThermalConfig } from '../thermalPrinter';
-import { buildFbrCompositeBase64 } from './fbrComposite';
+import { buildInvoiceHtml, type HtmlInvoiceConfig } from './invoiceHtmlBuilder';
+import { renderHtmlToBase64Png } from './htmlInvoiceRenderer';
+import { buildSaleInvoiceSections as buildLegacySections } from './saleInvoiceLegacy';
+import { apiClient } from '../../services/api';
+import { API_ENDPOINTS } from '../../config/api';
 
-const fmt = (n: number) => n.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-const fmtDate = (d: string) => {
-    const dt = new Date(d);
-    return dt.toLocaleDateString('en-PK') + ' ' + dt.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
+// Paper width in pixels for each supported paper size
+const PAPER_WIDTH_PX: Record<string, number> = {
+    Mm80: 560,
+    Mm58: 384,
 };
+
+// Cache logo base64 in memory so we only fetch once per session
+let _cachedLogoBase64: string | null | undefined = undefined; // undefined = not yet fetched
+
+async function fetchLogoBase64(): Promise<string | undefined> {
+    if (_cachedLogoBase64 !== undefined) return _cachedLogoBase64 ?? undefined;
+    try {
+        const res = await apiClient.get<{ base64: string }>(API_ENDPOINTS.settings.logo);
+        _cachedLogoBase64 = res.base64 ?? null;
+    } catch {
+        _cachedLogoBase64 = null;
+    }
+    return _cachedLogoBase64 ?? undefined;
+}
+
+/** Call this after uploading a new logo so the next print picks it up. */
+export function invalidateLogoCache(): void {
+    _cachedLogoBase64 = undefined;
+}
 
 export interface SaleInvoiceData {
     sale: Sale;
@@ -30,113 +56,67 @@ export interface SaleInvoiceData {
     fbrQrUrl?: string | null;
 }
 
-export async function buildSaleInvoiceSections(data: SaleInvoiceData): Promise<PrintSection[]> {
+// ─── HTML image pipeline ──────────────────────────────────────────────────────
+
+async function buildSaleInvoiceImageSection(data: SaleInvoiceData): Promise<PrintSection> {
     const config = loadThermalConfig();
-    const sections: PrintSection[] = [];
-    const is80mm = config.paperSize === 'Mm80';
+    const widthPx = PAPER_WIDTH_PX[config.paperSize] ?? 560;
 
-    // Logo (if configured)
-    if (config.businessLogoPath) {
-        sections.push(await imageFromFile(config.businessLogoPath));
-    }
+    const logoBase64 = await fetchLogoBase64();
 
-    // Header
-    sections.push(title(config.businessName));
-    if (config.businessAddress) sections.push(textCenter(config.businessAddress));
-    if (config.businessPhone) sections.push(textCenter(`Tel: ${config.businessPhone}`));
-    if (config.businessNTN) sections.push(textCenter(`NTN: ${config.businessNTN}`));
-    sections.push(line('-'));
+    const htmlConfig: HtmlInvoiceConfig = {
+        businessName: config.businessName,
+        businessAddress: config.businessAddress,
+        businessPhone: config.businessPhone,
+        businessNTN: config.businessNTN,
+        printWidthPx: widthPx,
+        language: 'both',
+        logoBase64,
+    };
 
-    // Invoice info
-    sections.push(textCenter('SALE INVOICE', true));
-    sections.push(line('-'));
-    sections.push(textLeft(`Invoice: ${data.sale.invoiceNumber ?? `#${data.sale.id}`}`));
-    const cashierLabel = data.sale.user?.id ?? (data.sale.userId ? `#${data.sale.userId}` : '');
-    sections.push(textLeft(`Date: ${fmtDate(data.sale.createdAt)}`));
-    if (cashierLabel) {
-        sections.push(textLeft(`Cashier: [${cashierLabel}]`));
-    }
+    const html = buildInvoiceHtml(data, htmlConfig);
+    const base64 = await renderHtmlToBase64Png(html, { widthPx, scale: 2 });
 
-    const fbrId = data.fbrInvoiceId || data.sale.taxInvoiceId;
+    return {
+        Image: {
+            data: base64,
+            max_width: widthPx,
+            align: 'center',
+            dithering: false,
+            size: 'normal',
+        },
+    };
+}
 
-    if (data.customer) {
-        sections.push(textLeft(`Customer: ${data.customer.name}`));
-        if (data.customer.phone) sections.push(textLeft(`Phone: ${data.customer.phone}`));
-    }
-    sections.push(line('-'));
+// ─── Public API ───────────────────────────────────────────────────────────────
 
-    // Items table
-    const colWidths = is80mm ? [4, 24, 10, 10] : [3, 15, 7, 7];
-    const header = [
-        cell('Qty', 'left', true),
-        cell('Item', 'left', true),
-        cell('Price', 'right', true),
-        cell('Total', 'right', true),
-    ];
-    const body = data.items.map(i => [
-        cell(String(i.qty)),
-        cell(i.name),
-        cell(fmt(i.price), 'right'),
-        cell(fmt(i.total), 'right'),
-    ]);
-    sections.push(table(4, body, colWidths, header));
-    sections.push(line('-'));
-
-    // Totals
-    const totalsWidth = is80mm ? [30, 18] : [18, 14];
-    const totalsBody = [
-        [cell('Subtotal:', 'right'), cell(fmt(data.subtotal), 'right')],
-    ];
-    if (data.discountAmount > 0) {
-        totalsBody.push([cell('Discount:', 'right'), cell(`-${fmt(data.discountAmount)}`, 'right')]);
-    }
-    if (data.taxAmount > 0) {
-        totalsBody.push([cell('Tax:', 'right'), cell(fmt(data.taxAmount), 'right')]);
-    }
-    sections.push(table(2, totalsBody, totalsWidth));
-    sections.push(line('='));
-    sections.push(textRight(`TOTAL: ${fmt(data.grandTotal)}`, true));
-    sections.push(line('='));
-
-    // Payment info
-    if (data.sale.payments && data.sale.payments.length > 0) {
-        const payments = [...data.sale.payments];
-        for (const p of payments) {
-            const label = p.account?.name ?? `Account #${p.accountId}`;
-            sections.push(textRight(`${label}: ${fmt(p.amount)}`));
-        }
-        if (data.changeAmount > 0) {
-            sections.push(textRight(`Change: ${fmt(data.changeAmount)}`));
-        }
-    } else {
-        sections.push(textRight(`Paid: ${fmt(data.paidAmount)}`));
-        if (data.changeAmount > 0) {
-            sections.push(textRight(`Change: ${fmt(data.changeAmount)}`));
-        }
-    }
-
-    // FBR Section — logo + QR code side-by-side as composite image
-    if (fbrId) {
-        sections.push(feed(1));
-        const compositeBase64 = await buildFbrCompositeBase64(fbrId.toString(), is80mm ? 400 : 300);
-        sections.push({
-            Image: { data: compositeBase64, max_width: is80mm ? 400 : 300, align: 'center', dithering: false, size: 'normal' },
-        });
-        sections.push(feed(1));
-        sections.push(textCenter(`FBR #: ${fbrId}`, true));
-    }
-
-    // Footer
-    sections.push(line('-'));
-    sections.push(textCenter('Thank you for your purchase!'));
-    return sections;
+export async function buildSaleInvoiceSections(data: SaleInvoiceData): Promise<PrintSection[]> {
+    const imageSection = await buildSaleInvoiceImageSection(data);
+    return [imageSection, feed(3)];
 }
 
 export async function buildSaleInvoiceJob(data: SaleInvoiceData): Promise<PrintJobRequest> {
-    return buildPrintJob(await buildSaleInvoiceSections(data));
+    const imageSection = await buildSaleInvoiceImageSection(data);
+    return buildPrintJob([imageSection, feed(3)]);
 }
 
+/**
+ * Renders and prints the sale invoice as a styled PNG image.
+ * Falls back to the legacy ESC/POS text mode if image rendering fails,
+ * or immediately uses native mode if configured.
+ */
 export async function printSaleInvoice(data: SaleInvoiceData): Promise<boolean> {
-    const job = await buildSaleInvoiceJob(data);
-    return printDocument(job);
+    const config = loadThermalConfig();
+    if (config.invoiceMode === 'native') {
+        const sections = await buildLegacySections(data);
+        return printDocument(buildPrintJob(sections));
+    }
+    try {
+        const job = await buildSaleInvoiceJob(data);
+        return await printDocument(job);
+    } catch (err) {
+        console.warn('[SaleInvoice] HTML image render failed, falling back to text mode:', err);
+        const sections = await buildLegacySections(data);
+        return printDocument(buildPrintJob(sections));
+    }
 }

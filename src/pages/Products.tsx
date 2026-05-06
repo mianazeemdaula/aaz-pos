@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Pencil, Trash2, Loader2, Package, Upload, Eye, X, History } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Loader2, Package, Upload, Eye, X, History, Boxes } from 'lucide-react';
 import { Pagination } from '../components/ui/Pagination';
 import { productService, categoryService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -352,6 +352,7 @@ export function Products() {
                           <div className="flex gap-1.5">
                             <button onClick={() => setViewProduct(item)} title="View details" className="p-1.5 rounded-lg text-violet-500 bg-violet-50 hover:bg-violet-100 dark:text-violet-400 dark:bg-violet-500/10 dark:hover:bg-violet-500/20 transition-colors"><Eye size={14} /></button>
                             <button onClick={() => setHistoryProduct(item)} title="Transaction history" className="text-gray-400 hover:text-amber-600"><History size={14} /></button>
+                            <button onClick={() => navigate(`/products/${item.id}/variants`)} title="Add/Edit variants" className="p-1.5 rounded-lg text-emerald-500 bg-emerald-50 hover:bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 transition-colors"><Boxes size={14} /></button>
                             <button onClick={() => navigate(`/products/${item.id}/edit`)} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
                             <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
                           </div>

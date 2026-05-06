@@ -3,12 +3,13 @@ import {
   Save, Loader2, Wifi, Usb, Database,
   Download, Upload, CheckCircle2, AlertCircle, RefreshCw,
   ShieldCheck, ChevronRight, ArrowLeft, ShoppingCart, ToggleLeft, ToggleRight,
-  Building2,
+  Building2, Image,
 } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { API_ENDPOINTS } from '../config/api';
 import { settingsService, userService } from '../services/pos.service';
 import { saveThermalConfig, loadThermalConfig, listPrinters, type ThermalPrinterConfig, type PrinterInfo } from '../utils/thermalPrinter';
+import { invalidateLogoCache } from '../utils/invoices/saleInvoice';
 import type { User } from '../types/pos';
 
 const LS_FBR = 'pos_fbr_settings';
@@ -42,6 +43,9 @@ export function Settings() {
   const [thermalMsg, setThermalMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [thermalPrinters, setThermalPrinters] = useState<PrinterInfo[]>([]);
   const [thermalLoading, setThermalLoading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoMsg, setLogoMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [fbr, setFbr] = useState<FbrSettings>(() => {
     try { const raw = localStorage.getItem(LS_FBR); if (raw) return JSON.parse(raw) as FbrSettings; } catch { }
     return { url: 'http://localhost:8524/api/IMSFiscal', enabled: false };
@@ -103,11 +107,19 @@ export function Settings() {
     finally { setUsersLoading(false); }
   }, []);
 
+  const loadLogoPreview = useCallback(async () => {
+    try {
+      const res = await apiClient.get<{ base64: string }>(API_ENDPOINTS.settings.logo);
+      if (res.base64) setLogoPreview(`data:image/png;base64,${res.base64}`);
+    } catch { /* no logo yet */ }
+  }, []);
+
   useEffect(() => {
     if (module === 'company') loadCompany();
+    if (module === 'thermal') loadLogoPreview();
     if (module === 'sales') loadAppSettings();
     if (module === 'user-permissions') { loadAppSettings(); loadUsersAndSettings(); }
-  }, [module, loadAppSettings, loadUsersAndSettings, loadCompany]);
+  }, [module, loadAppSettings, loadUsersAndSettings, loadCompany, loadLogoPreview]);
 
   const handleBackup = async () => {
     setDbBusy(true); setDbMsg(null);
@@ -130,6 +142,18 @@ export function Settings() {
     try { const p = await listPrinters(); setThermalPrinters(p); if (p.length > 0 && !thermal.printerName) setThermal(prev => ({ ...prev, printerName: p[0].name })); }
     catch { setThermalMsg({ ok: false, text: 'Failed to list printers.' }); }
     finally { setThermalLoading(false); }
+  };
+  const uploadLogoFile = async (file: File) => {
+    setLogoUploading(true); setLogoMsg(null);
+    try {
+      await apiClient.uploadFile(API_ENDPOINTS.settings.logo, file, 'logo');
+      const reader = new FileReader();
+      reader.onload = e => setLogoPreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+      invalidateLogoCache();
+      setLogoMsg({ ok: true, text: 'Logo uploaded successfully.' });
+    } catch { setLogoMsg({ ok: false, text: 'Failed to upload logo.' }); }
+    finally { setLogoUploading(false); }
   };
   const saveThermalSettings = () => {
     setThermalSaving(true); setThermalMsg(null);
@@ -227,12 +251,38 @@ export function Settings() {
                 {s === 'Mm58' ? '58mm' : '80mm'}
               </button>))}
           </div></Field>
+          <label className="flex items-center gap-3 cursor-pointer select-none p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+            <div onClick={() => setThermal(p => ({ ...p, invoiceMode: p.invoiceMode === 'html' ? 'native' : 'html' }))}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${thermal.invoiceMode !== 'native' ? 'bg-primary-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${thermal.invoiceMode !== 'native' ? 'translate-x-4' : 'translate-x-1'}`} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Styled Receipt (HTML)</p>
+              <p className="text-xs text-gray-400">{thermal.invoiceMode !== 'native' ? 'Image-based receipt with logo & formatting.' : 'Plain text ESC/POS receipt (faster, no logo).'}</p>
+            </div>
+          </label>
           <div className="pt-3 border-t border-gray-100 dark:border-gray-700 space-y-3">
             <p className="text-xs font-medium text-gray-500">Receipt Header</p>
             <Field label="Business Name"><input value={thermal.businessName} onChange={e => setThermal(p => ({ ...p, businessName: e.target.value }))} className={inputCls} /></Field>
             <Field label="Address"><input value={thermal.businessAddress ?? ''} onChange={e => setThermal(p => ({ ...p, businessAddress: e.target.value }))} className={inputCls} /></Field>
             <Field label="Phone"><input value={thermal.businessPhone ?? ''} onChange={e => setThermal(p => ({ ...p, businessPhone: e.target.value }))} className={inputCls} /></Field>
             <Field label="NTN"><input value={thermal.businessNTN ?? ''} onChange={e => setThermal(p => ({ ...p, businessNTN: e.target.value }))} className={inputCls} /></Field>
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Receipt Logo</label>
+              <div className="flex items-center gap-3">
+                {logoPreview
+                  ? <img src={logoPreview} alt="logo" className="h-12 max-w-30 object-contain border border-gray-200 dark:border-gray-600 rounded p-1 bg-white" />
+                  : <div className="h-12 w-24 flex items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded text-gray-400"><Image size={18} /></div>
+                }
+                <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                  {logoUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                  {logoPreview ? 'Change Logo' : 'Upload Logo'}
+                  <input type="file" accept="image/*" className="hidden" disabled={logoUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogoFile(f); e.target.value = ''; }} />
+                </label>
+              </div>
+              {logoMsg && <p className={`text-xs mt-1 ${logoMsg.ok ? 'text-green-600' : 'text-red-500'}`}>{logoMsg.text}</p>}
+              <p className="text-xs text-gray-400 mt-1">PNG/JPG, max 5 MB. Shown at top of every receipt.</p>
+            </div>
           </div>
           <StatusMsg msg={thermalMsg} /><div className="flex justify-end"><SaveBtn loading={thermalSaving} onClick={saveThermalSettings} label="Save Thermal Settings" /></div>
         </div></>)}

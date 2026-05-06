@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Save, X, Upload } from 'lucide-react';
 import { productService, categoryService, brandService, taxScheduleService } from '../services/pos.service';
@@ -8,7 +8,6 @@ import { QuickBrandAdd } from '../components/ui/QuickBrandAdd';
 import { API_CONFIG } from '../config/api';
 import type { Product, Category, Brand, ProductVariant, TaxSchedule } from '../types/pos';
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
 const serverOrigin = API_CONFIG.baseURL.replace(/\/api\/?$/, '');
 
 function ImageUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
@@ -51,7 +50,6 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
     );
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 const fmt = (n: number | null | undefined) =>
     n != null ? `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 
@@ -77,7 +75,6 @@ function renderCatOptions(cats: Category[], depth = 0): ReactNode[] {
     });
 }
 
-// ─── Toggle Switch ───────────────────────────────────────────────────────────
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
     return (
         <label className="flex items-center gap-2.5 cursor-pointer select-none">
@@ -90,12 +87,20 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
     );
 }
 
-// ─── CSS constants ───────────────────────────────────────────────────────────
 const inp = 'w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500';
 const lbl = 'text-xs font-medium text-gray-600 dark:text-gray-400 block mb-0.5';
-const card = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3';
+const card = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4';
 
-// ─── Variant types ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Strip leading zeros on blur â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const stripLeadingZeros = (e: React.FocusEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val && val !== '0' && /^0+\d/.test(val)) {
+        e.target.value = String(Number(val));
+        e.target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+};
+
+// â”€â”€â”€ Variant types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 interface VariantDraft {
     _key: number;
     id?: number;
@@ -105,117 +110,94 @@ interface VariantDraft {
     retail: number | '';
     wholesale: number | '';
     factor: number;
-    isDefault: boolean;
 }
 
 let _vKey = 0;
 const nextKey = () => ++_vKey;
 
-const emptyVariant = (isDefault = false): VariantDraft => ({
-    _key: nextKey(), name: isDefault ? 'unit' : '', barcode: '', price: 0,
-    retail: '', wholesale: '', factor: 1, isDefault,
+const emptyVariantDraft = (): VariantDraft => ({
+    _key: nextKey(), name: '', barcode: '', price: 0, retail: '', wholesale: '', factor: 1,
 });
 
-const variantFromExisting = (v: ProductVariant): VariantDraft => ({
+const draftFromVariant = (v: ProductVariant): VariantDraft => ({
     _key: nextKey(), id: v.id, name: v.name, barcode: v.barcode,
-    price: v.price ?? v.price,
-    retail: v.retail ?? '', wholesale: v.wholesale ?? '',
-    factor: v.factor, isDefault: v.isDefault,
+    price: v.price, retail: v.retail ?? '', wholesale: v.wholesale ?? '', factor: v.factor,
 });
 
-// ─── Strip leading zeros on blur ─────────────────────────────────────────────
-const stripLeadingZeros = (e: React.FocusEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    if (val && val !== '0' && /^0+\d/.test(val)) {
-        e.target.value = String(Number(val));
-        e.target.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-};
-
-// ─── Variant Fields Row ──────────────────────────────────────────────────────
-function VariantFields({ v, onChange, showRemove, onRemove, lockNameFactor }: {
+// â”€â”€â”€ VariantForm â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function VariantForm({ v, onChange, onCancel, onSave, saving }: {
     v: VariantDraft;
     onChange: (field: keyof VariantDraft, val: unknown) => void;
-    showRemove?: boolean;
-    onRemove?: () => void;
-    lockNameFactor?: boolean;
+    onCancel: () => void;
+    onSave: () => void;
+    saving: boolean;
 }) {
     const wholesaleErr = v.wholesale !== '' && v.price > 0 && Number(v.wholesale) > v.price;
     const retailErr = v.retail !== '' && v.price > 0 && Number(v.retail) > v.price;
+    const canSave = !!(v.name && v.barcode && v.price > 0 && !wholesaleErr && !retailErr);
+
     return (
-        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 space-y-3">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    {v.isDefault && (
-                        <span className="text-[10px] bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-400 px-1.5 py-0.5 rounded-full font-medium">
-                            Default
-                        </span>
-                    )}
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                        Factor: {v.factor}x
-                    </span>
+        <div className="space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                <div>
+                    <label className={lbl}>Name *</label>
+                    <input value={v.name} onChange={e => onChange('name', e.target.value)} className={inp} placeholder="e.g. Dozen" />
                 </div>
-                <div className="flex items-center gap-2">
-                    {!v.isDefault && (
-                        <button type="button" onClick={() => onChange('isDefault', true)}
-                            className="text-xs text-primary-600 hover:text-primary-700 font-medium">
-                            Set Default
-                        </button>
-                    )}
-                    {showRemove && (
-                        <button type="button" onClick={onRemove}
-                            className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors">
-                            <X size={14} />
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-
-
                 <div>
                     <label className={lbl}>Barcode *</label>
                     <input value={v.barcode} onChange={e => onChange('barcode', e.target.value)} className={inp} placeholder="Unique barcode" />
                 </div>
                 <div>
-                    <label className={lbl}>Variant Name *</label>
-                    <input value={v.name} onChange={e => onChange('name', e.target.value)} className={`${inp} ${lockNameFactor ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : ''}`} placeholder="e.g. Unit, Dozen" readOnly={lockNameFactor} />
-                </div>
-                <div>
-                    <label className={lbl}>Factor</label>
-                    <input type="number" value={v.factor} min={1} step="1" onChange={e => onChange('factor', Number(e.target.value) || 1)} onBlur={stripLeadingZeros} className={`${inp} ${lockNameFactor ? 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed' : ''}`} readOnly={lockNameFactor} />
+                    <label className={lbl}>Factor *</label>
+                    <input type="number" value={v.factor} min={1} step="1"
+                        onChange={e => onChange('factor', Number(e.target.value) || 1)}
+                        onBlur={stripLeadingZeros} className={inp} />
                 </div>
                 <div>
                     <label className={lbl}>Sale Price *</label>
-                    <input type="number" value={v.price} min={0} step="0.01" onChange={e => onChange('price', Number(e.target.value))} onBlur={stripLeadingZeros} className={inp} />
+                    <input type="number" value={v.price} min={0} step="0.01"
+                        onChange={e => onChange('price', Number(e.target.value))}
+                        onBlur={stripLeadingZeros} className={inp} />
                 </div>
                 <div>
-                    <label className={lbl}>Wholesale Price</label>
+                    <label className={lbl}>Wholesale</label>
                     <input type="number" value={v.wholesale === '' ? '' : v.wholesale} min={0} step="0.01"
-                        onChange={e => onChange('wholesale', e.target.value === '' ? '' : Number(e.target.value))} onBlur={stripLeadingZeros} className={`${inp} ${wholesaleErr ? 'border-red-400 ring-1 ring-red-400' : ''}`} placeholder="Optional" />
+                        onChange={e => onChange('wholesale', e.target.value === '' ? '' : Number(e.target.value))}
+                        onBlur={stripLeadingZeros}
+                        className={`${inp} ${wholesaleErr ? 'border-red-400 ring-1 ring-red-400' : ''}`}
+                        placeholder="Optional" />
                     {wholesaleErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
                 </div>
                 <div>
-                    <label className={lbl}>Retail Price</label>
+                    <label className={lbl}>Retail</label>
                     <input type="number" value={v.retail === '' ? '' : v.retail} min={0} step="0.01"
-                        onChange={e => onChange('retail', e.target.value === '' ? '' : Number(e.target.value))} onBlur={stripLeadingZeros} className={`${inp} ${retailErr ? 'border-red-400 ring-1 ring-red-400' : ''}`} placeholder="Optional" />
+                        onChange={e => onChange('retail', e.target.value === '' ? '' : Number(e.target.value))}
+                        onBlur={stripLeadingZeros}
+                        className={`${inp} ${retailErr ? 'border-red-400 ring-1 ring-red-400' : ''}`}
+                        placeholder="Optional" />
                     {retailErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
                 </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+                <button onClick={onCancel}
+                    className="px-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Cancel
+                </button>
+                <button onClick={onSave} disabled={!canSave || saving}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg">
+                    {saving && <Loader2 size={10} className="animate-spin" />}
+                    {v.id ? 'Save' : 'Add Variant'}
+                </button>
             </div>
         </div>
     );
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// ─── Main Component ──────────────────────────────────────────────────────────
-// ═════════════════════════════════════════════════════════════════════════════
 export function ProductForm() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const isEdit = !!id;
 
-    // ── Product form state ──
     const [form, setForm] = useState({
         name: '',
         categoryId: undefined as number | undefined,
@@ -235,48 +217,35 @@ export function ProductForm() {
         saleBelowCost: false,
     });
 
-    // ── Variants for ADD mode ──
-    const [variants, setVariants] = useState<VariantDraft[]>([emptyVariant(true)]);
+    // Default unit: name="unit", factor=1 â€” only barcode & prices are editable
+    const [baseUnit, setBaseUnit] = useState({
+        barcode: '',
+        price: 0,
+        wholesale: '' as number | '',
+        retail: '' as number | '',
+    });
 
-    // ── Product data for EDIT mode ──
     const [product, setProduct] = useState<Product | null>(null);
-    const [editingVariant, setEditingVariant] = useState<{ id: number | 'new'; form: VariantDraft } | null>(null);
-    const [variantSaving, setVariantSaving] = useState(false);
-    const [variantConfirm, setVariantConfirm] = useState<{ variantId: number } | null>(null);
-
-    // ── Reference data ──
     const [catRoots, setCatRoots] = useState<Category[]>([]);
     const [brands, setBrands] = useState<Brand[]>([]);
     const [taxSchedules, setTaxSchedules] = useState<TaxSchedule[]>([]);
-
-    // ── Quick-add dialogs ──
     const [quickAddCat, setQuickAddCat] = useState(false);
     const [quickAddBrand, setQuickAddBrand] = useState(false);
-
-    // ── UI state ──
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // ── Load categories & brands & tax schedules ──
     useEffect(() => {
-        categoryService.list({}).then(r => {
-            const cats = extractCats(r);
-            setCatRoots(cats.filter(c => !c.parentId));
-        }).catch(() => { });
-        brandService.list({ pageSize: 200 }).then(r =>
-            setBrands(Array.isArray(r?.data) ? r.data : [])
-        ).catch(() => { });
-        taxScheduleService.list().then(r =>
-            setTaxSchedules(Array.isArray(r) ? r : [])
-        ).catch(() => { });
+        categoryService.list({}).then(r => setCatRoots(extractCats(r).filter(c => !c.parentId))).catch(() => { });
+        brandService.list({ pageSize: 500 }).then(r => setBrands(Array.isArray(r?.data) ? r.data : [])).catch(() => { });
+        taxScheduleService.list().then(r => setTaxSchedules(Array.isArray(r) ? r : [])).catch(() => { });
     }, []);
 
-    // ── Load product if editing ──
     useEffect(() => {
         if (!isEdit) return;
         setLoading(true);
         productService.get(Number(id)).then(p => {
             setProduct(p);
+            const def = p.variants?.find(v => v.isDefault) ?? p.variants?.[0];
             setForm({
                 name: p.name || '',
                 categoryId: p.categoryId,
@@ -295,144 +264,20 @@ export function ProductForm() {
                 isFavorite: p.isFavorite ?? false,
                 saleBelowCost: p.saleBelowCost ?? false,
             });
+            setBaseUnit({
+                barcode: def?.barcode ?? '',
+                price: def?.price ?? 0,
+                wholesale: def?.wholesale ?? '',
+                retail: def?.retail ?? '',
+            });
         }).catch(() => navigate('/products'))
             .finally(() => setLoading(false));
     }, [id, isEdit, navigate]);
 
-    // ── Form field handler ──
     const f = (key: string, val: unknown) => setForm(p => ({ ...p, [key]: val }));
 
-    // ── Auto-calc: determine base variant ──
-    const getBaseVariant = useCallback((): VariantDraft | undefined => {
-        if (isEdit && product?.variants?.length) {
-            const pv = product.variants.find(v => v.isDefault) || product.variants[0];
-            return variantFromExisting(pv);
-        }
-        return variants.find(v => v.isDefault) || variants[0];
-    }, [isEdit, product, variants]);
-
-    const autoCalcPrices = useCallback((factor: number): Partial<VariantDraft> => {
-        const base = getBaseVariant();
-        if (!base || base.factor === 0) return {};
-        const ratio = factor / base.factor;
-        return {
-            price: Math.round(base.price * ratio * 100) / 100,
-            wholesale: base.wholesale !== '' ? Math.round(Number(base.wholesale) * ratio * 100) / 100 : '',
-            retail: base.retail !== '' ? Math.round(Number(base.retail) * ratio * 100) / 100 : '',
-        };
-    }, [getBaseVariant]);
-
-    // ── ADD mode: variant handlers ──
-    const updateAddVariant = (key: number, field: keyof VariantDraft, val: unknown) => {
-        setVariants(prev => {
-            // Handle isDefault toggle
-            if (field === 'isDefault' && val === true) {
-                return prev.map(v => ({ ...v, isDefault: v._key === key }));
-            }
-
-            return prev.map(v => {
-                if (v._key !== key) return v;
-
-                // Auto-calc on factor change for non-default variants
-                if (field === 'factor' && !v.isDefault) {
-                    const newFactor = Number(val) || 1;
-                    const base = prev.find(x => x.isDefault) || prev[0];
-                    if (base && base.factor > 0) {
-                        const ratio = newFactor / base.factor;
-                        return {
-                            ...v, factor: newFactor,
-                            price: Math.round(base.price * ratio * 100) / 100,
-                            wholesale: base.wholesale !== '' ? Math.round(Number(base.wholesale) * ratio * 100) / 100 : '',
-                            retail: base.retail !== '' ? Math.round(Number(base.retail) * ratio * 100) / 100 : '',
-                        };
-                    }
-                    return { ...v, factor: newFactor };
-                }
-
-                return { ...v, [field]: val };
-            });
-        });
-    };
-
-    const addVariant = () => setVariants(prev => [...prev, emptyVariant(false)]);
-
-    const removeVariant = (key: number) => {
-        setVariants(prev => {
-            if (prev.length <= 1) return prev;
-            const remaining = prev.filter(v => v._key !== key);
-            if (!remaining.some(v => v.isDefault) && remaining.length > 0) {
-                remaining[0] = { ...remaining[0], isDefault: true };
-            }
-            return remaining;
-        });
-    };
-
-    // ── EDIT mode: variant handlers ──
-    const startEditVariant = (v: ProductVariant) => {
-        setEditingVariant({ id: v.id, form: variantFromExisting(v) });
-    };
-
-    const startAddVariant = () => {
-        const pv = product?.variants ?? [];
-        setEditingVariant({ id: 'new', form: emptyVariant(pv.length === 0) });
-    };
-
-    const cancelEditVariant = () => setEditingVariant(null);
-
-    const updateEditVariantField = (field: keyof VariantDraft, val: unknown) => {
-        setEditingVariant(prev => {
-            if (!prev) return prev;
-            const v = prev.form;
-
-            if (field === 'factor' && !v.isDefault) {
-                const newFactor = Number(val) || 1;
-                const calc = autoCalcPrices(newFactor);
-                return { ...prev, form: { ...v, factor: newFactor, ...calc } };
-            }
-
-            return { ...prev, form: { ...v, [field]: val } };
-        });
-    };
-
-    const saveEditVariant = async () => {
-        if (!editingVariant || !product) return;
-        setVariantSaving(true);
-        try {
-            const vf = editingVariant.form;
-            const payload = {
-                name: vf.name,
-                barcode: vf.barcode,
-                price: vf.price,
-                ...(vf.retail !== '' ? { retail: vf.retail } : {}),
-                ...(vf.wholesale !== '' ? { wholesale: vf.wholesale } : {}),
-                factor: vf.factor,
-                isDefault: vf.isDefault,
-            };
-            if (editingVariant.id === 'new') {
-                await productService.createVariant(product.id, payload);
-            } else {
-                await productService.updateVariant(product.id, editingVariant.id, payload);
-            }
-            const updated = await productService.get(product.id);
-            setProduct(updated);
-            cancelEditVariant();
-        } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Error saving variant'); }
-        finally { setVariantSaving(false); }
-    };
-
-    const deleteVariant = async () => {
-        if (!variantConfirm || !product) return;
-        try {
-            await productService.deleteVariant(product.id, variantConfirm.variantId);
-            const updated = await productService.get(product.id);
-            setProduct(updated);
-        } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Error'); }
-        finally { setVariantConfirm(null); }
-    };
-
-    // ── Save product ──
     const handleSave = async () => {
-        if (!form.name || !form.categoryId) return;
+        if (!form.name || !form.categoryId || !baseUnit.barcode) return;
         setSaving(true);
         try {
             const payload = {
@@ -456,53 +301,50 @@ export function ProductForm() {
 
             if (isEdit) {
                 await productService.update(Number(id), payload);
+                if (product) {
+                    const defVariant = product.variants?.find(v => v.isDefault) ?? product.variants?.[0];
+                    const unitPayload = {
+                        name: 'unit', barcode: baseUnit.barcode, price: baseUnit.price,
+                        ...(baseUnit.wholesale !== '' ? { wholesale: baseUnit.wholesale } : {}),
+                        ...(baseUnit.retail !== '' ? { retail: baseUnit.retail } : {}),
+                        factor: 1, isDefault: true,
+                    };
+                    if (defVariant?.id) {
+                        await productService.updateVariant(product.id, defVariant.id, unitPayload);
+                    } else {
+                        await productService.createVariant(product.id, unitPayload);
+                    }
+                }
             } else {
                 await productService.create({
                     ...payload,
-                    variants: variants.map(v => ({
-                        name: v.name || 'unit',
-                        barcode: v.barcode,
-                        price: v.price,
-                        ...(v.retail !== '' ? { retail: v.retail } : {}),
-                        ...(v.wholesale !== '' ? { wholesale: v.wholesale } : {}),
-                        factor: v.factor,
-                        isDefault: v.isDefault,
-                    })),
+                    variants: [{
+                        name: 'unit', barcode: baseUnit.barcode, price: baseUnit.price,
+                        ...(baseUnit.wholesale !== '' ? { wholesale: baseUnit.wholesale } : {}),
+                        ...(baseUnit.retail !== '' ? { retail: baseUnit.retail } : {}),
+                        factor: 1, isDefault: true,
+                    }],
                 });
             }
             navigate('/products');
         } catch (e: unknown) {
-            console.error(e);
             alert(e instanceof Error ? e.message : 'Error saving product');
+        } finally {
+            setSaving(false);
         }
-        finally { setSaving(false); }
     };
 
-    // ── Validation ──
-    const variantPricesValid = (vs: VariantDraft[]) => vs.every(v => {
-        if (v.wholesale !== '' && Number(v.wholesale) > v.price) return false;
-        if (v.retail !== '' && Number(v.retail) > v.price) return false;
-        return true;
-    });
-    const hasZeroPrice = !isEdit && variants.some(v => v.price === 0);
-    const canSave = form.name && form.categoryId && (
-        isEdit || (variants.length > 0 && variants.every(v => v.barcode && v.price >= 0) && variantPricesValid(variants))
-    );
+    const wholesaleErr = baseUnit.wholesale !== '' && baseUnit.price > 0 && Number(baseUnit.wholesale) > baseUnit.price;
+    const retailErr = baseUnit.retail !== '' && baseUnit.price > 0 && Number(baseUnit.retail) > baseUnit.price;
+    const canSave = !!(form.name && form.categoryId && baseUnit.barcode && !wholesaleErr && !retailErr);
 
-    // ── Loading state ──
     if (loading) {
-        return (
-            <div className="flex justify-center py-20">
-                <Loader2 size={24} className="text-primary-600 animate-spin" />
-            </div>
-        );
+        return <div className="flex justify-center py-20"><Loader2 size={24} className="text-primary-600 animate-spin" /></div>;
     }
 
-    const editVariants: ProductVariant[] = product?.variants ?? [];
-
     return (
-        <div className="space-y-6 max-w-5xl mx-auto pb-8">
-            {/* ── Page Header ── */}
+        <div className="space-y-4 max-w-4xl mx-auto pb-8">
+            {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
                     <button onClick={() => navigate('/products')}
@@ -525,29 +367,21 @@ export function ProductForm() {
                         className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                         Cancel
                     </button>
-                    <button onClick={() => {
-                        if (hasZeroPrice && !window.confirm('One or more variants have a sale price of Rs 0. Are you sure you want to save?')) return;
-                        handleSave();
-                    }} disabled={!canSave || saving}
+                    <button onClick={handleSave} disabled={!canSave || saving}
                         className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg">
                         {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                         {isEdit ? 'Save Changes' : 'Create Product'}
                     </button>
-                    {hasZeroPrice && (
-                        <p className="text-xs text-amber-500 ml-2">⚠ Some variants have Rs 0 sale price</p>
-                    )}
                 </div>
             </div>
 
-            {/* ── Product Details ── */}
+            {/* Product info */}
             <div className={card}>
                 <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Product Details</h2>
-
-                {/* Row 1: Name, Category, Brand */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
-                        <label className={lbl}>Product Image</label>
-                        <ImageUpload value={form.imageUrl} onChange={(url) => f('imageUrl', url)} />
+                        <label className={lbl}>Image</label>
+                        <ImageUpload value={form.imageUrl} onChange={url => f('imageUrl', url)} />
                     </div>
                     <div>
                         <label className={lbl}>Product Name *</label>
@@ -557,11 +391,11 @@ export function ProductForm() {
                         <label className={lbl}>Category *</label>
                         <div className="flex gap-1.5 items-center">
                             <select value={form.categoryId ?? ''} onChange={e => f('categoryId', e.target.value ? Number(e.target.value) : undefined)} className={`${inp} flex-1`}>
-                                <option value="">Select category...</option>
+                                <option value="">Select category…</option>
                                 {renderCatOptions(catRoots)}
                             </select>
-                            <button type="button" onClick={() => setQuickAddCat(true)} title="Add new category"
-                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-700 transition-colors">
+                            <button type="button" onClick={() => setQuickAddCat(true)} title="Add category"
+                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-700">
                                 <Plus size={14} />
                             </button>
                         </div>
@@ -573,30 +407,62 @@ export function ProductForm() {
                                 <option value="">None</option>
                                 {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                             </select>
-                            <button type="button" onClick={() => setQuickAddBrand(true)} title="Add new brand"
-                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-700 transition-colors">
+                            <button type="button" onClick={() => setQuickAddBrand(true)} title="Add brand"
+                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-700">
                                 <Plus size={14} />
                             </button>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* Divider */}
-                <hr className="my-4 border-gray-200 dark:border-gray-700" />
+            {/* Pricing */}
+            <div className={card}>
+                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Pricing</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <label className={lbl}>Barcode *</label>
+                        <input value={baseUnit.barcode} onChange={e => setBaseUnit(p => ({ ...p, barcode: e.target.value }))} className={inp} placeholder="Unique barcode" />
+                    </div>
+                    <div>
+                        <label className={lbl}>Sale Price *</label>
+                        <input type="number" min={0} step="0.01" value={baseUnit.price}
+                            onChange={e => setBaseUnit(p => ({ ...p, price: Number(e.target.value) }))}
+                            onBlur={stripLeadingZeros} className={inp} />
+                    </div>
+                    <div>
+                        <label className={lbl}>Wholesale Price</label>
+                        <input type="number" min={0} step="0.01"
+                            value={baseUnit.wholesale === '' ? '' : baseUnit.wholesale}
+                            onChange={e => setBaseUnit(p => ({ ...p, wholesale: e.target.value === '' ? '' : Number(e.target.value) }))}
+                            onBlur={stripLeadingZeros}
+                            className={`${inp} ${wholesaleErr ? 'border-red-400 ring-1 ring-red-400' : ''}`}
+                            placeholder="Optional" />
+                        {wholesaleErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
+                    </div>
+                    <div>
+                        <label className={lbl}>Retail Price</label>
+                        <input type="number" min={0} step="0.01"
+                            value={baseUnit.retail === '' ? '' : baseUnit.retail}
+                            onChange={e => setBaseUnit(p => ({ ...p, retail: e.target.value === '' ? '' : Number(e.target.value) }))}
+                            onBlur={stripLeadingZeros}
+                            className={`${inp} ${retailErr ? 'border-red-400 ring-1 ring-red-400' : ''}`}
+                            placeholder="Optional" />
+                        {retailErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
+                    </div>
+                </div>
 
-                {/* Row 3: Tax Fields */}
+                <hr className="my-3 border-gray-200 dark:border-gray-700" />
+
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     <div>
                         <label className={lbl}>Tax Schedule</label>
                         <select value={form.taxSchduleId ?? ''} onChange={e => {
                             const schedId = e.target.value ? Number(e.target.value) : undefined;
-                            f('taxSchduleId', schedId);
                             if (schedId) {
-                                const sched = taxSchedules.find(s => s.id === schedId);
-                                if (sched) {
-                                    setForm(prev => ({ ...prev, taxSchduleId: schedId, taxRate: sched.rate, hsCode: sched.hscode || prev.hsCode }));
-                                }
-                            }
+                                const s = taxSchedules.find(x => x.id === schedId);
+                                if (s) setForm(p => ({ ...p, taxSchduleId: schedId, taxRate: s.rate, hsCode: s.hscode || p.hsCode }));
+                            } else { f('taxSchduleId', undefined); }
                         }} className={inp}>
                             <option value="">None (manual)</option>
                             {taxSchedules.map(s => <option key={s.id} value={s.id}>{s.name} ({s.rate}%)</option>)}
@@ -613,205 +479,232 @@ export function ProductForm() {
                     <div>
                         <label className={lbl}>Tax Method</label>
                         <select value={form.taxMethod} onChange={e => f('taxMethod', e.target.value)} className={inp}>
-                            <option value="INCLUSIVE">Inclusive (included in price)</option>
-                            <option value="EXCLUSIVE">Exclusive (added on top)</option>
+                            <option value="INCLUSIVE">Inclusive</option>
+                            <option value="EXCLUSIVE">Exclusive</option>
                         </select>
                     </div>
                 </div>
+            </div>
 
-                {/* Divider */}
-                <hr className="my-4 border-gray-200 dark:border-gray-700" />
-
-                {/* Row 4: Inventory */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {/* Inventory & Options */}
+            <div className={card}>
+                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Inventory &amp; Options</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                     <div>
                         <label className={lbl}>Reorder Level</label>
                         <input type="number" value={form.reorderLevel} min={0} onChange={e => f('reorderLevel', Number(e.target.value))} className={inp} />
                     </div>
-                    <div className="flex items-end pb-1">
-                        <Toggle checked={form.allowNegative} onChange={v => f('allowNegative', v)} label="Allow Negative Stock" />
-                    </div>
-                    <div className="flex items-end pb-1">
-                        <Toggle checked={form.isService} onChange={v => f('isService', v)} label="Is Service (no inventory)" />
-                    </div>
                 </div>
-
-                {/* Divider */}
-                <hr className="my-4 border-gray-200 dark:border-gray-700" />
-
-                {/* Row 5: Options */}
-                <h3 className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">Options</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
                     <Toggle checked={form.active} onChange={v => f('active', v)} label="Active" />
+                    <Toggle checked={form.allowNegative} onChange={v => f('allowNegative', v)} label="Allow Negative Stock" />
+                    <Toggle checked={form.isService} onChange={v => f('isService', v)} label="Is Service" />
                     <Toggle checked={form.showBarcodePrice} onChange={v => f('showBarcodePrice', v)} label="Show Barcode Price" />
                     <Toggle checked={form.isFavorite} onChange={v => f('isFavorite', v)} label="Favorite" />
                     <Toggle checked={form.saleBelowCost} onChange={v => f('saleBelowCost', v)} label="Allow Sale Below Cost" />
                 </div>
             </div>
 
-            {/* ── Variants ── */}
+            <QuickCategoryAdd open={quickAddCat} onClose={() => setQuickAddCat(false)}
+                onCreated={cat => {
+                    categoryService.list({}).then(r => setCatRoots(extractCats(r).filter(c => !c.parentId))).catch(() => { });
+                    f('categoryId', cat.id);
+                    setQuickAddCat(false);
+                }} />
+
+            <QuickBrandAdd open={quickAddBrand} onClose={() => setQuickAddBrand(false)}
+                onCreated={brand => {
+                    setBrands(prev => [...prev, brand]);
+                    f('brandId', brand.id);
+                    setQuickAddBrand(false);
+                }} />
+        </div>
+    );
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â”€â”€â”€ ProductVariantsPage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+export function ProductVariantsPage() {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+
+    const [product, setProduct] = useState<Product | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [editingVariant, setEditingVariant] = useState<VariantDraft | null>(null);
+    const [variantSaving, setVariantSaving] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState<{ variantId: number } | null>(null);
+
+    const reload = async () => {
+        const p = await productService.get(Number(id));
+        setProduct(p);
+    };
+
+    useEffect(() => {
+        productService.get(Number(id))
+            .then(p => setProduct(p))
+            .catch(() => navigate('/products'))
+            .finally(() => setLoading(false));
+    }, [id, navigate]);
+
+    const allVariants = product?.variants ?? [];
+    const defaultVariant = allVariants.find(v => v.isDefault) ?? allVariants[0];
+    const extraVariants = allVariants.filter(v => v.id !== defaultVariant?.id);
+
+    const startEdit = (v: ProductVariant) => setEditingVariant(draftFromVariant(v));
+    const startAdd = () => setEditingVariant(emptyVariantDraft());
+    const cancel = () => setEditingVariant(null);
+
+    const updateField = (field: keyof VariantDraft, val: unknown) =>
+        setEditingVariant(prev => prev ? { ...prev, [field]: val } : prev);
+
+    const saveVariant = async () => {
+        if (!editingVariant || !product) return;
+        setVariantSaving(true);
+        try {
+            const v = editingVariant;
+            const payload = {
+                name: v.name, barcode: v.barcode, price: v.price,
+                ...(v.wholesale !== '' ? { wholesale: v.wholesale } : {}),
+                ...(v.retail !== '' ? { retail: v.retail } : {}),
+                factor: v.factor, isDefault: false,
+            };
+            if (v.id) {
+                await productService.updateVariant(product.id, v.id, payload);
+            } else {
+                await productService.createVariant(product.id, payload);
+            }
+            await reload();
+            setEditingVariant(null);
+        } catch (e: unknown) {
+            alert(e instanceof Error ? e.message : 'Error saving variant');
+        } finally {
+            setVariantSaving(false);
+        }
+    };
+
+    const deleteVariant = async () => {
+        if (!confirmDelete || !product) return;
+        try {
+            await productService.deleteVariant(product.id, confirmDelete.variantId);
+            await reload();
+        } catch (e: unknown) {
+            alert(e instanceof Error ? e.message : 'Error deleting variant');
+        } finally {
+            setConfirmDelete(null);
+        }
+    };
+
+    if (loading) {
+        return <div className="flex justify-center py-20"><Loader2 size={24} className="text-primary-600 animate-spin" /></div>;
+    }
+    if (!product) return null;
+
+    return (
+        <div className="space-y-4 max-w-4xl mx-auto pb-8">
+            {/* Header */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <div className="flex items-center gap-3">
+                    <button onClick={() => navigate('/products')}
+                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
+                        <ArrowLeft size={18} />
+                    </button>
+                    <div>
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Variants — {product.name}</h1>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Additional pack/unit variants. Default unit is managed on the product page.
+                        </p>
+                    </div>
+                </div>
+                <button onClick={() => navigate(`/products/${id}/edit`)}
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
+                    Edit Product
+                </button>
+            </div>
+
+            {/* Default unit info */}
+            {defaultVariant && (
+                <div className={`${card} border-primary-200 dark:border-primary-700/50 bg-primary-50/40 dark:bg-primary-900/10`}>
+                    <p className="text-xs font-semibold text-primary-700 dark:text-primary-400 mb-2">Default Unit (factor 1×)</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                        <div><span className={lbl}>Barcode</span><p className="font-mono text-gray-800 dark:text-gray-100">{defaultVariant.barcode}</p></div>
+                        <div><span className={lbl}>Sale Price</span><p className="font-medium text-gray-800 dark:text-gray-100">{fmt(defaultVariant.price)}</p></div>
+                        <div><span className={lbl}>Wholesale</span><p className="text-gray-600 dark:text-gray-400">{fmt(defaultVariant.wholesale)}</p></div>
+                        <div><span className={lbl}>Retail</span><p className="text-gray-600 dark:text-gray-400">{fmt(defaultVariant.retail)}</p></div>
+                    </div>
+                </div>
+            )}
+
+            {/* Additional variants */}
             <div className={card}>
-                <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Variants</h2>
-                    {isEdit ? (
-                        editingVariant?.id !== 'new' && (
-                            <button onClick={startAddVariant}
-                                className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium">
-                                <Plus size={12} /> Add Variant
-                            </button>
-                        )
-                    ) : (
-                        <button onClick={addVariant}
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200">Additional Variants</h2>
+                    {!editingVariant && (
+                        <button onClick={startAdd}
                             className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700 font-medium">
                             <Plus size={12} /> Add Variant
                         </button>
                     )}
                 </div>
 
-                {isEdit ? (
-                    /* ── EDIT mode: existing variants ── */
-                    <div className="space-y-3">
-                        {editVariants.length > 0 && (
-                            <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                                <table className="w-full text-xs">
-                                    <thead>
-                                        <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 text-gray-500">
-                                            <th className="px-3 py-2 text-left">Name</th>
-                                            <th className="px-3 py-2 text-left">Barcode</th>
-                                            <th className="px-3 py-2 text-right">Factor</th>
-                                            <th className="px-3 py-2 text-right">Sale Price</th>
-                                            <th className="px-3 py-2 text-right">Wholesale</th>
-                                            <th className="px-3 py-2 text-right">Retail</th>
-                                            <th className="px-3 py-2 text-center">Default</th>
-                                            <th className="px-3 py-2" />
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {editVariants.map(v => (
-                                            editingVariant?.id === v.id ? (
-                                                <tr key={v.id} className="border-b border-gray-100 dark:border-gray-700">
-                                                    <td colSpan={8} className="p-3">
-                                                        <VariantFields v={editingVariant.form}
-                                                            onChange={(field, val) => updateEditVariantField(field, val)} />
-                                                        <div className="flex items-center gap-2 mt-3 justify-end">
-                                                            <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
-                                                                <input type="checkbox" checked={editingVariant.form.isDefault}
-                                                                    onChange={e => updateEditVariantField('isDefault', e.target.checked)}
-                                                                    className="accent-primary-600" />
-                                                                Default variant
-                                                            </label>
-                                                            <button onClick={cancelEditVariant}
-                                                                className="px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50">
-                                                                Cancel
-                                                            </button>
-                                                            <button onClick={saveEditVariant} disabled={variantSaving || !editingVariant.form.barcode}
-                                                                className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg">
-                                                                {variantSaving && <Loader2 size={10} className="animate-spin" />} Save
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                <tr key={v.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
-                                                    <td className="px-3 py-2 text-gray-800 dark:text-gray-200">{v.name}</td>
-                                                    <td className="px-3 py-2 text-gray-500 font-mono">{v.barcode}</td>
-                                                    <td className="px-3 py-2 text-right text-gray-500">{v.factor}x</td>
-                                                    <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">{fmt(v.price ?? v.price)}</td>
-                                                    <td className="px-3 py-2 text-right text-gray-500">{v.wholesale != null ? fmt(v.wholesale) : '—'}</td>
-                                                    <td className="px-3 py-2 text-right text-gray-500">{v.retail != null ? fmt(v.retail) : '—'}</td>
-                                                    <td className="px-3 py-2 text-center">
-                                                        {v.isDefault && <span className="text-[10px] bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-400 px-1.5 py-0.5 rounded-full font-medium">Default</span>}
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <div className="flex gap-1.5 justify-end">
-                                                            <button onClick={() => startEditVariant(v)} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={13} /></button>
-                                                            <button onClick={() => setVariantConfirm({ variantId: v.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={13} /></button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            )
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* New variant form */}
-                        {editingVariant?.id === 'new' && (
-                            <div className="border border-dashed border-primary-300 dark:border-primary-700 rounded-lg p-4 space-y-3">
-                                <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">New Variant</p>
-                                <VariantFields v={editingVariant.form}
-                                    onChange={(field, val) => updateEditVariantField(field, val)} />
-                                <div className="flex items-center gap-2 justify-between">
-                                    <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
-                                        <input type="checkbox" checked={editingVariant.form.isDefault}
-                                            onChange={e => updateEditVariantField('isDefault', e.target.checked)}
-                                            className="accent-primary-600" />
-                                        Set as default
-                                    </label>
-                                    <div className="flex gap-1">
-                                        <button onClick={cancelEditVariant}
-                                            className="px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50">
-                                            Cancel
-                                        </button>
-                                        <button onClick={saveEditVariant}
-                                            disabled={variantSaving || !editingVariant.form.barcode || editingVariant.form.price <= 0}
-                                            className="flex items-center gap-1 px-2.5 py-1 text-xs bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg">
-                                            {variantSaving && <Loader2 size={10} className="animate-spin" />} Add Variant
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {editVariants.length === 0 && !editingVariant && (
-                            <p className="text-sm text-gray-400 text-center py-6">No variants yet. Click "Add Variant" to create one.</p>
-                        )}
-                    </div>
-                ) : (
-                    /* ── ADD mode: local variant cards ── */
-                    <div className="space-y-3">
-                        {variants.map((v) => (
-                            <VariantFields key={v._key} v={v}
-                                onChange={(field, val) => updateAddVariant(v._key, field, val)}
-                                showRemove={variants.length > 1}
-                                onRemove={() => removeVariant(v._key)}
-                                lockNameFactor={v.isDefault} />
-                        ))}
+                {editingVariant && !editingVariant.id && (
+                    <div className="border border-dashed border-primary-300 dark:border-primary-700 rounded-lg p-3 mb-3">
+                        <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">New Variant</p>
+                        <VariantForm v={editingVariant} onChange={updateField} onCancel={cancel} onSave={saveVariant} saving={variantSaving} />
                     </div>
                 )}
+
+                {extraVariants.length === 0 && !editingVariant ? (
+                    <p className="text-sm text-gray-400 text-center py-8">No additional variants. Click "Add Variant" to create one.</p>
+                ) : extraVariants.length > 0 ? (
+                    <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-700 text-gray-500">
+                                    <th className="px-3 py-2 text-left">Name</th>
+                                    <th className="px-3 py-2 text-left">Barcode</th>
+                                    <th className="px-3 py-2 text-right">Factor</th>
+                                    <th className="px-3 py-2 text-right">Sale Price</th>
+                                    <th className="px-3 py-2 text-right">Wholesale</th>
+                                    <th className="px-3 py-2 text-right">Retail</th>
+                                    <th className="px-3 py-2 w-16" />
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {extraVariants.map(v => (
+                                    editingVariant?.id === v.id ? (
+                                        <tr key={v.id} className="border-b border-gray-100 dark:border-gray-700">
+                                            <td colSpan={7} className="p-3">
+                                                <VariantForm v={editingVariant} onChange={updateField} onCancel={cancel} onSave={saveVariant} saving={variantSaving} />
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        <tr key={v.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                            <td className="px-3 py-2 text-gray-800 dark:text-gray-200 font-medium">{v.name}</td>
+                                            <td className="px-3 py-2 text-gray-500 font-mono">{v.barcode}</td>
+                                            <td className="px-3 py-2 text-right text-gray-500">{v.factor}×</td>
+                                            <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">{fmt(v.price)}</td>
+                                            <td className="px-3 py-2 text-right text-gray-500">{v.wholesale != null ? fmt(v.wholesale) : '—'}</td>
+                                            <td className="px-3 py-2 text-right text-gray-500">{v.retail != null ? fmt(v.retail) : '—'}</td>
+                                            <td className="px-3 py-2">
+                                                <div className="flex gap-1.5 justify-end">
+                                                    <button onClick={() => startEdit(v)} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={13} /></button>
+                                                    <button onClick={() => setConfirmDelete({ variantId: v.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={13} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                ) : null}
             </div>
 
-            {/* ── Variant delete confirmation ── */}
-            <ConfirmDialog open={!!variantConfirm} title="Delete Variant"
+            <ConfirmDialog open={!!confirmDelete} title="Delete Variant"
                 message="This will permanently delete this variant." variant="danger"
-                confirmLabel="Delete" onConfirm={deleteVariant} onCancel={() => setVariantConfirm(null)} />
-
-            {/* Quick-add Category */}
-            <QuickCategoryAdd
-                open={quickAddCat}
-                onClose={() => setQuickAddCat(false)}
-                onCreated={(cat) => {
-                    // Reload categories and select the new one
-                    categoryService.list({}).then(r => {
-                        const cats = Array.isArray(r) ? r : (Array.isArray((r as any)?.data) ? (r as any).data : []);
-                        setCatRoots(cats.filter((c: Category) => !c.parentId));
-                    }).catch(() => { });
-                    f('categoryId', cat.id);
-                    setQuickAddCat(false);
-                }}
-            />
-
-            {/* Quick-add Brand */}
-            <QuickBrandAdd
-                open={quickAddBrand}
-                onClose={() => setQuickAddBrand(false)}
-                onCreated={(brand) => {
-                    setBrands(prev => [...prev, brand]);
-                    f('brandId', brand.id);
-                    setQuickAddBrand(false);
-                }}
-            />
+                confirmLabel="Delete" onConfirm={deleteVariant} onCancel={() => setConfirmDelete(null)} />
         </div>
     );
 }
+
