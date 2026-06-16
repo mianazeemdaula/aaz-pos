@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy, Component, type ReactNode, type ErrorInfo } from 'react';
 import { MainLayout, ProtectedRoute } from './components/layout';
 import { Login } from './pages/Login';
+import { LicensingGuard } from './components/LicensingGuard';
 import "./App.css";
 
 // Detect if running inside Tauri desktop shell
@@ -70,55 +71,57 @@ const Spinner = () => (
 
 function App() {
   return (
-    <BrowserRouter>
-      <Suspense fallback={<Spinner />}>
-        <Routes>
-          {/* Landing page only for web app, Tauri goes straight to login */}
-          {!isTauri && <Route path="/home" element={<Home />} />}
-          <Route path="/login" element={<Login />} />
-          <Route index element={<Navigate to={isTauri ? "/login" : "/home"} replace />} />
-          <Route element={<ProtectedRoute />}>
-            <Route path="/" element={<MainLayout />}>
-              <Route path="dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
-              <Route path="sale" element={<ErrorBoundary><Sale /></ErrorBoundary>} />
-              <Route path="sale/returns" element={<ErrorBoundary><SaleReturns /></ErrorBoundary>} />
-              <Route path="purchase" element={<ErrorBoundary><Purchase /></ErrorBoundary>} />
-              <Route path="purchase/returns" element={<ErrorBoundary><PurchaseReturns /></ErrorBoundary>} />
-              <Route path="products" element={<ErrorBoundary><Products /></ErrorBoundary>} />
-              <Route path="products/new" element={<ErrorBoundary><ProductForm /></ErrorBoundary>} />
-              <Route path="products/:id/edit" element={<ErrorBoundary><ProductForm /></ErrorBoundary>} />
-              <Route path="products/:id/variants" element={<ErrorBoundary><ProductVariantsPage /></ErrorBoundary>} />
-              <Route path="categories" element={<ErrorBoundary><Categories /></ErrorBoundary>} />
-              <Route path="brands" element={<ErrorBoundary><Brands /></ErrorBoundary>} />
-              <Route path="customers" element={<ErrorBoundary><Customers /></ErrorBoundary>} />
-              <Route path="customers/:id" element={<ErrorBoundary><CustomerDetail /></ErrorBoundary>} />
-              <Route path="customer-payments" element={<ErrorBoundary><CustomerPayments /></ErrorBoundary>} />
-              <Route path="suppliers" element={<ErrorBoundary><Suppliers /></ErrorBoundary>} />
-              <Route path="suppliers/:id" element={<ErrorBoundary><SupplierDetail /></ErrorBoundary>} />
-              <Route path="supplier-payments" element={<ErrorBoundary><SupplierPayments /></ErrorBoundary>} />
-              <Route path="employees" element={<ErrorBoundary><Employees /></ErrorBoundary>} />
-              <Route path="salary-slips" element={<ErrorBoundary><SalarySlips /></ErrorBoundary>} />
-              <Route path="expenses" element={<ErrorBoundary><Expenses /></ErrorBoundary>} />
-              <Route path="accounts" element={<ErrorBoundary><Accounts /></ErrorBoundary>} />
-              <Route path="users" element={<ErrorBoundary><Users /></ErrorBoundary>} />
-              <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
-              <Route path="held" element={<ErrorBoundary><HeldTransactions /></ErrorBoundary>} />
-              <Route path="promotions" element={<ErrorBoundary><Promotions /></ErrorBoundary>} />
-              <Route path="promotions/new" element={<ErrorBoundary><PromotionForm /></ErrorBoundary>} />
-              <Route path="promotions/:id/edit" element={<ErrorBoundary><PromotionForm /></ErrorBoundary>} />
-              <Route path="promotions/:id/items" element={<ErrorBoundary><PromotionItems /></ErrorBoundary>} />
-              <Route path="stock-adjustments" element={<ErrorBoundary><StockAdjustments /></ErrorBoundary>} />
-              <Route path="advance-bookings" element={<ErrorBoundary><AdvanceBookings /></ErrorBoundary>} />
-              <Route path="returns" element={<ErrorBoundary><Returns /></ErrorBoundary>} />
-              <Route path="payments" element={<ErrorBoundary><Payments /></ErrorBoundary>} />
-              <Route path="settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
-              <Route path="admin" element={<Navigate to="/settings" replace />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    <LicensingGuard>
+      <BrowserRouter>
+        <Suspense fallback={<Spinner />}>
+          <Routes>
+            {/* Landing page only for web app, Tauri goes straight to login */}
+            {!isTauri && <Route path="/home" element={<Home />} />}
+            <Route path="/login" element={<Login />} />
+            <Route index element={<Navigate to={isTauri ? "/login" : "/home"} replace />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<MainLayout />}>
+                <Route path="dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+                <Route path="sale" element={<ErrorBoundary><Sale /></ErrorBoundary>} />
+                <Route path="sale/returns" element={<ErrorBoundary><SaleReturns /></ErrorBoundary>} />
+                <Route path="purchase" element={<ErrorBoundary><Purchase /></ErrorBoundary>} />
+                <Route path="purchase/returns" element={<ErrorBoundary><PurchaseReturns /></ErrorBoundary>} />
+                <Route path="products" element={<ErrorBoundary><Products /></ErrorBoundary>} />
+                <Route path="products/new" element={<ErrorBoundary><ProductForm /></ErrorBoundary>} />
+                <Route path="products/:id/edit" element={<ErrorBoundary><ProductForm /></ErrorBoundary>} />
+                <Route path="products/:id/variants" element={<ErrorBoundary><ProductVariantsPage /></ErrorBoundary>} />
+                <Route path="categories" element={<ErrorBoundary><Categories /></ErrorBoundary>} />
+                <Route path="brands" element={<ErrorBoundary><Brands /></ErrorBoundary>} />
+                <Route path="customers" element={<ErrorBoundary><Customers /></ErrorBoundary>} />
+                <Route path="customers/:id" element={<ErrorBoundary><CustomerDetail /></ErrorBoundary>} />
+                <Route path="customer-payments" element={<ErrorBoundary><CustomerPayments /></ErrorBoundary>} />
+                <Route path="suppliers" element={<ErrorBoundary><Suppliers /></ErrorBoundary>} />
+                <Route path="suppliers/:id" element={<ErrorBoundary><SupplierDetail /></ErrorBoundary>} />
+                <Route path="supplier-payments" element={<ErrorBoundary><SupplierPayments /></ErrorBoundary>} />
+                <Route path="employees" element={<ErrorBoundary><Employees /></ErrorBoundary>} />
+                <Route path="salary-slips" element={<ErrorBoundary><SalarySlips /></ErrorBoundary>} />
+                <Route path="expenses" element={<ErrorBoundary><Expenses /></ErrorBoundary>} />
+                <Route path="accounts" element={<ErrorBoundary><Accounts /></ErrorBoundary>} />
+                <Route path="users" element={<ErrorBoundary><Users /></ErrorBoundary>} />
+                <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
+                <Route path="held" element={<ErrorBoundary><HeldTransactions /></ErrorBoundary>} />
+                <Route path="promotions" element={<ErrorBoundary><Promotions /></ErrorBoundary>} />
+                <Route path="promotions/new" element={<ErrorBoundary><PromotionForm /></ErrorBoundary>} />
+                <Route path="promotions/:id/edit" element={<ErrorBoundary><PromotionForm /></ErrorBoundary>} />
+                <Route path="promotions/:id/items" element={<ErrorBoundary><PromotionItems /></ErrorBoundary>} />
+                <Route path="stock-adjustments" element={<ErrorBoundary><StockAdjustments /></ErrorBoundary>} />
+                <Route path="advance-bookings" element={<ErrorBoundary><AdvanceBookings /></ErrorBoundary>} />
+                <Route path="returns" element={<ErrorBoundary><Returns /></ErrorBoundary>} />
+                <Route path="payments" element={<ErrorBoundary><Payments /></ErrorBoundary>} />
+                <Route path="settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
+                <Route path="admin" element={<Navigate to="/settings" replace />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </Suspense>
-    </BrowserRouter>
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </LicensingGuard>
   );
 }
 

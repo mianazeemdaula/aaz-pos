@@ -568,11 +568,30 @@ export function ProductVariantsPage() {
     const extraVariants = allVariants.filter(v => v.id !== defaultVariant?.id);
 
     const startEdit = (v: ProductVariant) => setEditingVariant(draftFromVariant(v));
-    const startAdd = () => setEditingVariant(emptyVariantDraft());
+    const startAdd = () => {
+        const draft = emptyVariantDraft();
+        if (defaultVariant) {
+            draft.price = defaultVariant.price;
+            draft.retail = defaultVariant.retail ?? '';
+            draft.wholesale = defaultVariant.wholesale ?? '';
+        }
+        setEditingVariant(draft);
+    };
     const cancel = () => setEditingVariant(null);
 
-    const updateField = (field: keyof VariantDraft, val: unknown) =>
-        setEditingVariant(prev => prev ? { ...prev, [field]: val } : prev);
+    const updateField = (field: keyof VariantDraft, val: unknown) => {
+        setEditingVariant(prev => {
+            if (!prev) return prev;
+            const updated = { ...prev, [field]: val };
+            if (field === 'factor' && defaultVariant) {
+                const factor = Number(val) || 1;
+                updated.price = defaultVariant.price * factor;
+                updated.retail = defaultVariant.retail ? defaultVariant.retail * factor : defaultVariant.price * factor;
+                updated.wholesale = defaultVariant.wholesale ? defaultVariant.wholesale * factor : defaultVariant.price * factor;
+            }
+            return updated;
+        });
+    };
 
     const saveVariant = async () => {
         if (!editingVariant || !product) return;

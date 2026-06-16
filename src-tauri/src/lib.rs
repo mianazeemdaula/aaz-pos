@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod printer;
+mod licensing;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 
@@ -14,6 +15,16 @@ fn read_file_base64(path: String) -> Result<String, String> {
     Ok(STANDARD.encode(&bytes))
 }
 
+#[tauri::command]
+fn get_licensing_status(app_handle: tauri::AppHandle) -> Result<licensing::LicenseInfo, String> {
+    licensing::check_license_status(&app_handle)
+}
+
+#[tauri::command]
+fn activate_license(app_handle: tauri::AppHandle, key: String) -> Result<licensing::LicenseInfo, String> {
+    licensing::activate_license_key(&app_handle, key)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -24,6 +35,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             read_file_base64,
+            get_licensing_status,
+            activate_license,
             printer::print_receipt,
             printer::print_invoice,
             printer::print_contract,
