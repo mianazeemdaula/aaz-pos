@@ -9,7 +9,7 @@ import { AccountSelect } from '../components/ui/AccountSelect';
 import { userService } from '../services/pos.service';
 import type { Customer, Supplier, User } from '../types/pos';
 
-type ReportId = 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement' | 'stock-alert' | 'stock-negative' | 'stock-low' | 'daily';
+type ReportId = 'sales' | 'cashier-sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement' | 'stock-alert' | 'stock-negative' | 'stock-low' | 'daily';
 
 interface ReportDef {
   id: ReportId;
@@ -25,6 +25,7 @@ interface ReportDef {
 const REPORTS: ReportDef[] = [
   { id: 'daily', label: 'Daily Report', description: 'Comprehensive daily P&L: sales, purchases, expenses, salaries, payments', icon: Sun, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800', params: ['date'], endpoint: '/reports/daily' },
   { id: 'sales', label: 'Sales Report', description: 'Revenue, COGS, gross profit & all invoices', icon: ShoppingCart, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800', params: ['dates', 'user'], endpoint: '/reports/sales' },
+  { id: 'cashier-sales', label: 'Cashier Sales Report', description: 'Sales transactions & gross profit filtered by Cashier/Admin', icon: Users, color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800', params: ['dates', 'user'], endpoint: '/reports/sales' },
   { id: 'purchases', label: 'Purchases Report', description: 'Purchase orders, total costs & due amounts', icon: Package, color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800', params: ['dates'], endpoint: '/reports/purchases' },
   { id: 'inventory', label: 'Inventory Report', description: 'Stock levels, inventory value & reorder alerts', icon: BarChart2, color: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800', params: [], endpoint: '/reports/inventory' },
   { id: 'stock-alert', label: 'Stock Alert Report', description: 'All products with negative or low stock levels', icon: AlertTriangle, color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800', params: ['stockFilter'], endpoint: '/reports/stock', extraParams: { filter: 'alert' } },
@@ -61,10 +62,10 @@ export function Reports() {
 
   // Fetch users list for cashier sales report filter
   useEffect(() => {
-    if (activeId === 'sales') {
+    if (active?.params.includes('user')) {
       userService.list({ pageSize: 500 }).then(r => setUsersList(r.data)).catch(() => {});
     }
-  }, [activeId]);
+  }, [active]);
 
   // Reset to reports home when user navigates to /reports (e.g. clicking sidebar link again)
   useEffect(() => {
@@ -137,7 +138,7 @@ export function Reports() {
   // ── Dashboard view ──────────────────────────────────────────────────────
   if (!active) {
     const sections: { title: string; ids: ReportId[] }[] = [
-      { title: 'Financial', ids: ['daily', 'sales', 'purchases', 'expenses'] },
+      { title: 'Financial', ids: ['daily', 'sales', 'cashier-sales', 'purchases', 'expenses'] },
       { title: 'Inventory', ids: ['inventory', 'stock-alert', 'stock-negative', 'stock-low'] },
       { title: 'Party Balances', ids: ['customers', 'suppliers'] },
       { title: 'Ledgers & Statements', ids: ['customer-ledger', 'supplier-ledger', 'account-statement'] },
