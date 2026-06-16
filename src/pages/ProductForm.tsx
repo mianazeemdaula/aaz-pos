@@ -215,9 +215,11 @@ export function ProductForm() {
         showBarcodePrice: true,
         isFavorite: false,
         saleBelowCost: false,
+        costPrice: 0,
+        stock: 0,
     });
 
-    // Default unit: name="unit", factor=1 â€” only barcode & prices are editable
+    // Default unit: name="unit", factor=1 — only barcode & prices are editable
     const [baseUnit, setBaseUnit] = useState({
         barcode: '',
         price: 0,
@@ -263,6 +265,8 @@ export function ProductForm() {
                 showBarcodePrice: p.showBarcodePrice ?? true,
                 isFavorite: p.isFavorite ?? false,
                 saleBelowCost: p.saleBelowCost ?? false,
+                costPrice: p.avgCostPrice ?? 0,
+                stock: p.totalStock ?? 0,
             });
             setBaseUnit({
                 barcode: def?.barcode ?? '',
@@ -297,6 +301,8 @@ export function ProductForm() {
                 showBarcodePrice: form.showBarcodePrice,
                 isFavorite: form.isFavorite,
                 saleBelowCost: form.saleBelowCost,
+                costPrice: form.costPrice,
+                stock: form.stock,
             };
 
             if (isEdit) {
@@ -416,13 +422,19 @@ export function ProductForm() {
                 </div>
             </div>
 
-            {/* Pricing */}
+             {/* Pricing */}
             <div className={card}>
                 <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Pricing</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
                     <div>
                         <label className={lbl}>Barcode *</label>
                         <input value={baseUnit.barcode} onChange={e => setBaseUnit(p => ({ ...p, barcode: e.target.value }))} className={inp} placeholder="Unique barcode" />
+                    </div>
+                    <div>
+                        <label className={lbl}>Cost Price *</label>
+                        <input type="number" min={0} step="0.01" value={form.costPrice}
+                            onChange={e => f('costPrice', Number(e.target.value))}
+                            onBlur={stripLeadingZeros} className={inp} />
                     </div>
                     <div>
                         <label className={lbl}>Sale Price *</label>
@@ -486,10 +498,14 @@ export function ProductForm() {
                 </div>
             </div>
 
-            {/* Inventory & Options */}
+             {/* Inventory & Options */}
             <div className={card}>
                 <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Inventory &amp; Options</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <label className={lbl}>Stock</label>
+                        <input type="number" value={form.stock} onChange={e => f('stock', Number(e.target.value))} className={inp} />
+                    </div>
                     <div>
                         <label className={lbl}>Reorder Level</label>
                         <input type="number" value={form.reorderLevel} min={0} onChange={e => f('reorderLevel', Number(e.target.value))} className={inp} />

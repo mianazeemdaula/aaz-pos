@@ -426,6 +426,37 @@ export function Sale() {
     if (!isReturnCart && paidTotal < grandTotal - 0.01 && !customer) {
       return showToast('error', 'Payment is short. Enter the received amount.');
     }
+
+    // Validate discount and cost price limits
+    let totalCostOfNonBelowCostItems = 0;
+    let totalNetOfNonBelowCostItems = 0;
+    let hasNonBelowCostItems = false;
+
+    for (const i of cart) {
+      const discountAmount = i.discountType === 'FIXED' ? i.discount : i.price * i.discount / 100;
+      const netPrice = i.price - discountAmount;
+      const costPrice = (i.variant.product?.avgCostPrice ?? 0) * i.variant.factor;
+      if (netPrice < 0) {
+        return showToast('error', `Discount cannot exceed selling price for ${i.variant.product?.name ?? i.variant.name}.`);
+      }
+      if (i.variant.product && !i.variant.product.saleBelowCost && netPrice < costPrice) {
+        return showToast('error', `Discount cannot make selling price below cost price for ${i.variant.product.name} (Cost: Rs ${costPrice.toFixed(2)}, Net Price: Rs ${netPrice.toFixed(2)}).`);
+      }
+
+      if (i.variant.product && !i.variant.product.saleBelowCost) {
+        totalCostOfNonBelowCostItems += costPrice * i.qty;
+        totalNetOfNonBelowCostItems += netPrice * i.qty;
+        hasNonBelowCostItems = true;
+      }
+    }
+
+    if (hasNonBelowCostItems) {
+      const maxOverallDiscount = totalNetOfNonBelowCostItems - totalCostOfNonBelowCostItems;
+      if (invoiceDiscount > maxOverallDiscount) {
+        return showToast('error', `Overall invoice discount cannot exceed Rs ${maxOverallDiscount.toFixed(2)} (the margin above cost price for non-sale-below-cost items).`);
+      }
+    }
+
     setSaving(true);
     try {
       const paymentEntries = accounts

@@ -271,28 +271,57 @@ export function Returns() {
                                     <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Items</p>
                                     <table className="w-full text-sm">
                                         <thead><tr className="text-xs text-gray-500 border-b border-gray-100 dark:border-gray-700">
-                                            <th className="text-left py-1">Product</th><th className="text-right py-1">Qty</th>
-                                            <th className="text-right py-1">Price</th><th className="text-right py-1">Total</th>
+                                            <th className="text-left py-1">Product</th>
+                                            <th className="text-right py-1">Qty</th>
+                                            <th className="text-right py-1">Price</th>
+                                            <th className="text-right py-1">Cost</th>
+                                            <th className="text-right py-1">Total</th>
+                                            <th className="text-right py-1">Profit</th>
                                         </tr></thead>
                                         <tbody>
-                                            {(viewSale.items ?? []).map((item, i) => (
-                                                <tr key={i} className="border-b border-gray-50 dark:border-gray-700">
-                                                    <td className="py-1.5">{item.variant?.product?.name ?? `#${item.variant?.barcode}`}</td>
-                                                    <td className="py-1.5 text-right text-orange-600 font-semibold">{item.quantity}</td>
-                                                    <td className="py-1.5 text-right">{fmt(item.unitPrice)}</td>
-                                                    <td className="py-1.5 text-right font-medium text-orange-600">
-                                                        {fmt(item.totalPrice ?? item.quantity * item.unitPrice)}
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {(viewSale.items ?? []).map((item, i) => {
+                                                const itemTotal = item.totalPrice ?? (item.quantity * item.unitPrice);
+                                                const itemCost = (item.avgCostPrice ?? 0) * item.quantity;
+                                                const itemProfit = itemTotal - itemCost;
+                                                return (
+                                                    <tr key={i} className="border-b border-gray-50 dark:border-gray-700">
+                                                        <td className="py-1.5">{item.variant?.product?.name ?? `#${item.variant?.barcode}`}</td>
+                                                        <td className={`py-1.5 text-right ${item.quantity < 0 ? 'text-orange-600 font-semibold' : ''}`}>{item.quantity}</td>
+                                                        <td className="py-1.5 text-right">{fmt(item.unitPrice)}</td>
+                                                        <td className="py-1.5 text-right text-gray-500">{fmt(item.avgCostPrice ?? 0)}</td>
+                                                        <td className={`py-1.5 text-right font-medium ${(itemTotal) < 0 ? 'text-orange-600' : ''}`}>
+                                                            {fmt(itemTotal)}
+                                                        </td>
+                                                        <td className={`py-1.5 text-right font-medium ${itemProfit < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                            {fmt(itemProfit)}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
                             )}
-                            <div className="grid grid-cols-3 gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm">
+                            <div className="grid grid-cols-4 gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm">
                                 <div><p className="text-xs text-gray-500">Refund</p><p className="font-semibold text-orange-600">{fmt(viewSale.totalAmount)}</p></div>
                                 <div><p className="text-xs text-gray-500">Discount</p><p className="font-semibold text-orange-600">{fmt(viewSale.discount)}</p></div>
                                 <div><p className="text-xs text-gray-500">Tax</p><p className="font-semibold">{fmt(viewSale.taxAmount)}</p></div>
+                                <div>
+                                    <p className="text-xs text-gray-500">Profit</p>
+                                    <p className={`font-bold ${
+                                        (() => {
+                                            const totalCost = (viewSale.items ?? []).reduce((acc, item) => acc + (item.avgCostPrice ?? 0) * item.quantity, 0);
+                                            const grossProfit = (viewSale.totalAmount - viewSale.taxAmount) - totalCost;
+                                            return grossProfit < 0 ? 'text-red-500' : 'text-green-600';
+                                        })()
+                                    }`}>
+                                        {(() => {
+                                            const totalCost = (viewSale.items ?? []).reduce((acc, item) => acc + (item.avgCostPrice ?? 0) * item.quantity, 0);
+                                            const grossProfit = (viewSale.totalAmount - viewSale.taxAmount) - totalCost;
+                                            return fmt(grossProfit);
+                                        })()}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         <div className="flex gap-2 px-5 py-3 border-t border-gray-200 dark:border-gray-700">

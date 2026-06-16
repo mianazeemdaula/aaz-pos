@@ -6,7 +6,8 @@ import { apiClient } from '../services/api';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
 import { SupplierSearch } from '../components/ui/SupplierSearch';
 import { AccountSelect } from '../components/ui/AccountSelect';
-import type { Customer, Supplier } from '../types/pos';
+import { userService } from '../services/pos.service';
+import type { Customer, Supplier, User } from '../types/pos';
 
 type ReportId = 'sales' | 'purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement' | 'stock-alert' | 'stock-negative' | 'stock-low' | 'daily';
 
@@ -16,14 +17,14 @@ interface ReportDef {
   description: string;
   icon: ElementType;
   color: string;
-  params: ('dates' | 'customer' | 'supplier' | 'account' | 'date' | 'stockFilter')[];
+  params: ('dates' | 'customer' | 'supplier' | 'account' | 'date' | 'stockFilter' | 'user')[];
   endpoint: string | ((id: number) => string);
   extraParams?: Record<string, string>;
 }
 
 const REPORTS: ReportDef[] = [
   { id: 'daily', label: 'Daily Report', description: 'Comprehensive daily P&L: sales, purchases, expenses, salaries, payments', icon: Sun, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800', params: ['date'], endpoint: '/reports/daily' },
-  { id: 'sales', label: 'Sales Report', description: 'Revenue, COGS, gross profit & all invoices', icon: ShoppingCart, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800', params: ['dates'], endpoint: '/reports/sales' },
+  { id: 'sales', label: 'Sales Report', description: 'Revenue, COGS, gross profit & all invoices', icon: ShoppingCart, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800', params: ['dates', 'user'], endpoint: '/reports/sales' },
   { id: 'purchases', label: 'Purchases Report', description: 'Purchase orders, total costs & due amounts', icon: Package, color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800', params: ['dates'], endpoint: '/reports/purchases' },
   { id: 'inventory', label: 'Inventory Report', description: 'Stock levels, inventory value & reorder alerts', icon: BarChart2, color: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800', params: [], endpoint: '/reports/inventory' },
   { id: 'stock-alert', label: 'Stock Alert Report', description: 'All products with negative or low stock levels', icon: AlertTriangle, color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800', params: ['stockFilter'], endpoint: '/reports/stock', extraParams: { filter: 'alert' } },
@@ -51,10 +52,19 @@ export function Reports() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [accountId, setAccountId] = useState<number | null>(null);
+  const [userId, setUserId] = useState<number | ''>('');
+  const [usersList, setUsersList] = useState<User[]>([]);
 
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Fetch users list for cashier sales report filter
+  useEffect(() => {
+    if (activeId === 'sales') {
+      userService.list({ pageSize: 500 }).then(r => setUsersList(r.data)).catch(() => {});
+    }
+  }, [activeId]);
 
   // Reset to reports home when user navigates to /reports (e.g. clicking sidebar link again)
   useEffect(() => {
@@ -90,6 +100,7 @@ export function Reports() {
       const params: Record<string, string> = { ...(active.extraParams ?? {}) };
       if (active.params.includes('dates')) { params.from = from; params.to = to; }
       if (active.params.includes('date')) { params.date = date; }
+      if (active.params.includes('user') && userId) { params.userId = String(userId); }
 
       const blob = await apiClient.getBlob(endpoint, { params, timeout: 120_000 });
       setPdfUrl(URL.createObjectURL(blob));
@@ -98,7 +109,7 @@ export function Reports() {
     } finally {
       setLoading(false);
     }
-  }, [active, from, to, date, customer, supplier, accountId, pdfUrl]);
+  }, [active, from, to, date, customer, supplier, accountId, userId, pdfUrl]);
 
   const openReport = (id: ReportId) => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
@@ -108,6 +119,7 @@ export function Reports() {
     setCustomer(null);
     setSupplier(null);
     setAccountId(null);
+    setUserId('');
   };
 
   const backToDashboard = () => {
@@ -196,6 +208,18 @@ export function Reports() {
         )}
         {active.params.includes('account') && (
           <AccountSelect value={accountId} onChange={id => setAccountId(id)} className="w-52" filter="all" />
+        )}
+        {active.params.includes('user') && (
+          <select
+            value={userId}
+            onChange={e => setUserId(e.target.value ? Number(e.target.value) : '')}
+            className={inputCls}
+          >
+            <option value="">All Cashiers/Admins</option>
+            {usersList.map(u => (
+              <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+            ))}
+          </select>
         )}
 
         {active.params.includes('dates') && (

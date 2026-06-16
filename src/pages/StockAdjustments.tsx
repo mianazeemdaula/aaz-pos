@@ -14,7 +14,7 @@ export function StockAdjustments() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<{ variantId?: number; variantName?: string; qty: number; type: string; reason: string; cost?: number }>({ qty: 1, type: 'ADJUST', reason: '' });
+  const [form, setForm] = useState<{ productId?: number; variantName?: string; qty: number; type: string; reason: string; cost?: number }>({ qty: 1, type: 'ADJUST', reason: '' });
   const [saving, setSaving] = useState(false);
   const PAGE_SIZE = 20;
 
@@ -27,9 +27,18 @@ export function StockAdjustments() {
   useEffect(() => { load(); }, [load]);
 
   const save = async () => {
-    if (!form.variantId || !form.qty || !form.reason) return;
+    if (!form.productId || !form.qty || !form.reason) return;
     setSaving(true);
-    try { await stockMovementService.adjust({ productId: form.variantId!, quantity: form.qty, note: form.reason || undefined }); setModal(false); load(); }
+    const adjustedQty = form.type === 'OUT' ? -Math.abs(form.qty) : form.qty;
+    try {
+      await stockMovementService.adjust({
+        productId: form.productId!,
+        quantity: adjustedQty,
+        note: form.reason || undefined
+      });
+      setModal(false);
+      load();
+    }
     catch (e: unknown) { alert(e instanceof Error ? e.message : 'Error'); }
     finally { setSaving(false); }
   };
@@ -82,7 +91,7 @@ export function StockAdjustments() {
       <Modal open={modal} onClose={() => setModal(false)} title="New Stock Adjustment" size="sm">
         <div className="space-y-3">
           <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Product *</label>
-            <ProductSearch onSelect={(v: ProductVariant) => setForm(p => ({ ...p, variantId: v.id, variantName: v.name }))} />
+            <ProductSearch onSelect={(v: ProductVariant) => setForm(p => ({ ...p, productId: v.productId, variantName: v.product?.name ?? v.name }))} />
             {form.variantName && <p className="mt-1 text-xs text-primary-600">{form.variantName}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -101,7 +110,7 @@ export function StockAdjustments() {
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setModal(false)} className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-            <button onClick={save} disabled={saving || !form.variantId || !form.reason} className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
+            <button onClick={save} disabled={saving || !form.productId || !form.reason} className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
               {saving && <Loader2 size={13} className="animate-spin" />} Save
             </button>
           </div>
