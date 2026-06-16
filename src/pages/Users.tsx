@@ -33,14 +33,14 @@ export function Users() {
     try {
       modal?.mode === 'edit' && modal.item ? await userService.update(modal.item.id, form) : await userService.create(form);
       setModal(null); load();
-    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Error'); }
+    } catch (e: any) { alert(e?.error?.message || e?.error || (e instanceof Error ? e.message : 'Error')); }
     finally { setSaving(false); }
   };
 
   const del = async () => {
     if (!confirm) return;
     try { await userService.delete(confirm.id); load(); }
-    catch (e: unknown) { alert(e instanceof Error ? e.message : 'Error'); }
+    catch (e: any) { alert(e?.error?.message || e?.error || (e instanceof Error ? e.message : 'Error')); }
     finally { setConfirm(null); }
   };
 
@@ -112,7 +112,7 @@ export function Users() {
           </label>
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setModal(null)} className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-            <button onClick={save} disabled={saving || !form.name || !form.username} className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
+            <button onClick={save} disabled={saving || !form.name || !form.username || (modal?.mode === 'add' ? (!form.password || form.password.length < 6) : (!!form.password && form.password.length < 6))} className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
               {saving && <Loader2 size={13} className="animate-spin" />} Save
             </button>
           </div>
