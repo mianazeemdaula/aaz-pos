@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
-import { Search, Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight, Tag } from 'lucide-react';
-import { categoryService } from '../services/pos.service';
+import { useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { Search, Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight, Tag, Upload, Download } from 'lucide-react';
+import { categoryService, dataService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import type { Category } from '../types/pos';
@@ -32,6 +32,10 @@ export function Categories() {
   const [confirm, setConfirm] = useState<{ id: number } | null>(null);
   const [form, setForm] = useState<Partial<Category>>({});
   const [saving, setSaving] = useState(false);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvImportResult, setCsvImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +88,25 @@ export function Categories() {
     finally { setConfirm(null); }
   };
 
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvImporting(true);
+    try {
+      const result = await dataService.importCSV('categories', file);
+      setCsvImportResult(result);
+      load();
+    } catch (err: unknown) { alert(err instanceof Error ? err.message : 'Import failed'); }
+    finally { setCsvImporting(false); if (csvFileInputRef.current) csvFileInputRef.current.value = ''; }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try { await dataService.exportCSV('categories'); }
+    catch (err: unknown) { alert(err instanceof Error ? err.message : 'Export failed'); }
+    finally { setExporting(false); }
+  };
+
   const openEdit = (item: Category) => {
     setForm({ ...item, parentId: item.parentId ?? undefined });
     setModal({ mode: 'edit', item });
@@ -134,10 +157,21 @@ export function Categories() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Categories</h1>
-        <button onClick={() => { setForm({}); setModal({ mode: 'add' }); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
-          <Plus size={14} /> Add
-        </button>
+        <div className="flex items-center gap-2">
+          <input ref={csvFileInputRef} type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
+          <button onClick={handleExport} disabled={exporting}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg disabled:opacity-50">
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Export
+          </button>
+          <button onClick={() => csvFileInputRef.current?.click()} disabled={csvImporting}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg disabled:opacity-50">
+            {csvImporting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Import
+          </button>
+          <button onClick={() => { setForm({}); setModal({ mode: 'add' }); }}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
+            <Plus size={14} /> Add
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
@@ -214,6 +248,26 @@ export function Categories() {
       <ConfirmDialog open={!!confirm} title="Delete Category"
         message="This will delete the category. Subcategories will become root categories and products will be unlinked."
         variant="danger" confirmLabel="Delete" onConfirm={del} onCancel={() => setConfirm(null)} />
+      {csvImportResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-5 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Import Results</h2>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><p className="font-medium text-gray-700 dark:text-gray-300">Imported</p><p className="text-2xl font-bold text-green-600">{csvImportResult.imported}</p></div>
+              <div><p className="font-medium text-gray-700 dark:text-gray-300">Skipped</p><p className="text-2xl font-bold text-yellow-600">{csvImportResult.skipped}</p></div>
+            </div>
+            {csvImportResult.errors.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-red-600">Errors ({csvImportResult.errors.length})</p>
+                <ul className="mt-1 max-h-32 overflow-y-auto text-xs text-red-500 space-y-0.5">
+                  {csvImportResult.errors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              </div>
+            )}
+            <button onClick={() => setCsvImportResult(null)} className="w-full px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">Close</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

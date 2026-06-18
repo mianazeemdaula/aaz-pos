@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Pencil, Trash2, Loader2, Package, Upload, Eye, X, History, Boxes } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Loader2, Package, Upload, Eye, X, History, Boxes, Download } from 'lucide-react';
 import { Pagination } from '../components/ui/Pagination';
-import { productService, categoryService } from '../services/pos.service';
+import { productService, categoryService, dataService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import type { Product, Category } from '../types/pos';
 
@@ -223,6 +223,10 @@ export function Products() {
   const [viewProduct, setViewProduct] = useState<Product | null>(null);
   const [historyProduct, setHistoryProduct] = useState<Product | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvImportResult, setCsvImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
+  const [exporting, setExporting] = useState(false);
 
   const PAGE_SIZE = 20;
 
@@ -266,6 +270,29 @@ export function Products() {
     }
   };
 
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvImporting(true);
+    try {
+      const result = await dataService.importCSV('products', file);
+      setCsvImportResult(result);
+      load();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Import failed');
+    } finally {
+      setCsvImporting(false);
+      if (csvFileInputRef.current) csvFileInputRef.current.value = '';
+    }
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try { await dataService.exportCSV('products'); }
+    catch (err: unknown) { alert(err instanceof Error ? err.message : 'Export failed'); }
+    finally { setExporting(false); }
+  };
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
@@ -273,10 +300,22 @@ export function Products() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Products</h1>
         <div className="flex items-center gap-2">
+          {/* Hidden: existing JSON import (preserved for future use) */}
           <input ref={fileInputRef} type="file" accept=".json" onChange={handleImportFile} className="hidden" />
-          <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+          <div style={{ display: 'none' }}>
+            <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg disabled:opacity-50">
+              {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Import JSON
+            </button>
+          </div>
+          <input ref={csvFileInputRef} type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
+          <button onClick={handleExport} disabled={exporting}
             className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg disabled:opacity-50">
-            {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Import JSON
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Export
+          </button>
+          <button onClick={() => csvFileInputRef.current?.click()} disabled={csvImporting}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm rounded-lg disabled:opacity-50">
+            {csvImporting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Import
           </button>
           <button onClick={() => navigate('/products/new')}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
@@ -408,6 +447,36 @@ export function Products() {
               </div>
             )}
             <button onClick={() => setImportResult(null)}
+              className="w-full px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {csvImportResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-5 space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Import Results</h2>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <p className="font-medium text-gray-700 dark:text-gray-300">Imported</p>
+                <p className="text-2xl font-bold text-green-600">{csvImportResult.imported}</p>
+              </div>
+              <div>
+                <p className="font-medium text-gray-700 dark:text-gray-300">Skipped</p>
+                <p className="text-2xl font-bold text-yellow-600">{csvImportResult.skipped}</p>
+              </div>
+            </div>
+            {csvImportResult.errors.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-red-600">Errors ({csvImportResult.errors.length})</p>
+                <ul className="mt-1 max-h-32 overflow-y-auto text-xs text-red-500 space-y-0.5">
+                  {csvImportResult.errors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              </div>
+            )}
+            <button onClick={() => setCsvImportResult(null)}
               className="w-full px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
               Close
             </button>

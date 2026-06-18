@@ -213,4 +213,16 @@ export const API_ENDPOINTS = {
         list: '/tax-schedules',
         detail: (id: number) => `/tax-schedules/${id}`,
     },
+    data: {
+        exportProducts: '/data/export/products',
+        exportBrands: '/data/export/brands',
+        exportCategories: '/data/export/categories',
+        exportCustomers: '/data/export/customers',
+        exportSuppliers: '/data/export/suppliers',
+        importProducts: '/data/import/products',
+        importBrands: '/data/import/brands',
+        importCategories: '/data/import/categories',
+        importCustomers: '/data/import/customers',
+        importSuppliers: '/data/import/suppliers',
+    },
 } as const;

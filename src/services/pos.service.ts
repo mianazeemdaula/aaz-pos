@@ -252,3 +252,35 @@ export const taxScheduleService = {
   list: () => apiClient.get<TaxSchedule[]>(API_ENDPOINTS.taxSchedules.list),
   get: (id: number) => apiClient.get<TaxSchedule>(API_ENDPOINTS.taxSchedules.detail(id)),
 };
+
+// ---- Import/Export ----
+export const dataService = {
+  exportCSV: async (type: 'products' | 'brands' | 'categories' | 'customers' | 'suppliers') => {
+    const endpoints: Record<string, string> = {
+      products: API_ENDPOINTS.data.exportProducts,
+      brands: API_ENDPOINTS.data.exportBrands,
+      categories: API_ENDPOINTS.data.exportCategories,
+      customers: API_ENDPOINTS.data.exportCustomers,
+      suppliers: API_ENDPOINTS.data.exportSuppliers,
+    };
+    const blob = await apiClient.getBlob(endpoints[type]);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${type}-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  },
+  importCSV: async (type: 'products' | 'brands' | 'categories' | 'customers' | 'suppliers', file: File) => {
+    const endpoints: Record<string, string> = {
+      products: API_ENDPOINTS.data.importProducts,
+      brands: API_ENDPOINTS.data.importBrands,
+      categories: API_ENDPOINTS.data.importCategories,
+      customers: API_ENDPOINTS.data.importCustomers,
+      suppliers: API_ENDPOINTS.data.importSuppliers,
+    };
+    return apiClient.uploadFile<{ imported: number; skipped: number; errors: string[] }>(endpoints[type], file, 'file');
+  },
+};
