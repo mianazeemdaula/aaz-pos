@@ -759,17 +759,17 @@ export function Sale() {
               <p className="text-xs mt-1 text-gray-300">F2 Scan &middot; F3 Qty &middot; F5 Search &middot; F7 Save &middot; F8 Hold &middot; F9 Held &middot; F12 Clear</p>
             </div>
           ) : (
-            <table className="w-full text-xs">
+            <table className="w-full text-xs table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-                  <th className="text-left px-3 py-2 font-medium text-gray-500 ">Product</th>
-                  <th className="text-left px-3 py-2 font-medium text-gray-500">Varient</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-28">Qty</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-32">Price</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-500">Product</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500 w-28">Variant</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Qty</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Price</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Disc</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-20">Tax</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Rate</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Total</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Tax</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-20">Rate</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Total</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
@@ -782,16 +782,16 @@ export function Sale() {
                   const hasWholesale = item.variant.wholesale != null;
                   return (
                     <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-3 py-1.5">
-                        <p className="font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{item.product.name}</p>
-                        <p className="text-gray-400 text-xs">{item.variant.barcode} &middot; {item.variant.name}</p>
+                      <td className="px-3 py-1.5 align-middle">
+                        <p className="font-medium text-gray-900 dark:text-gray-100 break-words">{item.product.name}</p>
+                        <p className="text-gray-400 text-xs truncate" title={`${item.variant.barcode} · ${item.variant.name}`}>{item.variant.barcode} &middot; {item.variant.name}</p>
                       </td>
-                      <td>
-                        {variants.length > 1 && (
+                      <td className="px-2 py-1.5 align-middle">
+                        {variants.length > 1 ? (
                           <select
                             value={item.variant.id}
                             onChange={e => changeVariant(idx, Number(e.target.value))}
-                            className="mt-0.5 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 max-w-40"
+                            className="text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 w-full"
                           >
                             {variants.map(v => (
                               <option key={v.id} value={v.id}>
@@ -799,9 +799,11 @@ export function Sale() {
                               </option>
                             ))}
                           </select>
+                        ) : (
+                          <span className="text-gray-500 text-xs">{item.variant.name}</span>
                         )}
                       </td>
-                      <td className="px-2 py-1.5">
+                      <td className="px-2 py-1.5 align-middle">
                         <div className="flex items-center justify-center gap-1">
                           <button onClick={() => updateQty(idx, -1)} className="w-5 h-5 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center"><Minus size={10} /></button>
                           <input
@@ -816,19 +818,17 @@ export function Sale() {
                           <button onClick={() => updateQty(idx, 1)} className="w-5 h-5 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center"><Plus size={10} /></button>
                         </div>
                       </td>
-                      <td className="px-2 py-1.5 text-center">
-                        <div className="flex flex-col items-center gap-0.5">
-                          {allowPriceChange ? (
-                            <input type="number" value={item.price} min={0} step="0.01"
-                              onChange={e => updateField(idx, 'price', Math.max(0, Number(e.target.value)))}
-                              className="w-20 text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 text-xs font-medium" />
-                          ) : (
-                            <span className="font-medium text-gray-900 dark:text-gray-100">{item.price.toFixed(2)}</span>
-                          )}
-                        </div>
+                      <td className="px-2 py-1.5 align-middle text-center">
+                        {allowPriceChange ? (
+                          <input type="number" value={item.price} min={0} step="0.01"
+                            onChange={e => updateField(idx, 'price', Math.max(0, Number(e.target.value)))}
+                            className="w-full text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 text-xs font-medium" />
+                        ) : (
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{item.price.toFixed(2)}</span>
+                        )}
                       </td>
-                      <td className="px-1 py-1.5">
-                        <div className="flex items-center gap-0.5">
+                      <td className="px-2 py-1.5 align-middle">
+                        <div className="flex items-center justify-center gap-0.5">
                           <input type="number" value={item.discount} min={0} max={item.discountType === 'PERCENTAGE' ? 100 : undefined} step="0.01"
                             onChange={e => updateField(idx, 'discount', item.discountType === 'PERCENTAGE' ? Math.min(100, Math.max(0, Number(e.target.value))) : Math.max(0, Number(e.target.value)))}
                             className="w-14 text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
@@ -841,26 +841,26 @@ export function Sale() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-2 py-1.5 text-right flex">
-                        <span>
-                          {item.taxRate > 0 && (
-                            <p className="text-primary-600">{lc.taxAmt.toFixed(2)}</p>
-                          )}
-                        </span>
-                        <span>
-                          {item.taxMethod === 'INCLUSIVE' && item.taxRate > 0 && (
-                            <span className="text-[10px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded mt-0.5 inline-block">Incl.</span>
-                          )}
-                        </span>
+                      <td className="px-2 py-1.5 align-middle text-center">
+                        {item.taxRate > 0 ? (
+                          <div className="inline-flex items-center justify-center gap-1 flex-wrap">
+                            <span className="text-primary-600 font-medium">{lc.taxAmt.toFixed(2)}</span>
+                            {item.taxMethod === 'INCLUSIVE' && (
+                              <span className="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1 py-0.5 rounded">Incl.</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
-                      <td>
-                        <div className='text-center'>
+                      <td className="px-2 py-1.5 align-middle">
+                        <div className="flex justify-center">
                           {(hasRetail || hasWholesale) ? (
                             <select
                               value={item.priceType}
                               onChange={e => changePriceType(idx, e.target.value as PriceType)}
                               disabled={!allowPriceChange}
-                              className={`text-xs w-14 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 ${!allowPriceChange ? 'opacity-60 cursor-not-allowed' : ''}`}
+                              className={`text-xs w-full border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 ${!allowPriceChange ? 'opacity-60 cursor-not-allowed' : ''}`}
                             >
                               <option value="MRP">MRP</option>
                               {hasRetail && <option value="Retail">Retail</option>}
@@ -871,8 +871,8 @@ export function Sale() {
                           )}
                         </div>
                       </td>
-                      <td className="px-2 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(lc.lineTotal)}</td>
-                      <td className="px-1 py-1.5">
+                      <td className="px-2 py-1.5 align-middle text-right font-medium text-gray-900 dark:text-gray-100">{fmt(lc.lineTotal)}</td>
+                      <td className="px-1 py-1.5 align-middle text-center">
                         <button onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500 dark:hover:text-red-400"><Trash2 size={13} /></button>
                       </td>
                     </tr>

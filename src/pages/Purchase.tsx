@@ -307,20 +307,32 @@ export function Purchase() {
   }, [hasDraft]);
 
   // Cart actions — scan/search returns a variant; we use its parent product for the purchase
-  const addProduct = useCallback((v: ProductVariant) => {
+  const addProduct = useCallback(async (v: ProductVariant) => {
     const product = v.product;
     if (!product) return;
+
+    let baseCost = product.avgCostPrice || 0;
+    try {
+      const history = await productService.getHistory(product.id);
+      if (history && history.recentPurchases && history.recentPurchases.length > 0) {
+        baseCost = history.recentPurchases[0].unitCost || 0;
+      }
+    } catch (err) {
+      console.error('Failed to fetch product history:', err);
+    }
+    const costPerUnit = baseCost * (v.factor || 1);
+
     setCart(prev => {
       const idx = prev.findIndex(i => i.variant.id === v.id);
       if (idx >= 0) {
         const next = [...prev];
         const cur = next[idx];
-        const unitCost = cur.qty > 0 ? cur.totalCost / cur.qty : 0;
+        const unitCost = cur.qty > 0 ? cur.totalCost / cur.qty : costPerUnit;
         next[idx] = { ...cur, qty: cur.qty + 1, totalCost: (cur.qty + 1) * unitCost };
         return next;
       }
       const sellingPrice = v.price || 0;
-      return [{ product, variant: { ...v, product }, qty: 1, totalCost: 0, discount: 0, discountType: 'FIXED' as DiscountType, unitRate: sellingPrice }, ...prev];
+      return [{ product, variant: { ...v, product }, qty: 1, totalCost: costPerUnit, discount: 0, discountType: 'FIXED' as DiscountType, unitRate: sellingPrice }, ...prev];
     });
     setBarcode('');
     setTimeout(() => barcodeRef.current?.focus(), 30);
@@ -715,13 +727,13 @@ export function Purchase() {
               <p className="text-xs mt-1 text-gray-300">F2 Scan · F3 Qty · F5 Search · F7 Save · F8 Hold · F9 Held · F12 Clear</p>
             </div>
           ) : (
-            <table className="w-full text-xs">
+            <table className="w-full text-xs table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
                   <th className="text-left px-3 py-2 font-medium text-gray-500">Product</th>
-                  <th className="text-left px-2 py-2 font-medium text-gray-500">Variant</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-28">Qty</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-32">Total Cost</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500 w-32">Variant</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Qty</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-28">Total Cost</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Disc</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-28">Sale Rate</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Profit</th>
@@ -741,20 +753,20 @@ export function Purchase() {
                   const variants = item.product.variants ?? [];
                   return (
                     <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-3 py-1.5">
-                        <p className="font-medium text-gray-900 dark:text-gray-100">{item.product.name}</p>
-                        <p className="text-gray-400 text-[11px] whitespace-nowrap">
+                      <td className="px-3 py-1.5 align-middle">
+                        <p className="font-medium text-gray-900 dark:text-gray-100 break-words">{item.product.name}</p>
+                        <p className="text-gray-400 text-[11px] truncate" title={item.variant.barcode ? `${item.variant.barcode} @ ${fmt(unitCost)}/unit` : `@ ${fmt(unitCost)}/unit`}>
                           {item.variant.barcode && <span className="mr-1">{item.variant.barcode}</span>}
                           <span>@ {fmt(unitCost)}/unit</span>
                           {item.variant.factor > 1 && <span className="ml-1 text-primary-500">×{item.variant.factor}</span>}
                         </p>
                       </td>
-                      <td className="px-1 py-1.5">
+                      <td className="px-2 py-1.5 align-middle">
                         {variants.length > 1 ? (
                           <select
                             value={item.variant.id}
                             onChange={e => changeVariant(idx, Number(e.target.value))}
-                            className="text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 max-w-32"
+                            className="text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 w-full"
                           >
                             {variants.map(v => (
                               <option key={v.id} value={v.id}>
@@ -766,7 +778,7 @@ export function Purchase() {
                           <span className="text-xs text-gray-500">{item.variant.name}</span>
                         )}
                       </td>
-                      <td className="px-1 py-1.5">
+                      <td className="px-2 py-1.5 align-middle">
                         <div className="flex items-center justify-center gap-1">
                           <button onClick={() => updateQty(idx, -1)} className="w-5 h-5 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center"><Minus size={10} /></button>
                           <input
@@ -781,12 +793,12 @@ export function Purchase() {
                           <button onClick={() => updateQty(idx, 1)} className="w-5 h-5 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center"><Plus size={10} /></button>
                         </div>
                       </td>
-                      <td className="px-1 py-1.5">
+                      <td className="px-2 py-1.5 align-middle">
                         <input type="number" value={item.totalCost} min={0} step="0.01" onChange={e => updateField(idx, 'totalCost', Number(e.target.value))}
                           className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
                       </td>
-                      <td className="px-1 py-1.5">
-                        <div className="flex items-center gap-0.5">
+                      <td className="px-2 py-1.5 align-middle">
+                        <div className="flex items-center justify-end gap-0.5">
                           <input type="number" value={item.discount} min={0} max={item.discountType === 'PERCENTAGE' ? 100 : undefined} step="0.01"
                             onChange={e => updateField(idx, 'discount', item.discountType === 'PERCENTAGE' ? Math.min(100, Math.max(0, Number(e.target.value))) : Math.max(0, Number(e.target.value)))}
                             className="w-14 text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
@@ -799,7 +811,7 @@ export function Purchase() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-1 py-1.5">
+                      <td className="px-2 py-1.5 align-middle">
                         {allowPriceChange ? (
                           <input type="number" value={item.unitRate} min={0} step="0.01"
                             onChange={e => updateField(idx, 'unitRate', Number(e.target.value))}
@@ -808,11 +820,11 @@ export function Purchase() {
                           <p className='text-right w-full'>{item.unitRate}</p>
                         )}
                       </td>
-                      <td className={`px-1 py-1.5 text-right text-xs font-medium ${profitTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                      <td className={`px-2 py-1.5 align-middle text-right text-xs font-medium ${profitTotal >= 0 ? 'text-green-600' : 'text-red-500'}`}>
                         {profitTotal !== 0 ? fmt(profitTotal) : '—'}
                       </td>
-                      <td className="px-1 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(netTotal)}</td>
-                      <td className="px-1 py-1.5">
+                      <td className="px-2 py-1.5 align-middle text-right font-medium text-gray-900 dark:text-gray-100">{fmt(netTotal)}</td>
+                      <td className="px-1 py-1.5 align-middle text-center">
                         <button onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500 dark:hover:text-red-400"><Trash2 size={13} /></button>
                       </td>
                     </tr>
