@@ -751,7 +751,7 @@ export function Sale() {
         </div>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <ShoppingCartIcon />
@@ -759,17 +759,17 @@ export function Sale() {
               <p className="text-xs mt-1 text-gray-300">F2 Scan &middot; F3 Qty &middot; F5 Search &middot; F7 Save &middot; F8 Hold &middot; F9 Held &middot; F12 Clear</p>
             </div>
           ) : (
-            <table className="w-full text-xs table-fixed">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-                  <th className="text-left px-3 py-2 font-medium text-gray-500">Product</th>
-                  <th className="text-left px-2 py-2 font-medium text-gray-500 w-28">Variant</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Qty</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Price</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Disc</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Tax</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-20">Rate</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Total</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-500 min-w-[160px]">Product</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500 w-[100px]">Variant</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-[96px]">Qty</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-[88px]">Price</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-[112px]">Disc</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-[76px]">Tax</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-[88px]">Rate</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[104px]">Total</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
@@ -782,11 +782,11 @@ export function Sale() {
                   const hasWholesale = item.variant.wholesale != null;
                   return (
                     <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-3 py-1.5 align-middle">
+                      <td className="px-3 py-1.5 align-middle min-w-28">
                         <p className="font-medium text-gray-900 dark:text-gray-100 break-words">{item.product.name}</p>
                         <p className="text-gray-400 text-xs truncate" title={`${item.variant.barcode} · ${item.variant.name}`}>{item.variant.barcode} &middot; {item.variant.name}</p>
                       </td>
-                      <td className="px-2 py-1.5 align-middle">
+                      <td className="px-2 py-1.5 align-middle min-w-26">
                         {variants.length > 1 ? (
                           <select
                             value={item.variant.id}

@@ -719,7 +719,7 @@ export function Purchase() {
         </div>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-gray-400">
               <BoxIcon />
@@ -727,17 +727,17 @@ export function Purchase() {
               <p className="text-xs mt-1 text-gray-300">F2 Scan · F3 Qty · F5 Search · F7 Save · F8 Hold · F9 Held · F12 Clear</p>
             </div>
           ) : (
-            <table className="w-full text-xs table-fixed">
+            <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-                  <th className="text-left px-3 py-2 font-medium text-gray-500">Product</th>
-                  <th className="text-left px-2 py-2 font-medium text-gray-500 w-32">Variant</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-24">Qty</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-28">Total Cost</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Disc</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-28">Sale Rate</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Profit</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-24">Net</th>
+                  <th className="text-left px-3 py-2 font-medium text-gray-500 min-w-[160px]">Product</th>
+                  <th className="text-left px-2 py-2 font-medium text-gray-500 w-[100px]">Variant</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-center w-[96px]">Qty</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[112px]">Total Cost</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[112px]">Disc</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[100px]">Sale Rate</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[88px]">Profit</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[104px]">Net</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
