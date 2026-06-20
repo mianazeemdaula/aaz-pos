@@ -26,7 +26,7 @@ const PAPER_WIDTH_PX: Record<string, number> = {
 // Cache logo base64 in memory so we only fetch once per session
 let _cachedLogoBase64: string | null | undefined = undefined; // undefined = not yet fetched
 
-async function fetchLogoBase64(): Promise<string | undefined> {
+export async function fetchLogoBase64(): Promise<string | undefined> {
     if (_cachedLogoBase64 !== undefined) return _cachedLogoBase64 ?? undefined;
     try {
         const res = await apiClient.get<{ base64: string }>(API_ENDPOINTS.settings.logo);

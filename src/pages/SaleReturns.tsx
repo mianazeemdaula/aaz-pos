@@ -54,7 +54,7 @@ export function SaleReturns() {
 
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
   const [returnItems, setReturnItems] = useState<
-    { variantId: number; qty: number; maxQty: number; unitPrice: number; discount: number; name: string }[]
+    { variantId: number; qty: number; maxQty: number; unitPrice: number; discount: number; unitTax: number; taxMethod: string; name: string }[]
   >([]);
   const [returnReason, setReturnReason] = useState('');
   const [returnLoading, setReturnLoading] = useState(false);
@@ -90,15 +90,36 @@ export function SaleReturns() {
     try {
       const detail = await saleService.get(sale.id);
       const positiveItems = (detail.items ?? []).filter(i => i.quantity > 0);
+      
+      const originalSubtotal = positiveItems.reduce(
+        (sum, item) => sum + (item.unitPrice - item.discount) * item.quantity,
+        0
+      );
+      const invoiceDiscountRatio = originalSubtotal > 0 ? (detail.discount / originalSubtotal) : 0;
+
       setReturnSale(detail);
-      setReturnItems(positiveItems.map(i => ({
-        variantId: i.variantId,
-        qty: 0,
-        maxQty: i.quantity,
-        unitPrice: i.unitPrice,
-        discount: i.discount,
-        name: i.variant?.product?.name ?? `#${i.variant?.barcode ?? i.variantId}`,
-      })));
+      setReturnItems(positiveItems.map(i => {
+        const propInvoiceDiscount = (i.unitPrice - i.discount) * invoiceDiscountRatio;
+        const totalUnitDiscount = i.discount + propInvoiceDiscount;
+
+        const netPrice = i.unitPrice - i.discount;
+        const taxRate = i.variant?.product?.taxRate ?? 0;
+        const taxMethod = i.variant?.product?.taxMethod ?? 'EXCLUSIVE';
+        const unitTax = taxMethod === 'INCLUSIVE'
+            ? (netPrice * taxRate) / (100 + taxRate)
+            : (netPrice * taxRate) / 100;
+
+        return {
+          variantId: i.variantId,
+          qty: 0,
+          maxQty: i.quantity,
+          unitPrice: i.unitPrice,
+          discount: totalUnitDiscount,
+          unitTax,
+          taxMethod,
+          name: i.variant?.product?.name ?? `#${i.variant?.barcode ?? i.variantId}`,
+        };
+      }));
       setReturnReason('');
     } catch { showToast('error', 'Failed to load sale details'); }
     finally { setReturnLoading(false); }
@@ -109,13 +130,21 @@ export function SaleReturns() {
     const selectedItems = returnItems.filter(i => i.qty > 0);
     if (!selectedItems.length) { showToast('error', 'Select at least one item to return'); return; }
     setReturnLoading(true);
+
+    const refundTaxAmount = selectedItems.reduce((sum, item) => sum + item.unitTax * item.qty, 0);
+
     try {
       await saleService.create({
         customerId: returnSale.customerId ?? undefined,
-        items: selectedItems.map(i => ({ variantId: i.variantId, qty: -i.qty, unitPrice: i.unitPrice, discount: 0 })),
+        items: selectedItems.map(i => ({
+          variantId: i.variantId,
+          qty: -i.qty,
+          unitPrice: i.unitPrice,
+          discount: Number(i.discount.toFixed(4)),
+        })),
         payments: [],
         discount: 0,
-        taxAmount: 0,
+        taxAmount: -Number(refundTaxAmount.toFixed(4)),
         note: returnReason || undefined,
       });
       setReturnSale(null);
@@ -322,7 +351,16 @@ export function SaleReturns() {
                   <div key={i} className="flex items-center gap-3 py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{item.name}</p>
-                      <p className="text-xs text-gray-400">Rs {item.unitPrice} &times; max {item.maxQty}</p>
+                      <p className="text-xs text-gray-400">
+                        {item.discount > 0 ? (
+                          <>
+                            Rs {(item.unitPrice - item.discount).toFixed(2)} <span className="line-through text-red-400 text-[10px]">Rs {item.unitPrice}</span>
+                          </>
+                        ) : (
+                          `Rs ${item.unitPrice}`
+                        )}
+                        {" "} &times; max {item.maxQty}
+                      </p>
                     </div>
                     <input type="number" min={0} max={item.maxQty} value={item.qty}
                       onChange={e => {
@@ -337,7 +375,7 @@ export function SaleReturns() {
                   <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-sm">
                     <div className="flex justify-between font-semibold text-orange-700 dark:text-orange-400">
                       <span>Total Refund</span>
-                      <span>Rs {returnItems.reduce((s, i) => s + i.qty * i.unitPrice, 0).toLocaleString('en-PK')}</span>
+                      <span>Rs {returnItems.reduce((s, i) => s + i.qty * (i.unitPrice - i.discount + (i.taxMethod === 'EXCLUSIVE' ? i.unitTax : 0)), 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <p className="text-xs text-orange-600 mt-1">
                       {returnSale.customerId ? 'Will be credited to customer account' : 'Walk-in return  issue cash refund manually'}

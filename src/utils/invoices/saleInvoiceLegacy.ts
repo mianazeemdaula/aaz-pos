@@ -3,12 +3,13 @@
  */
 import type { Sale, Customer } from '../../types/pos';
 import {
-    title, textLeft, textCenter, textRight, line, feed, table, cell, imageFromFile,
+    title, textLeft, textCenter, textRight, line, feed, table, cell, image, imageFromFile,
     buildPrintJob, printDocument,
     type PrintSection, type PrintJobRequest,
 } from '../thermalPrinter';
 import { loadThermalConfig } from '../thermalPrinter';
 import { buildFbrCompositeBase64 } from './fbrComposite';
+import { fetchLogoBase64 } from './saleInvoice';
 
 const fmt = (n: number) => n.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtDate = (d: string) => {
@@ -38,6 +39,11 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData): Promise<P
     // Logo (if configured)
     if (config.businessLogoPath) {
         sections.push(await imageFromFile(config.businessLogoPath));
+    } else {
+        const logoBase64 = await fetchLogoBase64();
+        if (logoBase64) {
+            sections.push(image(logoBase64));
+        }
     }
 
     // Header
