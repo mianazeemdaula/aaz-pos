@@ -16,6 +16,7 @@ interface PaymentForm {
     note: string;
     date: string;
     customer: Customer | null;
+    type: 'RECEIVED' | 'SENT';
 }
 
 export function CustomerPayments() {
@@ -31,6 +32,7 @@ export function CustomerPayments() {
         note: '',
         date: new Date().toISOString().slice(0, 10),
         customer: null,
+        type: 'RECEIVED',
     });
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -72,6 +74,7 @@ export function CustomerPayments() {
             note: '',
             date: new Date().toISOString().slice(0, 10),
             customer: selectedCustomer,
+            type: 'RECEIVED',
         });
         setModal(true);
     };
@@ -91,6 +94,7 @@ export function CustomerPayments() {
                 accountId: form.accountId,
                 note: form.note.trim() || undefined,
                 date: form.date || undefined,
+                type: form.type,
             });
             setModal(false);
             // refresh customer balance if the selected one was paid
@@ -226,9 +230,10 @@ export function CustomerPayments() {
                                 <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider">
                                     <th className="px-4 py-2.5">#</th>
                                     <th className="px-4 py-2.5">Date</th>
+                                    <th className="px-4 py-2.5">Type</th>
                                     <th className="px-4 py-2.5">Account</th>
                                     <th className="px-4 py-2.5">Note</th>
-                                    <th className="px-4 py-2.5 text-right">Amount Received</th>
+                                    <th className="px-4 py-2.5 text-right">Amount</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -244,11 +249,16 @@ export function CustomerPayments() {
                                             })}
                                         </td>
                                         <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'SENT' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                {p.type === 'SENT' ? 'Refund' : 'Received'}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
                                             {p.account?.name ?? '—'}
                                         </td>
                                         <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
-                                        <td className="px-4 py-2.5 text-right font-semibold text-green-600">
-                                            {fmt(p.amount)}
+                                        <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'SENT' ? 'text-red-600' : 'text-green-600'}`}>
+                                            {p.type === 'SENT' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
                                         </td>
                                     </tr>
                                 ))}
@@ -283,7 +293,7 @@ export function CustomerPayments() {
             </div>
 
             {/* Receive Payment Modal */}
-            <Modal open={modal} onClose={() => setModal(false)} title="Receive Customer Payment">
+            <Modal open={modal} onClose={() => setModal(false)} title="Customer Payment">
                 <div className="space-y-4">
                     <div>
                         <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
@@ -293,6 +303,20 @@ export function CustomerPayments() {
                             value={form.customer}
                             onSelect={c => setForm(prev => ({ ...prev, customer: c }))}
                         />
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
+                            Payment Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            value={form.type}
+                            onChange={e => setForm(prev => ({ ...prev, type: e.target.value as 'RECEIVED' | 'SENT' }))}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                            <option value="RECEIVED">Received from Customer</option>
+                            <option value="SENT">Paid to Customer (Refund)</option>
+                        </select>
                     </div>
 
                     <div>
@@ -312,7 +336,7 @@ export function CustomerPayments() {
 
                     <div>
                         <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
-                            Receive Into Account <span className="text-red-500">*</span>
+                            {form.type === 'RECEIVED' ? 'Receive Into Account' : 'Pay From Account'} <span className="text-red-500">*</span>
                         </label>
                         <AccountSelect
                             value={form.accountId}

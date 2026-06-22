@@ -15,7 +15,7 @@ type MenuItem = { label: string; icon: React.FC<{ size?: number; className?: str
 type MenuGroup = { heading: string; items: MenuItem[] };
 
 /** Paths a CASHIER is allowed to visit */
-const CASHIER_PATHS = new Set(['/sale', '/sale/returns']);
+const CASHIER_PATHS = new Set(['/sale', '/sale/returns', '/payments', '/customer-payments', '/supplier-payments']);
 
 const MENU: MenuGroup[] = [
   {

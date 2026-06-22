@@ -2,7 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 /** Paths a CASHIER is allowed to visit */
-const CASHIER_PATHS = ['/sale', '/sale/returns'];
+const CASHIER_PATHS = ['/sale', '/sale/returns', '/payments', '/customer-payments', '/supplier-payments'];
 
 export function ProtectedRoute() {
     const { user, isAuthenticated, isLoading } = useAuth();

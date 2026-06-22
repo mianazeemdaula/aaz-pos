@@ -16,6 +16,7 @@ interface PaymentForm {
     note: string;
     date: string;
     supplier: Supplier | null;
+    type: 'SENT' | 'RECEIVED';
 }
 
 export function SupplierPayments() {
@@ -31,6 +32,7 @@ export function SupplierPayments() {
         note: '',
         date: new Date().toISOString().slice(0, 10),
         supplier: null,
+        type: 'SENT',
     });
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState('');
@@ -72,6 +74,7 @@ export function SupplierPayments() {
             note: '',
             date: new Date().toISOString().slice(0, 10),
             supplier: selectedSupplier,
+            type: 'SENT',
         });
         setModal(true);
     };
@@ -91,6 +94,7 @@ export function SupplierPayments() {
                 accountId: form.accountId,
                 note: form.note.trim() || undefined,
                 date: form.date || undefined,
+                type: form.type,
             });
             setModal(false);
             // refresh supplier balance if the selected one was paid
@@ -145,7 +149,7 @@ export function SupplierPayments() {
                     onClick={openModal}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition-colors"
                 >
-                    <Plus size={14} /> Pay Supplier
+                    <Plus size={14} /> New Payment
                 </button>
             </div>
 
@@ -232,9 +236,10 @@ export function SupplierPayments() {
                                 <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider">
                                     <th className="px-4 py-2.5">#</th>
                                     <th className="px-4 py-2.5">Date</th>
-                                    <th className="px-4 py-2.5">Account (Paid From)</th>
+                                    <th className="px-4 py-2.5">Type</th>
+                                    <th className="px-4 py-2.5">Account</th>
                                     <th className="px-4 py-2.5">Note</th>
-                                    <th className="px-4 py-2.5 text-right">Amount Paid</th>
+                                    <th className="px-4 py-2.5 text-right">Amount</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -250,11 +255,16 @@ export function SupplierPayments() {
                                             })}
                                         </td>
                                         <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'RECEIVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                {p.type === 'RECEIVED' ? 'Refund' : 'Paid'}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
                                             {p.account?.name ?? '—'}
                                         </td>
                                         <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
-                                        <td className="px-4 py-2.5 text-right font-semibold text-amber-600">
-                                            {fmt(p.amount)}
+                                        <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'RECEIVED' ? 'text-green-600' : 'text-amber-600'}`}>
+                                            {p.type === 'RECEIVED' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
                                         </td>
                                     </tr>
                                 ))}
@@ -289,7 +299,7 @@ export function SupplierPayments() {
             </div>
 
             {/* Pay Supplier Modal */}
-            <Modal open={modal} onClose={() => setModal(false)} title="Pay Supplier">
+            <Modal open={modal} onClose={() => setModal(false)} title="Supplier Payment">
                 <div className="space-y-4">
                     <div>
                         <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
@@ -299,6 +309,20 @@ export function SupplierPayments() {
                             value={form.supplier}
                             onSelect={s => setForm(prev => ({ ...prev, supplier: s }))}
                         />
+                    </div>
+
+                    <div>
+                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
+                            Payment Type <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            value={form.type}
+                            onChange={e => setForm(prev => ({ ...prev, type: e.target.value as 'SENT' | 'RECEIVED' }))}
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                            <option value="SENT">Paid to Supplier</option>
+                            <option value="RECEIVED">Received from Supplier (Refund)</option>
+                        </select>
                     </div>
 
                     <div>
@@ -318,7 +342,7 @@ export function SupplierPayments() {
 
                     <div>
                         <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">
-                            Pay From Account <span className="text-red-500">*</span>
+                            {form.type === 'SENT' ? 'Pay From Account' : 'Receive Into Account'} <span className="text-red-500">*</span>
                         </label>
                         <AccountSelect
                             value={form.accountId}

@@ -399,6 +399,7 @@ export interface CustomerPayment {
     id: number;
     customerId: number;
     amount: number;
+    type: 'RECEIVED' | 'SENT';
     accountId: number;
     account?: { id: number; name: string; code: string };
     note?: string | null;
@@ -410,6 +411,7 @@ export interface SupplierPayment {
     id: number;
     supplierId: number;
     amount: number;
+    type: 'SENT' | 'RECEIVED';
     accountId: number;
     account?: { id: number; name: string; code: string };
     note?: string | null;

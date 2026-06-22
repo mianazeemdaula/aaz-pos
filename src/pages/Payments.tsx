@@ -22,6 +22,7 @@ interface CustomerPaymentForm {
     note: string;
     date: string;
     customer: Customer | null;
+    type: 'RECEIVED' | 'SENT';
 }
 
 interface SupplierPaymentForm {
@@ -30,6 +31,7 @@ interface SupplierPaymentForm {
     note: string;
     date: string;
     supplier: Supplier | null;
+    type: 'SENT' | 'RECEIVED';
 }
 
 export function Payments() {
@@ -43,14 +45,14 @@ export function Payments() {
     const [custLoading, setCustLoading] = useState(false);
     const [custModal, setCustModal] = useState(false);
     const [custForm, setCustForm] = useState<CustomerPaymentForm>({
-        amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), customer: null,
+        amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), customer: null, type: 'RECEIVED',
     });
     const [custSaving, setCustSaving] = useState(false);
     const [custSaveError, setCustSaveError] = useState('');
     const [custLedgerFrom, setCustLedgerFrom] = useState(() => new Date().toISOString().slice(0, 8) + '01');
     const [custLedgerTo, setCustLedgerTo] = useState(() => new Date().toISOString().slice(0, 10));
     const [custLedgerLoading, setCustLedgerLoading] = useState(false);
-
+ 
     // Supplier payments state
     const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
     const [supplierPayments, setSupplierPayments] = useState<SupplierPayment[]>([]);
@@ -59,7 +61,7 @@ export function Payments() {
     const [supLoading, setSupLoading] = useState(false);
     const [supModal, setSupModal] = useState(false);
     const [supForm, setSupForm] = useState<SupplierPaymentForm>({
-        amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), supplier: null,
+        amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), supplier: null, type: 'SENT',
     });
     const [supSaving, setSupSaving] = useState(false);
     const [supSaveError, setSupSaveError] = useState('');
@@ -83,7 +85,7 @@ export function Payments() {
 
     const openCustModal = () => {
         setCustSaveError('');
-        setCustForm({ amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), customer: selectedCustomer });
+        setCustForm({ amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), customer: selectedCustomer, type: 'RECEIVED' });
         setCustModal(true);
     };
 
@@ -99,6 +101,7 @@ export function Payments() {
             await customerService.createPayment(target.id, {
                 amount, accountId: custForm.accountId,
                 note: custForm.note.trim() || undefined, date: custForm.date || undefined,
+                type: custForm.type,
             });
             setCustModal(false);
             if (selectedCustomer && target.id === selectedCustomer.id) {
@@ -143,7 +146,7 @@ export function Payments() {
 
     const openSupModal = () => {
         setSupSaveError('');
-        setSupForm({ amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), supplier: selectedSupplier });
+        setSupForm({ amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), supplier: selectedSupplier, type: 'SENT' });
         setSupModal(true);
     };
 
@@ -159,6 +162,7 @@ export function Payments() {
             await supplierService.createPayment(target.id, {
                 amount, accountId: supForm.accountId,
                 note: supForm.note.trim() || undefined, date: supForm.date || undefined,
+                type: supForm.type,
             });
             setSupModal(false);
             if (selectedSupplier && target.id === selectedSupplier.id) {
@@ -214,13 +218,13 @@ export function Payments() {
                     {tab === 'customer' && (
                         <button onClick={openCustModal}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors">
-                            <Plus size={14} /> Receive Payment
+                            <Plus size={14} /> New Payment
                         </button>
                     )}
                     {tab === 'supplier' && (
                         <button onClick={openSupModal}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition-colors">
-                            <Plus size={14} /> Pay Supplier
+                            <Plus size={14} /> New Payment
                         </button>
                     )}
                 </div>
@@ -276,8 +280,8 @@ export function Payments() {
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider">
-                                            <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Account</th>
-                                            <th className="px-4 py-2.5">Note</th><th className="px-4 py-2.5 text-right">Amount Received</th>
+                                            <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Type</th><th className="px-4 py-2.5">Account</th>
+                                            <th className="px-4 py-2.5">Note</th><th className="px-4 py-2.5 text-right">Amount</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -285,9 +289,16 @@ export function Payments() {
                                             <tr key={p.id} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                                 <td className="px-4 py-2.5 text-gray-400 text-xs">{(custPage - 1) * PAGE_SIZE + i + 1}</td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{new Date(p.date ?? p.createdAt).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                                <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'SENT' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                        {p.type === 'SENT' ? 'Refund' : 'Received'}
+                                                    </span>
+                                                </td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{p.account?.name ?? '—'}</td>
                                                 <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
-                                                <td className="px-4 py-2.5 text-right font-semibold text-green-600">{fmt(p.amount)}</td>
+                                                <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'SENT' ? 'text-red-600' : 'text-green-600'}`}>
+                                                    {p.type === 'SENT' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -306,12 +317,20 @@ export function Payments() {
                         )}
                     </div>
 
-                    {/* Receive Payment Modal */}
-                    <Modal open={custModal} onClose={() => setCustModal(false)} title="Receive Customer Payment">
+                    {/* Customer Payment Modal */}
+                    <Modal open={custModal} onClose={() => setCustModal(false)} title="Customer Payment">
                         <div className="space-y-4">
                             <div>
                                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Customer <span className="text-red-500">*</span></label>
                                 <CustomerSearch value={custForm.customer} onSelect={c => setCustForm(prev => ({ ...prev, customer: c }))} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Payment Type <span className="text-red-500">*</span></label>
+                                <select value={custForm.type} onChange={e => setCustForm(prev => ({ ...prev, type: e.target.value as 'RECEIVED' | 'SENT' }))}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500">
+                                    <option value="RECEIVED">Received from Customer</option>
+                                    <option value="SENT">Paid to Customer (Refund)</option>
+                                </select>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Amount (Rs) <span className="text-red-500">*</span></label>
@@ -319,7 +338,7 @@ export function Payments() {
                                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
                             </div>
                             <div>
-                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Receive Into Account <span className="text-red-500">*</span></label>
+                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">{custForm.type === 'RECEIVED' ? 'Receive Into Account' : 'Pay From Account'} <span className="text-red-500">*</span></label>
                                 <AccountSelect value={custForm.accountId} onChange={id => setCustForm(prev => ({ ...prev, accountId: id }))} placeholder="Select account..." />
                             </div>
                             <div>
@@ -398,8 +417,8 @@ export function Payments() {
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider">
-                                            <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Account (Paid From)</th>
-                                            <th className="px-4 py-2.5">Note</th><th className="px-4 py-2.5 text-right">Amount Paid</th>
+                                            <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Type</th><th className="px-4 py-2.5">Account</th>
+                                            <th className="px-4 py-2.5">Note</th><th className="px-4 py-2.5 text-right">Amount</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -407,9 +426,16 @@ export function Payments() {
                                             <tr key={p.id} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                                 <td className="px-4 py-2.5 text-gray-400 text-xs">{(supPage - 1) * PAGE_SIZE + i + 1}</td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{new Date(p.date ?? p.createdAt).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                                <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'RECEIVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                        {p.type === 'RECEIVED' ? 'Refund' : 'Paid'}
+                                                    </span>
+                                                </td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{p.account?.name ?? '—'}</td>
                                                 <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
-                                                <td className="px-4 py-2.5 text-right font-semibold text-amber-600">{fmt(p.amount)}</td>
+                                                <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'RECEIVED' ? 'text-green-600' : 'text-amber-600'}`}>
+                                                    {p.type === 'RECEIVED' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -428,12 +454,20 @@ export function Payments() {
                         )}
                     </div>
 
-                    {/* Pay Supplier Modal */}
-                    <Modal open={supModal} onClose={() => setSupModal(false)} title="Pay Supplier">
+                    {/* Supplier Payment Modal */}
+                    <Modal open={supModal} onClose={() => setSupModal(false)} title="Supplier Payment">
                         <div className="space-y-4">
                             <div>
                                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Supplier <span className="text-red-500">*</span></label>
                                 <SupplierSearch value={supForm.supplier} onSelect={s => setSupForm(prev => ({ ...prev, supplier: s }))} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Payment Type <span className="text-red-500">*</span></label>
+                                <select value={supForm.type} onChange={e => setSupForm(prev => ({ ...prev, type: e.target.value as 'SENT' | 'RECEIVED' }))}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500">
+                                    <option value="SENT">Paid to Supplier</option>
+                                    <option value="RECEIVED">Received from Supplier (Refund)</option>
+                                </select>
                             </div>
                             <div>
                                 <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Amount (Rs) <span className="text-red-500">*</span></label>
@@ -441,7 +475,7 @@ export function Payments() {
                                     className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
                             </div>
                             <div>
-                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Pay From Account <span className="text-red-500">*</span></label>
+                                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">{supForm.type === 'SENT' ? 'Pay From Account' : 'Receive Into Account'} <span className="text-red-500">*</span></label>
                                 <AccountSelect value={supForm.accountId} onChange={id => setSupForm(prev => ({ ...prev, accountId: id }))} placeholder="Select account..." />
                             </div>
                             <div>

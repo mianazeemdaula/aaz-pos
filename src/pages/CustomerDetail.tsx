@@ -5,7 +5,7 @@ import { customerService } from '../services/pos.service';
 import { formatCNIC, formatPhone } from '../utils/formatters';
 import type { Customer, CustomerLedgerEntry } from '../types/pos';
 
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmt = (n?: number | null) => n == null ? 'Rs 0.00' : `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -31,8 +31,8 @@ export function CustomerDetail() {
       <div className="flex items-center gap-3">
         <Link to="/customers" className="text-gray-400 hover:text-gray-600"><ArrowLeft size={18} /></Link>
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{customer.name}</h1>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ml-auto ${customer.balance > 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-          {customer.balance > 0 ? `Owes ${fmt(customer.balance)}` : 'Clear'}
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ml-auto ${customer.balance > 0 ? 'bg-red-100 text-red-700' : customer.balance < 0 ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+          {customer.balance > 0 ? `Owes ${fmt(customer.balance)}` : customer.balance < 0 ? `Advance ${fmt(Math.abs(customer.balance))}` : 'Clear'}
         </span>
       </div>
 
@@ -61,8 +61,8 @@ export function CustomerDetail() {
                     <p className="text-gray-400">{new Date(e.date ?? e.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="text-right">
-                    {(e.debit ?? 0) > 0 && <p className="text-red-600">- {fmt(e.debit ?? 0)}</p>}
-                    {(e.credit ?? 0) > 0 && <p className="text-green-600">+ {fmt(e.credit ?? 0)}</p>}
+                    {(e.debit ?? 0) > 0 && <p className="text-red-600">+ {fmt(e.debit ?? 0)}</p>}
+                    {(e.credit ?? 0) > 0 && <p className="text-green-600">- {fmt(e.credit ?? 0)}</p>}
                     <p className="text-gray-500">Bal: {fmt(e.balance)}</p>
                   </div>
                 </div>
