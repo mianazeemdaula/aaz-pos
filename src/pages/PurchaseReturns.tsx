@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Eye, Printer, RotateCcw, Loader2, X } from 'lucide-react';
-import { purchaseService } from '../services/pos.service';
+import { purchaseService, accountService } from '../services/pos.service';
 import { Pagination } from '../components/ui/Pagination';
-import type { Purchase } from '../types/pos';
+import type { Purchase, Account } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${Math.abs(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = new Date().toISOString().slice(0, 10);
@@ -50,6 +50,8 @@ export function PurchaseReturns() {
   >([]);
   const [returnReason, setReturnReason] = useState('');
   const [returnLoading, setReturnLoading] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | ''>('');
 
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const showToast = useCallback((type: 'success' | 'error', msg: string) => {
@@ -68,7 +70,12 @@ export function PurchaseReturns() {
     } catch { setPurchases([]); } finally { setPurLoading(false); }
   }, [purFrom, purTo, purQ]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadPurchases(1, mon, today, ''); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    loadPurchases(1, mon, today, '');
+    accountService.list({ active: true })
+      .then(r => setAccounts(r.data || []))
+      .catch(e => console.error('Failed to load accounts:', e));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openView = async (p: Purchase) => {
     setViewLoading(true);
@@ -86,27 +93,50 @@ export function PurchaseReturns() {
       const positiveItems = (detail.items ?? []).filter((i: any) => i.quantity > 0);
       setReturnPurchase(detail);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setReturnItems(positiveItems.map((i: any) => ({
-        productId: i.productId,
-        qty: 0,
-        maxQty: i.quantity,
-        unitCost: i.unitCost ?? i.cost ?? 0,
-        name: i.product?.name ?? `#${i.productId}`,
-      })));
+      setReturnItems(positiveItems.map((i: any) => {
+        // Calculate already returned quantity for this product in previous returns of this purchase
+        const alreadyReturned = (detail.returns ?? []).reduce((sum: number, ret: any) => {
+          const retItem = (ret.items ?? []).find((ri: any) => ri.productId === i.productId);
+          if (retItem) {
+            return sum + Math.abs(retItem.quantity);
+          }
+          return sum;
+        }, 0);
+
+        const remainingQty = Math.max(0, i.quantity - alreadyReturned);
+
+        return {
+          productId: i.productId,
+          qty: 0,
+          maxQty: remainingQty,
+          unitCost: i.unitCost ?? i.cost ?? 0,
+          name: i.product?.name ?? `#${i.productId}`,
+        };
+      }));
       setReturnReason('');
+      setSelectedAccountId('');
     } catch { showToast('error', 'Failed to load purchase details'); }
     finally { setReturnLoading(false); }
   };
 
   // Creates a new purchase with negative quantities to record the return
-  // Supplier account is automatically updated via the purchase controller
   const submitReturn = async () => {
     if (!returnPurchase) return;
     const selectedItems = returnItems.filter(i => i.qty > 0);
     if (!selectedItems.length) { showToast('error', 'Select at least one item to return'); return; }
+
+    const isWalking = !returnPurchase.supplierId;
+    if (isWalking && !selectedAccountId) {
+      showToast('error', 'Please select a refund account');
+      return;
+    }
+
     setReturnLoading(true);
+    const totalRefund = selectedItems.reduce((s, i) => s + i.qty * i.unitCost, 0);
+
     try {
       await purchaseService.create({
+        parentPurchaseId: returnPurchase.id,
         supplierId: returnPurchase.supplierId ?? undefined,
         items: selectedItems.map(i => ({
           productId: i.productId,
@@ -115,6 +145,12 @@ export function PurchaseReturns() {
           discount: 0,
           taxAmount: 0,
         })),
+        payments: selectedAccountId ? [
+          {
+            accountId: Number(selectedAccountId),
+            amount: -Number(totalRefund.toFixed(4)),
+          }
+        ] : [],
         paidAmount: 0,
         discount: 0,
         taxAmount: 0,
@@ -122,6 +158,7 @@ export function PurchaseReturns() {
         note: returnReason || undefined,
       });
       setReturnPurchase(null);
+      setSelectedAccountId('');
       showToast('success', 'Purchase return processed successfully');
       loadPurchases(purPage, purFrom, purTo, purQ);
     } catch (e: unknown) {
@@ -299,14 +336,42 @@ export function PurchaseReturns() {
                   </div>
                 ))}
                 {returnItems.some(i => i.qty > 0) && (
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-sm">
-                    <div className="flex justify-between font-semibold text-orange-700 dark:text-orange-400">
-                      <span>Return Value</span>
-                      <span>Rs {returnItems.reduce((s, i) => s + i.qty * i.unitCost, 0).toLocaleString('en-PK')}</span>
+                  <div className="space-y-3">
+                    <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-sm">
+                      <div className="flex justify-between font-semibold text-orange-700 dark:text-orange-400">
+                        <span>Return Value</span>
+                        <span>Rs {returnItems.reduce((s, i) => s + i.qty * i.unitCost, 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <p className="text-xs text-orange-600 mt-1">
+                        {returnPurchase.supplierId ? 'Will be credited to supplier account (or select refund account below to receive cash/bank)' : 'Walk-in return: select refund account below to receive refund'}
+                      </p>
                     </div>
-                    <p className="text-xs text-orange-600 mt-1">
-                      {returnPurchase.supplierId ? 'Supplier account will be credited automatically' : 'No supplier linked  no account update'}
-                    </p>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Refund Account {!returnPurchase.supplierId && <span className="text-red-500">*</span>}</label>
+                      <select
+                        value={selectedAccountId}
+                        onChange={e => setSelectedAccountId(e.target.value ? Number(e.target.value) : '')}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none"
+                      >
+                        <option value="">{returnPurchase.supplierId ? '-- Credit to Ledger (Supplier Credit) --' : '-- Select Payment Account --'}</option>
+                        {accounts.map(acc => (
+                          <option key={acc.id} value={acc.id}>{acc.name} ({acc.code})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedAccountId && (
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Refund Amount (Autofilled)</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={`Rs ${returnItems.reduce((s, i) => s + i.qty * i.unitCost, 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          className="w-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 outline-none"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
                 <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)}

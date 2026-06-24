@@ -202,6 +202,9 @@ export interface Purchase {
     taxAmount: number;
     expenses: number;
     grandTotal?: number;
+    parentPurchaseId?: number | null;
+    parentPurchase?: Purchase | null;
+    returns?: Purchase[];
     date: string;
     createdAt: string;
     items?: PurchaseItem[];
