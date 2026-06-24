@@ -3,7 +3,7 @@ import {
   Save, Loader2, Wifi, Usb, Database,
   Download, Upload, CheckCircle2, AlertCircle, RefreshCw,
   ShieldCheck, ChevronRight, ArrowLeft, ShoppingCart, ToggleLeft, ToggleRight,
-  Building2, Image,
+  Building2, Image, Trash2,
 } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { API_ENDPOINTS } from '../config/api';
@@ -155,6 +155,17 @@ export function Settings() {
     } catch { setLogoMsg({ ok: false, text: 'Failed to upload logo.' }); }
     finally { setLogoUploading(false); }
   };
+  const deleteLogoFile = async () => {
+    if (!window.confirm("Are you sure you want to remove the logo?")) return;
+    setLogoUploading(true); setLogoMsg(null);
+    try {
+      await apiClient.delete(API_ENDPOINTS.settings.logo);
+      setLogoPreview(null);
+      invalidateLogoCache();
+      setLogoMsg({ ok: true, text: 'Logo removed successfully.' });
+    } catch { setLogoMsg({ ok: false, text: 'Failed to remove logo.' }); }
+    finally { setLogoUploading(false); }
+  };
   const saveThermalSettings = () => {
     setThermalSaving(true); setThermalMsg(null);
     try { saveThermalConfig(thermal); setThermalMsg({ ok: true, text: 'Thermal printer settings saved.' }); }
@@ -274,11 +285,24 @@ export function Settings() {
                   ? <img src={logoPreview} alt="logo" className="h-12 max-w-30 object-contain border border-gray-200 dark:border-gray-600 rounded p-1 bg-white" />
                   : <div className="h-12 w-24 flex items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded text-gray-400"><Image size={18} /></div>
                 }
-                <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
-                  {logoUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
-                  {logoPreview ? 'Change Logo' : 'Upload Logo'}
-                  <input type="file" accept="image/*" className="hidden" disabled={logoUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogoFile(f); e.target.value = ''; }} />
-                </label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                    {logoUploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                    {logoPreview ? 'Change Logo' : 'Upload Logo'}
+                    <input type="file" accept="image/*" className="hidden" disabled={logoUploading} onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogoFile(f); e.target.value = ''; }} />
+                  </label>
+                  {logoPreview && (
+                    <button
+                      type="button"
+                      disabled={logoUploading}
+                      onClick={deleteLogoFile}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-red-200 dark:border-red-900/55 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+                    >
+                      <Trash2 size={12} />
+                      Remove Logo
+                    </button>
+                  )}
+                </div>
               </div>
               {logoMsg && <p className={`text-xs mt-1 ${logoMsg.ok ? 'text-green-600' : 'text-red-500'}`}>{logoMsg.text}</p>}
               <p className="text-xs text-gray-400 mt-1">PNG/JPG, max 5 MB. Shown at top of every receipt.</p>

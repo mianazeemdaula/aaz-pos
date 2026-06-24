@@ -303,6 +303,9 @@ export function ProductForm() {
                 saleBelowCost: form.saleBelowCost,
                 costPrice: form.costPrice,
                 stock: form.stock,
+                defaultVariantPrice: baseUnit.price,
+                defaultVariantRetail: baseUnit.retail,
+                defaultVariantWholesale: baseUnit.wholesale,
             };
 
             if (isEdit) {
