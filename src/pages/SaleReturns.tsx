@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Eye, Printer, RotateCcw, Loader2, X } from 'lucide-react';
-import { saleService } from '../services/pos.service';
+import { saleService, accountService } from '../services/pos.service';
 import { Pagination } from '../components/ui/Pagination';
 import { printSaleInvoice, type SaleInvoiceData } from '../utils/invoices';
-import type { Sale } from '../types/pos';
+import type { Sale, Account } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${Math.abs(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const today = new Date().toISOString().slice(0, 10);
@@ -58,6 +58,8 @@ export function SaleReturns() {
   >([]);
   const [returnReason, setReturnReason] = useState('');
   const [returnLoading, setReturnLoading] = useState(false);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | ''>('');
 
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const showToast = useCallback((type: 'success' | 'error', msg: string) => {
@@ -76,7 +78,12 @@ export function SaleReturns() {
     } catch { setSales([]); } finally { setSalesLoading(false); }
   }, [salesFrom, salesTo, salesQ]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { loadSales(1, mon, today, ''); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    loadSales(1, mon, today, '');
+    accountService.list({ active: true })
+      .then(r => setAccounts(r.data || []))
+      .catch(e => console.error('Failed to load accounts:', e));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openView = async (sale: Sale) => {
     setViewLoading(true);
@@ -109,10 +116,21 @@ export function SaleReturns() {
             ? (netPrice * taxRate) / (100 + taxRate)
             : (netPrice * taxRate) / 100;
 
+        // Calculate already returned quantity for this variant in previous returns of this sale
+        const alreadyReturned = (detail.returns ?? []).reduce((sum: number, ret: any) => {
+          const retItem = (ret.items ?? []).find((ri: any) => ri.variantId === i.variantId);
+          if (retItem) {
+            return sum + Math.abs(retItem.quantity);
+          }
+          return sum;
+        }, 0);
+
+        const remainingQty = Math.max(0, i.quantity - alreadyReturned);
+
         return {
           variantId: i.variantId,
           qty: 0,
-          maxQty: i.quantity,
+          maxQty: remainingQty,
           unitPrice: i.unitPrice,
           discount: totalUnitDiscount,
           unitTax,
@@ -121,6 +139,7 @@ export function SaleReturns() {
         };
       }));
       setReturnReason('');
+      setSelectedAccountId('');
     } catch { showToast('error', 'Failed to load sale details'); }
     finally { setReturnLoading(false); }
   };
@@ -129,12 +148,21 @@ export function SaleReturns() {
     if (!returnSale) return;
     const selectedItems = returnItems.filter(i => i.qty > 0);
     if (!selectedItems.length) { showToast('error', 'Select at least one item to return'); return; }
+
+    const isWalking = !returnSale.customerId;
+    if (isWalking && !selectedAccountId) {
+      showToast('error', 'Please select a refund account');
+      return;
+    }
+
     setReturnLoading(true);
 
     const refundTaxAmount = selectedItems.reduce((sum, item) => sum + item.unitTax * item.qty, 0);
+    const totalRefund = selectedItems.reduce((s, i) => s + i.qty * (i.unitPrice - i.discount + (i.taxMethod === 'EXCLUSIVE' ? i.unitTax : 0)), 0);
 
     try {
       await saleService.create({
+        parentSaleId: returnSale.id,
         customerId: returnSale.customerId ?? undefined,
         items: selectedItems.map(i => ({
           variantId: i.variantId,
@@ -142,12 +170,18 @@ export function SaleReturns() {
           unitPrice: i.unitPrice,
           discount: Number(i.discount.toFixed(4)),
         })),
-        payments: [],
+        payments: selectedAccountId ? [
+          {
+            accountId: Number(selectedAccountId),
+            amount: -Number(totalRefund.toFixed(4)),
+          }
+        ] : [],
         discount: 0,
         taxAmount: -Number(refundTaxAmount.toFixed(4)),
         note: returnReason || undefined,
       });
       setReturnSale(null);
+      setSelectedAccountId('');
       showToast('success', 'Return processed successfully');
       loadSales(salesPage, salesFrom, salesTo, salesQ);
     } catch (e: unknown) {
@@ -372,14 +406,42 @@ export function SaleReturns() {
                   </div>
                 ))}
                 {returnItems.some(i => i.qty > 0) && (
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-sm">
-                    <div className="flex justify-between font-semibold text-orange-700 dark:text-orange-400">
-                      <span>Total Refund</span>
-                      <span>Rs {returnItems.reduce((s, i) => s + i.qty * (i.unitPrice - i.discount + (i.taxMethod === 'EXCLUSIVE' ? i.unitTax : 0)), 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <div className="space-y-3">
+                    <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3 text-sm">
+                      <div className="flex justify-between font-semibold text-orange-700 dark:text-orange-400">
+                        <span>Total Refund</span>
+                        <span>Rs {returnItems.reduce((s, i) => s + i.qty * (i.unitPrice - i.discount + (i.taxMethod === 'EXCLUSIVE' ? i.unitTax : 0)), 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                      <p className="text-xs text-orange-600 mt-1">
+                        {returnSale.customerId ? 'Will be credited to customer account (or select refund account below to pay cash/bank)' : 'Walk-in return: select refund account below to issue refund'}
+                      </p>
                     </div>
-                    <p className="text-xs text-orange-600 mt-1">
-                      {returnSale.customerId ? 'Will be credited to customer account' : 'Walk-in return  issue cash refund manually'}
-                    </p>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Refund Account {!returnSale.customerId && <span className="text-red-500">*</span>}</label>
+                      <select
+                        value={selectedAccountId}
+                        onChange={e => setSelectedAccountId(e.target.value ? Number(e.target.value) : '')}
+                        className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none"
+                      >
+                        <option value="">{returnSale.customerId ? '-- Credit to Ledger (Store Credit) --' : '-- Select Payment Account --'}</option>
+                        {accounts.map(acc => (
+                          <option key={acc.id} value={acc.id}>{acc.name} ({acc.code})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {selectedAccountId && (
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-gray-500 uppercase dark:text-gray-400">Refund Amount (Autofilled)</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={`Rs ${returnItems.reduce((s, i) => s + i.qty * (i.unitPrice - i.discount + (i.taxMethod === 'EXCLUSIVE' ? i.unitTax : 0)), 0).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          className="w-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-1.5 text-sm text-gray-500 dark:text-gray-400 outline-none"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
                 <textarea value={returnReason} onChange={e => setReturnReason(e.target.value)}

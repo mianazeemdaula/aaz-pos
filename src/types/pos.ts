@@ -159,6 +159,9 @@ export interface Sale {
     taxInvoiceId?: string | null;
     invoiceNumber?: string | null;
     grandTotal?: number;
+    parentSaleId?: number | null;
+    parentSale?: Sale | null;
+    returns?: Sale[];
     createdAt: string;
     items?: SaleItem[];
     payments?: SalePayment[];
