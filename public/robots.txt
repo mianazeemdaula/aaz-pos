@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /$
+Allow: /home
+Disallow: /login
+Disallow: /dashboard
+Disallow: /sale
+Disallow: /purchase
+Disallow: /products
+Disallow: /categories
+Disallow: /brands
+Disallow: /customers
+Disallow: /suppliers
+Disallow: /employees
+Disallow: /salary-slips
+Disallow: /expenses
+Disallow: /accounts
+Disallow: /users
+Disallow: /reports
+Disallow: /held
+Disallow: /promotions
+Disallow: /stock-adjustments
+Disallow: /advance-bookings
+Disallow: /returns
+Disallow: /payments
+Disallow: /settings
+
+Sitemap: https://www.aazify.com/sitemap.xml

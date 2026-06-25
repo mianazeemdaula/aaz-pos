@@ -208,7 +208,7 @@ export function MainLayout() {
             </div>
             {(!collapsed || sidebarOpen) && (
               <div className="min-w-0">
-                <p className="text-sm font-bold text-gray-900 tracking-wide truncate">AAZ POS</p>
+                <p className="text-sm font-bold text-gray-900 tracking-wide truncate">Aazify POS</p>
                 <p className="text-[10px] text-gray-400 font-medium">Point of Sale</p>
               </div>
             )}
@@ -285,7 +285,7 @@ export function MainLayout() {
         {/* Top bar (mobile) */}
         <header className="lg:hidden sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-3">
           <button onClick={() => setSidebarOpen(true)} className="text-gray-600 dark:text-gray-400"><Menu size={20} /></button>
-          <span className="font-semibold text-gray-900 dark:text-gray-100">AAZ POS</span>
+          <span className="font-semibold text-gray-900 dark:text-gray-100">Aazify POS</span>
         </header>
         <main className="flex-1 p-4 lg:p-5">
           <Outlet />

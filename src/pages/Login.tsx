@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingBag, Eye, EyeOff, Loader2, AlertCircle, User, Lock, Settings, X, Check, RotateCcw } from 'lucide-react';
 import { useAuth } from '../contexts';
@@ -12,6 +12,10 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    document.title = "Login | Aazify POS";
+  }, []);
 
   // API settings state
   const [showApiSettings, setShowApiSettings] = useState(false);
@@ -78,12 +82,12 @@ export function Login() {
   return (
     <div className="min-h-screen flex">
       {/* Left panel – branding */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-linear-to-br from-secondary-800 via-secondary-700 to-primary-600 p-12 text-white">
+      <div className="hidden lg:flex flex-col justify-between w-1/2 bg-linear-to-br from-primary-900 via-primary-800 to-primary-600 p-12 text-white">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
             <ShoppingBag size={20} className="text-white" />
           </div>
-          <span className="text-xl font-bold tracking-tight">AAZ POS</span>
+          <span className="text-xl font-bold tracking-tight">Aazify POS</span>
         </div>
         <div>
           <h2 className="text-4xl font-extrabold leading-tight mb-4">
@@ -93,20 +97,9 @@ export function Login() {
             Complete point-of-sale solution — sales, purchases, inventory,<br />
             employees, reports and much more in one place.
           </p>
-          <div className="mt-8 grid grid-cols-3 gap-4">
-            {[
-              { label: 'Sales', icon: '🛒' },
-              { label: 'Inventory', icon: '📦' },
-              { label: 'Reports', icon: '📊' },
-            ].map(f => (
-              <div key={f.label} className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
-                <div className="text-2xl mb-1">{f.icon}</div>
-                <div className="text-xs font-medium text-white/80">{f.label}</div>
-              </div>
-            ))}
-          </div>
+
         </div>
-        <p className="text-white/40 text-xs">© {new Date().getFullYear()} AAZ Point of Sale</p>
+        <p className="text-white/40 text-xs">© {new Date().getFullYear()} Aazify POS</p>
       </div>
 
       {/* Right panel – login form */}

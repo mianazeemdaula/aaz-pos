@@ -29,7 +29,10 @@ import {
     Wrench,
     BookOpen,
     Armchair,
-    Cog
+    Cog,
+    Phone,
+    Mail,
+    Globe
 } from 'lucide-react';
 
 const features = [
@@ -70,6 +73,7 @@ export function Home() {
     const [showWhatsApp, setShowWhatsApp] = useState(false);
 
     useEffect(() => {
+        document.title = "Aazify POS - Advanced Point of Sale & Inventory Management System";
         const handleScroll = () => {
             if (window.scrollY > 100) {
                 setShowWhatsApp(true);
@@ -102,6 +106,7 @@ export function Home() {
                     <div className="hidden md:flex items-center gap-8">
                         <a href="#" className="text-sm font-semibold text-white hover:text-white/80 transition-colors">Home</a>
                         <a href="#features" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Features</a>
+                        <a href="#businesses" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Businesses</a>
                         <a href="#pricing" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Pricing</a>
                         <a href="#testimonials" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Testimonials</a>
                         <a href="#contact" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Contact</a>
@@ -147,7 +152,7 @@ export function Home() {
                                 <div className="w-8 h-8 rounded-lg bg-linear-to-br from-primary-500 to-primary-700 flex items-center justify-center">
                                     <ShoppingBag size={16} className="text-white" />
                                 </div>
-                                <span className="font-bold text-slate-900 text-base">AAZ POS</span>
+                                <span className="font-bold text-slate-900 text-base">Aazify POS</span>
                             </div>
                             <button
                                 onClick={() => setIsMenuOpen(false)}
@@ -172,6 +177,13 @@ export function Home() {
                                 className="text-base font-semibold text-slate-600 hover:text-primary-600 transition-colors"
                             >
                                 Features
+                            </a>
+                            <a
+                                href="#businesses"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="text-base font-semibold text-slate-600 hover:text-primary-600 transition-colors"
+                            >
+                                Businesses
                             </a>
                             <a
                                 href="#pricing"
@@ -216,7 +228,7 @@ export function Home() {
             </div>
 
             {/* Hero Section */}
-            <section className="relative z-10 px-6 sm:px-12 pt-16 pb-20 max-w-7xl mx-auto">
+            <section className="relative z-10 px-6 sm:px-12 pt-14 pb-12 max-w-7xl mx-auto">
                 <div className="text-center max-w-4xl mx-auto">
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-700 text-xs font-medium mb-8 animate-fade-in">
                         <Star size={12} className="fill-primary-600 text-primary-600" />
@@ -249,8 +261,8 @@ export function Home() {
             </section>
 
             {/* Features Grid */}
-            <section id="features" className="relative z-10 px-6 sm:px-12 py-20 max-w-7xl mx-auto">
-                <div className="text-center mb-12">
+            <section id="features" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto">
+                <div className="text-center mb-8">
                     <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Everything You Need</h2>
                     <p className="text-slate-500 max-w-xl mx-auto">A comprehensive suite of tools designed for retail, wholesale, and cold storage businesses.</p>
                 </div>
@@ -273,8 +285,8 @@ export function Home() {
 
 
             {/* Business Types Section */}
-            <section className="relative z-10 px-6 sm:px-12 py-20 max-w-7xl mx-auto border-t border-slate-200/60">
-                <div className="text-center mb-16">
+            <section id="businesses" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto border-t border-slate-200/60">
+                <div className="text-center mb-10">
                     <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Perfect POS for All Types of Businesses</h2>
                     <p className="text-primary-700 max-w-xl mx-auto font-bold uppercase tracking-wider text-xs bg-primary-50 px-4 py-1.5 rounded-full inline-block">
                         Made for Every Shop & Business!
@@ -282,11 +294,11 @@ export function Home() {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 max-w-6xl mx-auto">
                     {businessTypes.map((b, i) => (
-                        <div key={i} className="group p-5 rounded-2xl border border-slate-200/60 bg-white/70 shadow-2xs hover:shadow-md hover:bg-white hover:border-primary-500/35 transition-all duration-300 hover:-translate-y-1 flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary-50 to-primary-100/50 flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:from-primary-600 group-hover:to-primary-700 transition-all duration-300">
+                        <div key={i} className="group p-5 rounded-2xl border border-primary-700/20 bg-linear-to-br from-primary-600 to-primary-700 shadow-sm hover:shadow-md hover:from-primary-700 hover:to-primary-800 hover:-translate-y-1 transition-all duration-300 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:bg-white/20 transition-all duration-300 shadow-2xs">
                                 <b.icon size={20} className="text-primary-600 group-hover:text-white transition-colors duration-300" />
                             </div>
-                            <span className="text-sm font-bold text-slate-800 group-hover:text-slate-900 transition-colors duration-300">{b.name}</span>
+                            <span className="text-sm font-bold text-white tracking-wide">{b.name}</span>
                         </div>
                     ))}
                 </div>
@@ -299,8 +311,8 @@ export function Home() {
 
 
             {/* Pricing Section */}
-            <section id="pricing" className="relative z-10 px-6 sm:px-12 py-24 max-w-7xl mx-auto border-t border-slate-200/60">
-                <div className="text-center mb-16">
+            <section id="pricing" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto border-t border-slate-200/60">
+                <div className="text-center mb-10">
                     <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Simple, Transparent Pricing</h2>
                     <p className="text-slate-500 max-w-xl mx-auto">Choose the perfect version for your business model. No hidden charges.</p>
                 </div>
@@ -377,14 +389,14 @@ export function Home() {
             </section>
 
             {/* Testimonials Section */}
-            <section id="testimonials" className="relative z-10 px-6 sm:px-12 py-24 max-w-7xl mx-auto border-t border-slate-200/60">
-                <div className="text-center mb-16">
+            <section id="testimonials" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto border-t border-slate-200/60">
+                <div className="text-center mb-10">
                     <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Trusted by Store Owners</h2>
                     <p className="text-slate-500 max-w-xl mx-auto">See how businesses across Pakistan are streamlining their daily sales operations.</p>
                 </div>
                 <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
                     {[
-                        { name: 'Muhammad Ali', role: 'General Store Owner (Lahore)', text: 'AAZ POS has simplified our sales. The FBR invoicing works seamlessly and barcode tracking is lightning-fast.', stars: 5 },
+                        { name: 'Muhammad Ali', role: 'General Store Owner (Lahore)', text: 'Aazify POS has simplified our sales. The FBR invoicing works seamlessly and barcode tracking is lightning-fast.', stars: 5 },
                         { name: 'Ayesha Khan', role: 'Boutique Manager (Karachi)', text: 'We love the customer ledger feature. Managing credit accounts and payments is no longer a headache for our staff.', stars: 5 },
                         { name: 'Zeeshan Ahmed', role: 'Cold Store Director (Multan)', text: 'The multi-warehouse inventory management is exactly what we needed. Highly reliable desktop application.', stars: 5 },
                     ].map((t, i) => (
@@ -405,22 +417,29 @@ export function Home() {
             </section>
 
             {/* CTA / Contact Section */}
-            <section id="contact" className="relative z-10 px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-                <div className="relative rounded-3xl overflow-hidden">
-                    <div className="absolute inset-0 bg-linear-to-r from-primary-500/10 via-primary-50 to-blue-500/10 blur-xl" />
-                    <div className="relative bg-white border border-slate-200/80 shadow-md rounded-3xl p-12 sm:p-16 text-center backdrop-blur-sm">
-                        <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Ready to Get Started?</h2>
-                        <p className="text-slate-600 max-w-lg mx-auto mb-8">
-                            Set up your complete POS system in minutes. Contact us today or try it for free.
+            <section id="contact" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto">
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="absolute inset-0 bg-linear-to-r from-primary-800 to-primary-900" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_45%)]" />
+                    <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="relative p-12 sm:p-16 text-center backdrop-blur-xs">
+                        <span className="inline-block px-4 py-1.5 mb-6 text-xs font-semibold tracking-wider text-teal-300 uppercase bg-teal-500/10 rounded-full border border-teal-500/20">
+                            Upgrade Your Operations
+                        </span>
+                        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 tracking-tight">
+                            Ready to Transform Your Business?
+                        </h2>
+                        <p className="text-emerald-100/90 max-w-xl mx-auto mb-10 text-base sm:text-lg leading-relaxed">
+                            Set up your complete POS system in minutes. Secure your data, automate your billing, and get live reporting from anywhere.
                         </p>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                             <button onClick={() => navigate('/login')}
-                                className="group inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold rounded-xl text-white bg-linear-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 shadow-md shadow-primary-600/15 hover:shadow-lg transition-all duration-300 hover:scale-105">
+                                className="group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 text-base font-semibold rounded-xl text-primary-900 bg-white hover:bg-slate-50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-103 cursor-pointer">
                                 Launch POS System
-                                <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+                                <ArrowRight size={18} className="transition-transform group-hover:translate-x-1 text-primary-900" />
                             </button>
                             <a href="mailto:contact@aazify.com"
-                                className="px-8 py-3.5 text-base font-medium rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 transition-all duration-300 hover:scale-105">
+                                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-xl text-white bg-white/10 hover:bg-white/15 border border-white/25 hover:border-white/40 transition-all duration-300 hover:scale-103">
                                 Contact Support
                             </a>
                         </div>
@@ -428,94 +447,154 @@ export function Home() {
                 </div>
             </section>
 
-            {/* Simple Footer Section */}
-            <footer className="relative z-10 border-t border-slate-200 bg-white/40 backdrop-blur-md px-6 sm:px-12 py-12 max-w-7xl mx-auto rounded-t-3xl mt-12">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3">
+            {/* Professional Footer Section */}
+            <footer className="relative z-10 w-full bg-slate-50 border-t border-slate-200 mt-12">
+                <div className="max-w-7xl mx-auto px-6 sm:px-12 py-10">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-10">
+                        {/* Column 1: Brand */}
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary-600 to-primary-850 flex items-center justify-center shadow-md">
+                                    <ShoppingBag size={20} className="text-white" />
+                                </div>
+                                <span className="text-lg font-bold tracking-tight text-slate-900">Aazify POS</span>
+                            </div>
+                            <p className="text-sm text-slate-500 leading-relaxed">
+                                A complete, secure, and compliant point-of-sale system tailored for retail, wholesale, and distribution businesses in Pakistan. Simplify your operations, track stock in real time, and scale your brand.
+                            </p>
 
-                            <span className="text-base font-bold tracking-tight text-slate-900">Aazify Point of Sale</span>
-                        </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">
-                            A complete and compliant retail, wholesale, and cold store point-of-sale system for businesses in Pakistan.
-                        </p>
-
-                        {/* Social Media clickable icons */}
-                        <div className="space-y-2 pt-2">
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Follow us & stay connected</p>
-                            <div className="flex items-center gap-3.5 text-slate-400">
-                                <a href="https://www.facebook.com/aazify" target="_blank" rel="noopener noreferrer" className="hover:text-[#1877F2] transition-colors duration-200" title="Facebook">
-                                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                                        <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
-                                    </svg>
-                                </a>
-                                <a href="https://www.instagram.com/aazify_" target="_blank" rel="noopener noreferrer" className="hover:text-[#E1306C] transition-colors duration-200" title="Instagram">
-                                    <svg className="w-5 h-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                                    </svg>
-                                </a>
-                                <a href="https://www.youtube.com/@aazify.official" target="_blank" rel="noopener noreferrer" className="hover:text-[#FF0000] transition-colors duration-200" title="YouTube">
-                                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                                        <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.108C19.53 3.5 12 3.5 12 3.5s-7.53 0-9.388.555A3.003 3.003 0 0 0 .502 6.163C0 8.07 0 12 0 12s0 3.93.502 5.837a3.003 3.003 0 0 0 2.11 2.108C4.47 20.5 12 20.5 12 20.5s7.53 0 9.388-.555a3.003 3.003 0 0 0 2.11-2.108C24 15.93 24 12 24 12s0-3.93-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                                    </svg>
-                                </a>
-                                <a href="https://www.tiktok.com/@aazify" target="_blank" rel="noopener noreferrer" className="hover:text-[#000000] transition-colors duration-200" title="TikTok">
-                                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                                        <path d="M12.53.02C13.84.02 15.1.4 16.18 1.07A8.87 8.87 0 0 1 15.1 4.5c-.9-1.32-2.39-2.2-4.09-2.2a5.53 5.53 0 0 0-5.53 5.53 5.53 5.53 0 0 0 5.53 5.53c3.05 0 5.53-2.48 5.53-5.53V3.82c1.04.75 2.3 1.2 3.66 1.2h.01v2.88c-1.36 0-2.61-.45-3.66-1.2v6.63c0 4.63-3.75 8.38-8.38 8.38A8.38 8.38 0 0 1 3.75 13.5c0-4.63 3.75-8.38 8.38-8.38V.02h2.4z" />
-                                    </svg>
-                                </a>
-                                <a href="https://www.pinterest.com/aazifycom/" target="_blank" rel="noopener noreferrer" className="hover:text-[#BD081C] transition-colors duration-200" title="Pinterest">
-                                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                                        <path fillRule="evenodd" d="M20.12 12c0 4.42-3.58 8-8 8-.66 0-1.29-.08-1.9-.22.25-.43.64-1.12.74-1.52.06-.23.36-1.4.36-1.4.2.39.8.72 1.44.72 1.9 0 3.28-1.74 3.28-3.9 0-1.89-1.61-3.66-4.14-3.66-2.93 0-4.64 2.1-4.64 4.38 0 1 .53 2.24 1.34 2.64.12.06.19.03.22-.09.02-.09.08-.34.11-.47.04-.15.02-.2-.09-.33-.36-.43-.59-1.24-.59-2.02 0-2.02 1.95-4.48 4.62-4.48 2.5 0 3.89 1.56 3.89 3.65 0 2.55-1.12 4.31-2.77 4.31-.86 0-1.51-.71-1.3-1.58.25-1.03.74-2.14.74-2.88 0-.66-.36-1.22-1.1-1.22-.87 0-1.56.9-1.56 2.1 0 .77.26 1.29.26 1.29s-.86 3.64-1.02 4.32c-.17.72-.08 1.6-.04 2.05A8.003 8.003 0 0 1 4 12c0-4.42 3.58-8 8-8s8 3.58 8 8z" clipRule="evenodd" />
-                                    </svg>
-                                </a>
+                            <div className="space-y-3 pt-2">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Follow us & stay connected</p>
+                                <div className="flex items-center gap-3 text-slate-400">
+                                    <a href="https://www.facebook.com/aazify" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-[#1877F2] transition-all duration-300 border border-slate-200/60 hover:scale-110" title="Facebook">
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
+                                        </svg>
+                                    </a>
+                                    <a href="https://www.instagram.com/aazify_" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-[#E1306C] transition-all duration-300 border border-slate-200/60 hover:scale-110" title="Instagram">
+                                        <svg className="w-5 h-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                                        </svg>
+                                    </a>
+                                    <a href="https://www.youtube.com/@aazify.official" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-[#FF0000] transition-all duration-300 border border-slate-200/60 hover:scale-110" title="YouTube">
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.108C19.53 3.5 12 3.5 12 3.5s-7.53 0-9.388.555A3.003 3.003 0 0 0 .502 6.163C0 8.07 0 12 0 12s0 3.93.502 5.837a3.003 3.003 0 0 0 2.11 2.108C4.47 20.5 12 20.5 12 20.5s7.53 0 9.388-.555a3.003 3.003 0 0 0 2.11-2.108C24 15.93 24 12 24 12s0-3.93-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                                        </svg>
+                                    </a>
+                                    <a href="https://www.tiktok.com/@aazify" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-black transition-all duration-300 border border-slate-200/60 hover:scale-110" title="TikTok">
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M12.53.02C13.84.02 15.1.4 16.18 1.07A8.87 8.87 0 0 1 15.1 4.5c-.9-1.32-2.39-2.2-4.09-2.2a5.53 5.53 0 0 0-5.53 5.53 5.53 5.53 0 0 0 5.53 5.53c3.05 0 5.53-2.48 5.53-5.53V3.82c1.04.75 2.3 1.2 3.66 1.2h.01v2.88c-1.36 0-2.61-.45-3.66-1.2v6.63c0 4.63-3.75 8.38-8.38 8.38A8.38 8.38 0 0 1 3.75 13.5c0-4.63 3.75-8.38 8.38-8.38V.02h2.4z" />
+                                        </svg>
+                                    </a>
+                                    <a href="https://www.pinterest.com/aazifycom/" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-[#BD081C] transition-all duration-300 border border-slate-200/60 hover:scale-110" title="Pinterest">
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path fillRule="evenodd" d="M20.12 12c0 4.42-3.58 8-8 8-.66 0-1.29-.08-1.9-.22.25-.43.64-1.12.74-1.52.06-.23.36-1.4.36-1.4.2.39.8.72 1.44.72 1.9 0 3.28-1.74 3.28-3.9 0-1.89-1.61-3.66-4.14-3.66-2.93 0-4.64 2.1-4.64 4.38 0 1 .53 2.24 1.34 2.64.12.06.19.03.22-.09.02-.09.08-.34.11-.47.04-.15.02-.2-.09-.33-.36-.43-.59-1.24-.59-2.02 0-2.02 1.95-4.48 4.62-4.48 2.5 0 3.89 1.56 3.89 3.65 0 2.55-1.12 4.31-2.77 4.31-.86 0-1.51-.71-1.3-1.58.25-1.03.74-2.14.74-2.88 0-.66-.36-1.22-1.1-1.22-.87 0-1.56.9-1.56 2.1 0 .77.26 1.29.26 1.29s-.86 3.64-1.02 4.32c-.17.72-.08 1.6-.04 2.05A8.003 8.003 0 0 1 4 12c0-4.42 3.58-8 8-8s8 3.58 8 8z" clipRule="evenodd" />
+                                        </svg>
+                                    </a>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <div>
-                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">Links</h4>
-                        <ul className="space-y-2.5">
-                            <li><a href="#" className="text-xs text-slate-600 hover:text-primary-600 transition-colors">Home</a></li>
-                            <li><a href="#features" className="text-xs text-slate-600 hover:text-primary-600 transition-colors">Features</a></li>
-                            <li><a href="#pricing" className="text-xs text-slate-600 hover:text-primary-600 transition-colors">Pricing</a></li>
-                            <li><a href="#testimonials" className="text-xs text-slate-600 hover:text-primary-600 transition-colors">Testimonials</a></li>
-                        </ul>
-                    </div>
-                    <div>
-                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">Contact Info</h4>
-                        <ul className="space-y-2.5">
-                            <li><a href="https://www.aazify.com" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-600 hover:text-primary-600 transition-colors">Website: www.aazify.com</a></li>
-                            <li><a href="https://wa.me/923007395147" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-600 hover:text-primary-600 transition-colors">WhatsApp: 03007395147</a></li>
-                            <li><a href="mailto:contact@aazify.com" className="text-xs text-slate-600 hover:text-primary-600 transition-colors">Email: contact@aazify.com</a></li>
-                        </ul>
+
+                        {/* Column 2: Quick Links */}
+                        <div className="md:pl-12">
+                            <h4 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-6">Quick Links</h4>
+                            <ul className="space-y-3">
+                                <li><a href="#" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Home</a></li>
+                                <li><a href="#features" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Key Features</a></li>
+                                <li><a href="#businesses" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Businesses</a></li>
+                                <li><a href="#pricing" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Pricing Plans</a></li>
+                                <li><a href="#testimonials" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Testimonials</a></li>
+                                <li><a href="#contact" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Contact Support</a></li>
+                            </ul>
+                        </div>
+
+                        {/* Column 3: Contact Info */}
+                        <div className="space-y-6">
+                            <h4 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Contact Info</h4>
+                            <ul className="space-y-4">
+                                <li className="flex items-start gap-3">
+                                    <div className="p-1.5 rounded-lg bg-emerald-50 text-primary-600 shrink-0">
+                                        <Globe size={18} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Website</p>
+                                        <a href="https://www.aazify.com" target="_blank" rel="noopener noreferrer" className="text-sm text-slate-600 hover:text-primary-750 transition-colors font-medium">www.aazify.com</a>
+                                    </div>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <div className="p-1.5 rounded-lg bg-emerald-50 text-[#25D366] shrink-0">
+                                        <Phone size={18} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">WhatsApp</p>
+                                        <a href="https://wa.me/923007395147" target="_blank" rel="noopener noreferrer" className="text-sm text-slate-600 hover:text-primary-750 transition-colors font-medium">03007395147</a>
+                                    </div>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <div className="p-1.5 rounded-lg bg-emerald-50 text-primary-600 shrink-0">
+                                        <Mail size={18} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Email</p>
+                                        <a href="mailto:contact@aazify.com" className="text-sm text-slate-600 hover:text-primary-750 transition-colors font-medium">contact@aazify.com</a>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
                     </div>
 
                 </div>
-                <div className="pt-8 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <p className="text-xs text-slate-500">
-                        &copy; {new Date().getFullYear()} AAZ Solutions. All rights reserved.
-                    </p>
-                    <div className="flex gap-4">
-                        <a href="#" className="text-xs text-slate-500 hover:text-primary-600 transition-colors">Privacy Policy</a>
-                        <a href="#" className="text-xs text-slate-500 hover:text-primary-600 transition-colors">Terms of Service</a>
+
+                {/* Green themed bottom copyright bar */}
+                <div className="w-full bg-linear-to-r from-primary-800 to-primary-900 py-4 text-emerald-100/90 border-t border-primary-900/20">
+                    <div className="max-w-7xl mx-auto px-6 sm:px-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <p className="text-xs text-emerald-100/75">
+                            &copy; {new Date().getFullYear()} AAZ Solutions. All rights reserved.
+                        </p>
+
                     </div>
                 </div>
             </footer>
 
             {/* Floating WhatsApp Button */}
-            <a
-                href="https://wa.me/923007395147"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`fixed bottom-6 right-6 z-50 p-3.5 rounded-full bg-[#25D366] text-white shadow-xl hover:bg-[#20ba5a] hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center ${showWhatsApp ? 'translate-y-0 opacity-100' : 'translate-y-16 opacity-0 pointer-events-none'}`}
-                aria-label="Contact on WhatsApp"
+            <div
+                className={`fixed bottom-6 right-6 z-50 transition-all duration-500 ease-out flex items-center gap-3 group ${
+                    showWhatsApp 
+                        ? 'translate-y-0 opacity-100' 
+                        : 'translate-y-16 opacity-0 pointer-events-none'
+                }`}
             >
-                <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-                    <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.458L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.428 2.025 13.96 1 11.348 1 5.908 1 1.482 5.37 1.479 10.8c-.001 1.73.456 3.418 1.323 4.925L1.82 20.898l5.247-1.378c1.5.82 3.111 1.254 4.747 1.256-.002 0-.002 0 0 0zm11.348-7.854c-.26-.13-1.536-.759-1.774-.846-.237-.087-.41-.13-.58.13-.17.26-.66.846-.808 1.018-.149.172-.299.195-.56.065-.26-.13-1.1-.405-2.096-1.292-.775-.69-1.299-1.544-1.45-1.804-.15-.26-.016-.401.115-.53.118-.117.26-.303.39-.455.13-.152.173-.26.26-.433.087-.173.043-.325-.022-.455-.065-.13-.58-1.4-.795-1.92-.21-.51-.43-.44-.58-.448-.15-.008-.323-.008-.495-.008-.172 0-.452.065-.688.323-.236.258-.902.88-.902 2.148 0 1.268.923 2.496 1.05 2.67.127.172 1.817 2.775 4.402 3.89 1.08.463 1.9.742 2.549.948.748.238 1.43.204 1.97.124.6-.089 1.536-.628 1.752-1.236.216-.607.216-1.127.151-1.236-.065-.11-.237-.172-.497-.302z" />
-                </svg>
-            </a>
+                {/* Message Bubble Tooltip / Chat Notification */}
+                <div className="hidden sm:flex flex-col items-end pointer-events-none select-none">
+                    <div className="bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100 text-xs font-semibold py-2.5 px-4 rounded-2xl rounded-br-xs shadow-xl border border-slate-100 dark:border-gray-700/80 mb-1 transition-all duration-300 transform translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 max-w-[200px] text-right">
+                        <span className="block text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider mb-0.5">Online Support</span>
+                        Chat with us!
+                    </div>
+                    <div className="bg-white/90 backdrop-blur-md dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 text-[10px] font-medium py-1.5 px-3 rounded-full shadow-md border border-slate-200/50 dark:border-slate-800/80 flex items-center gap-1.5 transition-all duration-300 transform translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#25D366] animate-pulse"></span>
+                        We are online
+                    </div>
+                </div>
+
+                {/* The Interactive Button */}
+                <a
+                    href="https://wa.me/923007395147"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative w-14 h-14 rounded-full bg-[#25D366] text-white shadow-xl hover:bg-[#20ba5a] active:scale-95 transition-all duration-300 flex items-center justify-center animate-whatsapp-pulse animate-whatsapp-float"
+                    aria-label="Contact on WhatsApp"
+                >
+                    {/* Pulsing ring visual background */}
+                    <span className="absolute inset-0 rounded-full bg-[#25D366] opacity-0 group-hover:opacity-20 group-hover:scale-125 transition-all duration-300 -z-10" />
+                    
+                    {/* WhatsApp SVG Icon */}
+                    <svg className="w-7 h-7 fill-current transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" viewBox="0 0 24 24">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.458L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.428 2.025 13.96 1 11.348 1 5.908 1 1.482 5.37 1.479 10.8c-.001 1.73.456 3.418 1.323 4.925L1.82 20.898l5.247-1.378c1.5.82 3.111 1.254 4.747 1.256-.002 0-.002 0 0 0zm11.348-7.854c-.26-.13-1.536-.759-1.774-.846-.237-.087-.41-.13-.58.13-.17.26-.66.846-.808 1.018-.149.172-.299.195-.56.065-.26-.13-1.1-.405-2.096-1.292-.775-.69-1.299-1.544-1.45-1.804-.15-.26-.016-.401.115-.53.118-.117.26-.303.39-.455.13-.152.173-.26.26-.433.087-.173.043-.325-.022-.455-.065-.13-.58-1.4-.795-1.92-.21-.51-.43-.44-.58-.448-.15-.008-.323-.008-.495-.008-.172 0-.452.065-.688.323-.236.258-.902.88-.902 2.148 0 1.268.923 2.496 1.05 2.67.127.172 1.817 2.775 4.402 3.89 1.08.463 1.9.742 2.549.948.748.238 1.43.204 1.97.124.6-.089 1.536-.628 1.752-1.236.216-.607.216-1.127.151-1.236-.065-.11-.237-.172-.497-.302z" />
+                    </svg>
+                </a>
+            </div>
         </div>
     );
 }
