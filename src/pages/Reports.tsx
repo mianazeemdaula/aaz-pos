@@ -6,10 +6,10 @@ import { apiClient } from '../services/api';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
 import { SupplierSearch } from '../components/ui/SupplierSearch';
 import { AccountSelect } from '../components/ui/AccountSelect';
-import { userService } from '../services/pos.service';
-import type { Customer, Supplier, User } from '../types/pos';
+import { userService, categoryService, brandService } from '../services/pos.service';
+import type { Customer, Supplier, User, Category, Brand } from '../types/pos';
 
-type ReportId = 'sales' | 'cashier-sales' | 'detailed-sales' | 'purchases' | 'detailed-purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement' | 'stock-alert' | 'stock-negative' | 'stock-low' | 'daily';
+type ReportId = 'sales' | 'cashier-sales' | 'detailed-sales' | 'purchases' | 'detailed-purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement' | 'stock-alert' | 'stock-negative' | 'stock-low' | 'daily' | 'purchase-recommendation';
 
 interface ReportDef {
   id: ReportId;
@@ -17,7 +17,7 @@ interface ReportDef {
   description: string;
   icon: ElementType;
   color: string;
-  params: ('dates' | 'customer' | 'supplier' | 'account' | 'date' | 'stockFilter' | 'user')[];
+  params: ('dates' | 'customer' | 'supplier' | 'account' | 'date' | 'stockFilter' | 'user' | 'category' | 'brand')[];
   endpoint: string | ((id: number) => string);
   extraParams?: Record<string, string>;
 }
@@ -29,21 +29,44 @@ const REPORTS: ReportDef[] = [
   { id: 'cashier-sales', label: 'Cashier Sales Report', description: 'Sales transactions & gross profit filtered by Cashier/Admin', icon: Users, color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800', params: ['dates', 'user'], endpoint: '/reports/cashier-sales' },
   { id: 'purchases', label: 'Purchases Report', description: 'Purchase orders, total costs & due amounts', icon: Package, color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800', params: ['dates'], endpoint: '/reports/purchases' },
   { id: 'detailed-purchases', label: 'Detailed Purchases Report', description: 'Detailed purchase orders showing item details', icon: Package, color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 border-teal-100 dark:border-teal-800', params: ['dates', 'supplier'], endpoint: '/reports/detailed-purchases' },
-  { id: 'inventory', label: 'Inventory Report', description: 'Stock levels, inventory value & reorder alerts', icon: BarChart2, color: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800', params: [], endpoint: '/reports/inventory' },
-  { id: 'stock-alert', label: 'Stock Alert Report', description: 'All products with negative or low stock levels', icon: AlertTriangle, color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800', params: ['stockFilter'], endpoint: '/reports/stock', extraParams: { filter: 'alert' } },
-  { id: 'stock-negative', label: 'Negative Stock', description: 'Products with stock below zero (data integrity issue)', icon: AlertTriangle, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-800', params: ['stockFilter'], endpoint: '/reports/stock', extraParams: { filter: 'negative' } },
-  { id: 'stock-low', label: 'Low Stock Report', description: 'Products at or below their reorder level', icon: AlertTriangle, color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800', params: ['stockFilter'], endpoint: '/reports/stock', extraParams: { filter: 'low' } },
+  { id: 'inventory', label: 'Inventory Report', description: 'Stock levels, inventory value & reorder alerts', icon: BarChart2, color: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800', params: ['category', 'brand'], endpoint: '/reports/inventory' },
+  { id: 'stock-alert', label: 'Stock Alert Report', description: 'All products with negative or low stock levels', icon: AlertTriangle, color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800', params: ['stockFilter', 'category', 'brand'], endpoint: '/reports/stock', extraParams: { filter: 'alert' } },
+  { id: 'stock-negative', label: 'Negative Stock', description: 'Products with stock below zero (data integrity issue)', icon: AlertTriangle, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-800', params: ['stockFilter', 'category', 'brand'], endpoint: '/reports/stock', extraParams: { filter: 'negative' } },
+  { id: 'stock-low', label: 'Low Stock Report', description: 'Products at or below their reorder level', icon: AlertTriangle, color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800', params: ['stockFilter', 'category', 'brand'], endpoint: '/reports/stock', extraParams: { filter: 'low' } },
   { id: 'customers', label: 'Customer Balances', description: 'Outstanding receivables per customer', icon: Users, color: 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 border-cyan-100 dark:border-cyan-800', params: [], endpoint: '/reports/customer-balances' },
   { id: 'suppliers', label: 'Supplier Balances', description: 'Outstanding payables per supplier', icon: TrendingDown, color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800', params: [], endpoint: '/reports/supplier-balances' },
   { id: 'expenses', label: 'Expenses Report', description: 'All expenses by category & account', icon: DollarSign, color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800', params: ['dates'], endpoint: '/reports/expenses' },
   { id: 'customer-ledger', label: 'Customer Ledger', description: 'Full transaction ledger for a customer', icon: BookOpen, color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 border-teal-100 dark:border-teal-800', params: ['customer', 'dates'], endpoint: (id: number) => `/reports/customer-ledger/${id}` },
   { id: 'supplier-ledger', label: 'Supplier Ledger', description: 'Full transaction ledger for a supplier', icon: BookOpen, color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800', params: ['supplier', 'dates'], endpoint: (id: number) => `/reports/supplier-ledger/${id}` },
   { id: 'account-statement', label: 'Account Statement', description: 'Transaction statement for an account', icon: Wallet, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800', params: ['account', 'dates'], endpoint: (id: number) => `/reports/account-statement/${id}` },
+  { id: 'purchase-recommendation', label: 'PO Recommendation', description: 'Recommended quantities and suppliers based on sales velocity & low stock', icon: Package, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-800', params: ['dates', 'category', 'brand'], endpoint: '/reports/purchase-order-recommendation' },
 ];
 
 const today = new Date().toISOString().slice(0, 10);
 const monthStart = today.slice(0, 8) + '01';
 const inputCls = 'px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500';
+
+function extractCats(r: unknown): Category[] {
+  if (Array.isArray(r)) return r;
+  if (r && typeof r === 'object' && Array.isArray((r as { data?: unknown }).data))
+    return (r as { data: Category[] }).data;
+  return [];
+}
+
+function renderCatOptions(cats: Category[], depth = 0): React.ReactNode[] {
+  return cats.flatMap(c => {
+    const subs = c.subcategories ?? [];
+    if (subs.length > 0) {
+      return [
+        <optgroup key={`g-${c.id}`} label={'\u00A0'.repeat(depth * 2) + c.name}>
+          <option key={c.id} value={c.id}>{'\u00A0'.repeat(depth * 2) + c.name}</option>
+          {...renderCatOptions(subs, depth + 1)}
+        </optgroup>,
+      ];
+    }
+    return [<option key={c.id} value={c.id}>{'\u00A0'.repeat(depth * 2) + c.name}</option>];
+  });
+}
 
 export function Reports() {
   const location = useLocation();
@@ -56,7 +79,11 @@ export function Reports() {
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [accountId, setAccountId] = useState<number | null>(null);
   const [userId, setUserId] = useState<number | ''>('');
-  const [usersList, setUsersList] = useState<User[]>([]);
+  const [userIdList, setUsersList] = useState<User[]>([]);
+  const [categoryId, setCategoryId] = useState<number | ''>('');
+  const [brandId, setBrandId] = useState<number | ''>('');
+  const [categoriesList, setCategoriesList] = useState<Category[]>([]);
+  const [brandsList, setBrandsList] = useState<Brand[]>([]);
 
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -68,6 +95,16 @@ export function Reports() {
       userService.list({ pageSize: 500 }).then(r => setUsersList(r.data)).catch(() => {});
     }
   }, [active]);
+
+  // Fetch categories and brands list for inventory reports filters
+  useEffect(() => {
+    if (active?.params.includes('category') && categoriesList.length === 0) {
+      categoryService.list({}).then(r => setCategoriesList(extractCats(r).filter(c => !c.parentId))).catch(() => {});
+    }
+    if (active?.params.includes('brand') && brandsList.length === 0) {
+      brandService.list({ pageSize: 500 }).then(r => setBrandsList(Array.isArray(r?.data) ? r.data : [])).catch(() => {});
+    }
+  }, [active, categoriesList.length, brandsList.length]);
 
   // Reset to reports home when user navigates to /reports (e.g. clicking sidebar link again)
   useEffect(() => {
@@ -104,6 +141,8 @@ export function Reports() {
       if (active.params.includes('dates')) { params.from = from; params.to = to; }
       if (active.params.includes('date')) { params.date = date; }
       if (active.params.includes('user') && userId) { params.userId = String(userId); }
+      if (active.params.includes('category') && categoryId) { params.categoryId = String(categoryId); }
+      if (active.params.includes('brand') && brandId) { params.brandId = String(brandId); }
 
       const blob = await apiClient.getBlob(endpoint, { params, timeout: 120_000 });
       setPdfUrl(URL.createObjectURL(blob));
@@ -112,7 +151,7 @@ export function Reports() {
     } finally {
       setLoading(false);
     }
-  }, [active, from, to, date, customer, supplier, accountId, userId, pdfUrl]);
+  }, [active, from, to, date, customer, supplier, accountId, userId, categoryId, brandId, pdfUrl]);
 
   const openReport = (id: ReportId) => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
@@ -123,6 +162,8 @@ export function Reports() {
     setSupplier(null);
     setAccountId(null);
     setUserId('');
+    setCategoryId('');
+    setBrandId('');
   };
 
   const backToDashboard = () => {
@@ -130,6 +171,8 @@ export function Reports() {
     setPdfUrl(null);
     setError('');
     setActiveId(null);
+    setCategoryId('');
+    setBrandId('');
   };
 
   const canGenerate = active &&
@@ -141,7 +184,7 @@ export function Reports() {
   if (!active) {
     const sections: { title: string; ids: ReportId[] }[] = [
       { title: 'Financial', ids: ['daily', 'sales', 'detailed-sales', 'cashier-sales', 'purchases', 'detailed-purchases', 'expenses'] },
-      { title: 'Inventory', ids: ['inventory', 'stock-alert', 'stock-negative', 'stock-low'] },
+      { title: 'Inventory', ids: ['inventory', 'stock-alert', 'stock-negative', 'stock-low', 'purchase-recommendation'] },
       { title: 'Party Balances', ids: ['customers', 'suppliers'] },
       { title: 'Ledgers & Statements', ids: ['customer-ledger', 'supplier-ledger', 'account-statement'] },
     ];
@@ -219,8 +262,32 @@ export function Reports() {
             className={inputCls}
           >
             <option value="">All Cashiers/Admins</option>
-            {usersList.map(u => (
+            {userIdList.map(u => (
               <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+            ))}
+          </select>
+        )}
+
+        {active.params.includes('category') && (
+          <select
+            value={categoryId}
+            onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : '')}
+            className={inputCls}
+          >
+            <option value="">All Categories</option>
+            {renderCatOptions(categoriesList)}
+          </select>
+        )}
+
+        {active.params.includes('brand') && (
+          <select
+            value={brandId}
+            onChange={e => setBrandId(e.target.value ? Number(e.target.value) : '')}
+            className={inputCls}
+          >
+            <option value="">All Brands</option>
+            {brandsList.map(b => (
+              <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
         )}
