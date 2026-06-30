@@ -1,218 +1,601 @@
-﻿import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, BarChart3, Package, Users, Receipt, Shield, Zap, Globe, ArrowRight, Star, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    ShoppingBag,
+    BarChart3,
+    Package,
+    Users,
+    Shield,
+    ArrowRight,
+    Star,
+    CheckCircle2,
+    Menu,
+    X,
+    Layers,
+    CreditCard,
+    Calendar,
+    QrCode,
+    Settings,
+    Percent,
+    Tags,
+    Truck,
+    Store,
+    Shirt,
+    Smartphone,
+    Plus,
+    Sparkles,
+    Gem,
+    Cake,
+    Wrench,
+    BookOpen,
+    Armchair,
+    Cog,
+    Phone,
+    Mail,
+    Globe
+} from 'lucide-react';
 
 const features = [
-    { icon: ShoppingBag, title: 'Point of Sale', desc: 'Lightning-fast checkout with barcode scanning, split payments, and real-time inventory updates.' },
-    { icon: Package, title: 'Inventory Management', desc: 'Track stock levels, variants, and movements. Get alerts for low stock and manage multiple warehouses.' },
-    { icon: BarChart3, title: 'Reports & Analytics', desc: 'Comprehensive dashboards with sales trends, profit margins, top products, and customer insights.' },
-    { icon: Users, title: 'Customer & Supplier', desc: 'Manage customer ledgers, credit limits, supplier payments, and maintain complete transaction history.' },
-    { icon: Receipt, title: 'FBR Tax Compliance', desc: 'Built-in FBR fiscal integration with automated tax invoicing, QR codes, and GST schedules.' },
-    { icon: Shield, title: 'Multi-User Roles', desc: 'Role-based access for admins, managers, cashiers, and workers with audit trails.' },
-    { icon: Zap, title: 'Thermal Printing', desc: 'Print receipts, invoices, and reports on 58mm/80mm thermal printers with custom templates.' },
-    { icon: Globe, title: 'Desktop & Web', desc: 'Run as a native desktop app via Tauri or deploy as a web application â€” your choice.' },
+    { icon: ShoppingBag, title: 'Sales & Billing Management', desc: 'Lightning-fast billing, instant checkout, thermal printing, split payments, and hold/resume bills.' },
+    { icon: Truck, title: 'Purchase & Supplier Management', desc: 'Track inventory supply records, manage purchase returns, invoices, and supplier history.' },
+    { icon: Package, title: 'Smart Inventory & Stock Control', desc: 'Real-time stock tracking, variants management, low-stock alerts, and warehouse movements.' },
+    { icon: Tags, title: 'Products, Categories & Brands Management', desc: 'Organize items systematically with dedicated category filters and brand tracking.' },
+    { icon: Layers, title: 'Product Packages / Bundles', desc: 'Group items together into custom promotional packages, bundle deals, and combo offers.' },
+    { icon: Users, title: 'Customer & Supplier Records (Ledgers)', desc: 'Complete transaction history logs, credit limits, account ledgers, and statement reports.' },
+    { icon: CreditCard, title: 'Payment Tracking & Due Management', desc: 'Manage cash flow, split payment distributions, customer credit limits, and due recovery reminders.' },
+    { icon: Calendar, title: 'Advance Booking System', desc: 'Schedule pre-orders, manage advance customer deposits, and book orders ahead of time.' },
+    { icon: QrCode, title: 'QR Code / Barcode Printing (Products & Reports)', desc: 'Print barcode labels for products, generate QR codes on tax invoices, and export report barcodes.' },
+    { icon: Users, title: 'Employee Management & Payroll System', desc: 'Manage employee profiles, record advance payments, and automate monthly salary slips.' },
+    { icon: BarChart3, title: 'Advanced Reports & Business Analytics', desc: 'Analyze sales statistics, net profit margins, top-selling items, and customer activity patterns.' },
+    { icon: Shield, title: 'Multi-User Access & Role Management', desc: 'Control permissions for admins, managers, cashiers, and workers with detailed activity audits.' },
+    { icon: Settings, title: 'Complete Admin Panel & System Settings', desc: 'Configure system defaults, business receipts, invoice formats, tax settings, and system backup.' },
+    { icon: Percent, title: 'Promotions, Discounts & Offers Management', desc: 'Run promotional discount campaigns, offer tier discounts, and create special coupon rules.' },
 ];
 
-const highlights = [
-    'Multi-variant products with barcode tracking',
-    'Split payments across multiple accounts',
-    'Advance bookings & held transactions',
-    'Employee salary management & advances',
-    'Recurring expenses automation',
-    'Package/bundle deals support',
-    'Promotions & discount engine',
-    'Purchase returns & sale returns',
-    'Customer & supplier ledger management',
-    'Real-time dashboard with charts',
+const businessTypes = [
+    { name: 'General Stores & Marts', icon: Store },
+    { name: 'Garments & Clothing Stores', icon: Shirt },
+    { name: 'Electronics & Mobile Shops', icon: Smartphone },
+    { name: 'Pharmacy & Medical Stores', icon: Plus },
+    { name: 'Cosmetics & Beauty Shops', icon: Sparkles },
+    { name: 'Shoe Stores', icon: ShoppingBag },
+    { name: 'Jewelry Shops', icon: Gem },
+    { name: 'Bakeries & Sweet Shops', icon: Cake },
+    { name: 'Sanitary & Hardware Stores', icon: Wrench },
+    { name: 'Book Shops & Stationery Stores', icon: BookOpen },
+    { name: 'Furniture Shops', icon: Armchair },
+    { name: 'Spare Parts Shops', icon: Cog },
 ];
 
 export function Home() {
     const navigate = useNavigate();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [showWhatsApp, setShowWhatsApp] = useState(false);
+
+    useEffect(() => {
+        document.title = "Aazify POS - Advanced Point of Sale & Inventory Management System";
+        const handleScroll = () => {
+            if (window.scrollY > 100) {
+                setShowWhatsApp(true);
+            } else {
+                setShowWhatsApp(false);
+            }
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     return (
-        <div className="min-h-screen bg-linear-to-br from-gray-950 via-gray-900 to-gray-950 text-white overflow-x-hidden">
+        <div className="min-h-screen bg-linear-to-br from-slate-50 via-white to-teal-50/30 text-slate-800 overflow-x-clip">
             {/* Animated background elements */}
             <div className="fixed inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl animate-pulse" />
-                <div className="absolute top-1/3 -left-20 w-72 h-72 bg-blue-500/8 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
-                <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-purple-500/8 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
+                <div className="absolute -top-40 -right-40 w-96 h-96 bg-primary-500/5 rounded-full blur-3xl animate-pulse" />
+                <div className="absolute top-1/3 -left-20 w-72 h-72 bg-blue-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+                <div className="absolute bottom-20 right-1/4 w-80 h-80 bg-purple-500/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
             </div>
 
-            {/* Navigation */}
-            <nav className="relative z-10 flex items-center justify-between px-6 sm:px-12 py-5 max-w-7xl mx-auto">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/25">
-                        <ShoppingBag size={20} className="text-white" />
+            {/* Navigation Header */}
+            <header className="sticky top-0 z-50 w-full bg-linear-to-r from-primary-700 to-primary-800 text-white shadow-md border-b border-primary-900/10">
+                <nav className="flex items-center justify-between px-6 sm:px-12 py-4 max-w-7xl mx-auto">
+                    <div className="flex items-center gap-3">
+
+                        <span className="text-xl font-bold tracking-tight text-white">Aazify</span>
                     </div>
-                    <span className="text-xl font-bold tracking-tight">AAZ Point of Sale</span>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/login')}
-                        className="px-5 py-2.5 text-sm font-medium rounded-xl bg-white/10 hover:bg-white/15 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300">
-                        Sign In
+
+                    {/* Header Menu Links */}
+                    <div className="hidden md:flex items-center gap-8">
+                        <a href="#" className="text-sm font-semibold text-white hover:text-white/80 transition-colors">Home</a>
+                        <a href="#features" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Features</a>
+                        <a href="#businesses" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Businesses</a>
+                        <a href="#pricing" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Pricing</a>
+                        <a href="#testimonials" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Testimonials</a>
+                        <a href="#contact" className="text-sm font-semibold text-white/80 hover:text-white transition-colors">Contact</a>
+                    </div>
+
+                    {/* Desktop Actions */}
+                    <div className="hidden md:flex items-center gap-3">
+                        <button onClick={() => navigate('/login')}
+                            className="px-5 py-2.5 text-sm font-medium rounded-xl text-white bg-white/10 hover:bg-white/20 border border-white/25 hover:border-white/35 transition-all duration-300">
+                            Sign In
+                        </button>
+                        <button onClick={() => navigate('/login')}
+                            className="px-5 py-2.5 text-sm font-medium rounded-xl text-primary-800 bg-white hover:bg-slate-100 shadow-md hover:shadow-lg transition-all duration-300">
+                            Get Started
+                        </button>
+                    </div>
+
+                    {/* Hamburger Button for Mobile */}
+                    <button
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        className="md:hidden p-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 transition-all duration-300"
+                        aria-label="Toggle menu"
+                    >
+                        {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
                     </button>
-                    <button onClick={() => navigate('/login')}
-                        className="px-5 py-2.5 text-sm font-medium rounded-xl bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-300">
-                        Get Started
-                    </button>
+                </nav>
+            </header>
+
+            {/* Mobile Navigation Drawer */}
+            <div className={`fixed inset-0 z-50 md:hidden transition-all duration-300 ease-in-out ${isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                {/* Backdrop overlay */}
+                <div
+                    onClick={() => setIsMenuOpen(false)}
+                    className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity duration-300"
+                />
+
+                {/* Drawer Container */}
+                <div className={`absolute top-0 right-0 h-full w-80 max-w-[85vw] bg-white text-slate-800 shadow-2xl p-6 flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${isMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                    <div className="space-y-8">
+                        {/* Drawer Header */}
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-5">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-lg bg-linear-to-br from-primary-500 to-primary-700 flex items-center justify-center">
+                                    <ShoppingBag size={16} className="text-white" />
+                                </div>
+                                <span className="font-bold text-slate-900 text-base">Aazify POS</span>
+                            </div>
+                            <button
+                                onClick={() => setIsMenuOpen(false)}
+                                className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        {/* Drawer Navigation Links */}
+                        <nav className="flex flex-col gap-5">
+                            <a
+                                href="#"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="text-base font-semibold text-slate-600 hover:text-primary-600 transition-colors"
+                            >
+                                Home
+                            </a>
+                            <a
+                                href="#features"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="text-base font-semibold text-slate-600 hover:text-primary-600 transition-colors"
+                            >
+                                Features
+                            </a>
+                            <a
+                                href="#businesses"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="text-base font-semibold text-slate-600 hover:text-primary-600 transition-colors"
+                            >
+                                Businesses
+                            </a>
+                            <a
+                                href="#pricing"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="text-base font-semibold text-slate-600 hover:text-primary-600 transition-colors"
+                            >
+                                Pricing
+                            </a>
+                            <a
+                                href="#testimonials"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="text-base font-semibold text-slate-600 hover:text-primary-600 transition-colors"
+                            >
+                                Testimonials
+                            </a>
+                            <a
+                                href="#contact"
+                                onClick={() => setIsMenuOpen(false)}
+                                className="text-base font-semibold text-slate-600 hover:text-primary-600 transition-colors"
+                            >
+                                Contact
+                            </a>
+                        </nav>
+                    </div>
+
+                    {/* Drawer Bottom Actions */}
+                    <div className="border-t border-slate-100 pt-6 space-y-3">
+                        <button
+                            onClick={() => { setIsMenuOpen(false); navigate('/login'); }}
+                            className="w-full py-3 text-sm font-semibold rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 text-center transition-all duration-200"
+                        >
+                            Sign In
+                        </button>
+                        <button
+                            onClick={() => { setIsMenuOpen(false); navigate('/login'); }}
+                            className="w-full py-3 text-sm font-semibold rounded-xl text-white bg-linear-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-center transition-all duration-200 shadow-md shadow-primary-600/10"
+                        >
+                            Get Started
+                        </button>
+                    </div>
                 </div>
-            </nav>
+            </div>
 
             {/* Hero Section */}
-            <section className="relative z-10 px-6 sm:px-12 pt-16 pb-20 max-w-7xl mx-auto">
+            <section className="relative z-10 px-6 sm:px-12 pt-14 pb-12 max-w-7xl mx-auto">
                 <div className="text-center max-w-4xl mx-auto">
-                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400 text-xs font-medium mb-8 animate-fade-in">
-                        <Star size={12} className="fill-primary-400" />
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-700 text-xs font-medium mb-8 animate-fade-in">
+                        <Star size={12} className="fill-primary-600 text-primary-600" />
                         Complete Business Management Solution
                     </div>
                     <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold leading-tight mb-6 animate-slide-up">
-                        <span className="bg-linear-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
+                        <span className="bg-linear-to-r from-slate-900 via-slate-800 to-slate-700 bg-clip-text text-transparent">
                             Modern POS for{' '}
                         </span>
                         <br />
-                        <span className="bg-linear-to-r from-primary-400 via-primary-500 to-blue-500 bg-clip-text text-transparent">
+                        <span className="bg-linear-to-r from-primary-600 via-primary-500 to-blue-600 bg-clip-text text-transparent">
                             Smart Businesses
                         </span>
                     </h1>
-                    <p className="text-lg sm:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-slide-up" style={{ animationDelay: '0.15s' }}>
-                        A complete point-of-sale system with inventory management, customer tracking, employee payroll, FBR tax compliance, and powerful analytics â€” all in one platform.
+                    <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto mb-10 leading-relaxed animate-slide-up" style={{ animationDelay: '0.15s' }}>
+                        A complete point-of-sale system with inventory management, customer tracking, employee payroll, FBR tax compliance, and powerful analytics — all in one platform.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.3s' }}>
                         <button onClick={() => navigate('/login')}
-                            className="group flex items-center gap-2 px-8 py-3.5 text-base font-semibold rounded-xl bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-xl shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-300 hover:scale-105">
+                            className="group flex items-center gap-2 px-8 py-3.5 text-base font-semibold rounded-xl text-white bg-linear-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 shadow-lg shadow-primary-600/20 hover:shadow-xl hover:shadow-primary-600/30 transition-all duration-300 hover:scale-105">
                             Start Using Now
                             <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
                         </button>
                         <a href="#features"
-                            className="px-8 py-3.5 text-base font-medium rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all duration-300">
+                            className="px-8 py-3.5 text-base font-medium rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 transition-all duration-300 hover:scale-105">
                             Explore Features
                         </a>
                     </div>
                 </div>
-
-                {/* Stats bar */}
-                <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-up" style={{ animationDelay: '0.45s' }}>
-                    {[
-                        { label: 'Products & Variants', value: 'Unlimited' },
-                        { label: 'Tax Schedules', value: '50+ GST' },
-                        { label: 'Report Types', value: '10+' },
-                        { label: 'User Roles', value: '5' },
-                    ].map((s, i) => (
-                        <div key={i} className="text-center p-5 rounded-2xl bg-white/5 border border-white/5 backdrop-blur-sm">
-                            <p className="text-2xl sm:text-3xl font-bold bg-linear-to-r from-primary-400 to-blue-400 bg-clip-text text-transparent">{s.value}</p>
-                            <p className="text-xs sm:text-sm text-gray-500 mt-1">{s.label}</p>
-                        </div>
-                    ))}
-                </div>
             </section>
 
             {/* Features Grid */}
-            <section id="features" className="relative z-10 px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl sm:text-4xl font-bold mb-4">Everything You Need</h2>
-                    <p className="text-gray-400 max-w-xl mx-auto">A comprehensive suite of tools designed for retail, wholesale, and cold storage businesses.</p>
+            <section id="features" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto">
+                <div className="text-center mb-8">
+                    <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Everything You Need</h2>
+                    <p className="text-slate-500 max-w-xl mx-auto">A comprehensive suite of tools designed for retail, wholesale, and cold storage businesses.</p>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {features.map((f, i) => (
                         <div key={i}
-                            className="group p-6 rounded-2xl bg-white/3 border border-white/6 hover:bg-white/6 hover:border-white/12 transition-all duration-500 hover:-translate-y-1"
-                            style={{ animationDelay: `${i * 0.1}s` }}>
-                            <div className="w-12 h-12 rounded-xl bg-linear-to-br from-primary-500/20 to-primary-600/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                                <f.icon size={22} className="text-primary-400" />
+                            className="group flex items-start gap-3.5 p-4 rounded-2xl bg-white border border-slate-200/80 hover:border-slate-300 hover:bg-slate-50/30 shadow-2xs hover:shadow-sm transition-all duration-300"
+                            style={{ animationDelay: `${i * 0.05}s` }}>
+                            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary-50 to-primary-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-300">
+                                <f.icon size={18} className="text-primary-600" />
                             </div>
-                            <h3 className="text-base font-semibold mb-2 text-gray-100">{f.title}</h3>
-                            <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            {/* Highlights Section */}
-            <section className="relative z-10 px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-                <div className="grid lg:grid-cols-2 gap-16 items-center">
-                    <div>
-                        <h2 className="text-3xl sm:text-4xl font-bold mb-6">
-                            Built for{' '}
-                            <span className="bg-linear-to-r from-primary-400 to-blue-400 bg-clip-text text-transparent">
-                                Pakistani Businesses
-                            </span>
-                        </h2>
-                        <p className="text-gray-400 mb-8 leading-relaxed">
-                            Designed specifically for retail shops, cold stores, general stores, and wholesale businesses in Pakistan. Full FBR compliance, PKR currency, NTN/CNIC support, and Urdu-friendly.
-                        </p>
-                        <button onClick={() => navigate('/login')}
-                            className="group flex items-center gap-2 px-6 py-3 text-sm font-semibold rounded-xl bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-lg shadow-primary-500/25 transition-all duration-300">
-                            Try It Now
-                            <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {highlights.map((h, i) => (
-                            <div key={i} className="flex items-start gap-2.5 p-3 rounded-xl bg-white/3 border border-white/5">
-                                <CheckCircle2 size={16} className="text-green-400 shrink-0 mt-0.5" />
-                                <span className="text-sm text-gray-300">{h}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Demo Preview Section */}
-            <section className="relative z-10 px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-                <div className="text-center mb-12">
-                    <h2 className="text-3xl sm:text-4xl font-bold mb-4">See It In Action</h2>
-                    <p className="text-gray-400 max-w-xl mx-auto">Preview the dashboard and key workflows of the POS system.</p>
-                </div>
-                <div className="grid md:grid-cols-3 gap-6">
-                    {[
-                        { title: 'Dashboard', desc: 'Real-time sales analytics, profit tracking, and top product insights at a glance.', color: 'from-blue-500/20 to-blue-600/10' },
-                        { title: 'Quick Sale', desc: 'Scan barcodes, apply discounts, split payments, and print thermal receipts instantly.', color: 'from-green-500/20 to-green-600/10' },
-                        { title: 'Inventory', desc: 'Manage products with multiple variants, track stock movements, and set reorder alerts.', color: 'from-purple-500/20 to-purple-600/10' },
-                    ].map((d, i) => (
-                        <div key={i} className="relative rounded-2xl overflow-hidden border border-white/6 bg-white/2 group hover:border-white/12 transition-all duration-500">
-                            <div className={`h-48 bg-linear-to-br ${d.color} flex items-center justify-center`}>
-                                <div className="w-24 h-16 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center">
-                                    <BarChart3 size={28} className="text-white/40" />
-                                </div>
-                            </div>
-                            <div className="p-5">
-                                <h3 className="text-base font-semibold mb-1.5">{d.title}</h3>
-                                <p className="text-sm text-gray-500">{d.desc}</p>
+                            <div className="min-w-0">
+                                <h3 className="text-sm font-semibold text-slate-800 group-hover:text-primary-700 transition-colors duration-300 leading-tight">{f.title}</h3>
+                                <p className="text-xs text-slate-500 leading-relaxed mt-1">{f.desc}</p>
                             </div>
                         </div>
                     ))}
                 </div>
             </section>
 
-            {/* CTA Section */}
-            <section className="relative z-10 px-6 sm:px-12 py-24 max-w-7xl mx-auto">
-                <div className="relative rounded-3xl overflow-hidden">
-                    <div className="absolute inset-0 bg-linear-to-r from-primary-600/20 via-primary-500/10 to-blue-600/20 blur-xl" />
-                    <div className="relative bg-white/3 border border-white/8 rounded-3xl p-12 sm:p-16 text-center backdrop-blur-sm">
-                        <h2 className="text-3xl sm:text-4xl font-bold mb-4">Ready to Get Started?</h2>
-                        <p className="text-gray-400 max-w-lg mx-auto mb-8">
-                            Set up your complete POS system in minutes. No complex configuration needed.
-                        </p>
-                        <button onClick={() => navigate('/login')}
-                            className="group inline-flex items-center gap-2 px-8 py-3.5 text-base font-semibold rounded-xl bg-linear-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 shadow-xl shadow-primary-500/25 hover:shadow-primary-500/40 transition-all duration-300 hover:scale-105">
-                            Launch POS System
-                            <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
-                        </button>
-                    </div>
-                </div>
-            </section>
 
-            {/* Footer */}
-            <footer className="relative z-10 border-t border-white/6 px-6 sm:px-12 py-8 max-w-7xl mx-auto">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <ShoppingBag size={16} className="text-primary-500" />
-                        AAZ Point of Sale
-                    </div>
-                    <p className="text-sm text-gray-600">
-                        &copy; {new Date().getFullYear()} AAZ Solutions. All rights reserved.
+            {/* Business Types Section */}
+            <section id="businesses" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto border-t border-slate-200/60">
+                <div className="text-center mb-10">
+                    <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Perfect POS for All Types of Businesses</h2>
+                    <p className="text-primary-700 max-w-xl mx-auto font-bold uppercase tracking-wider text-xs bg-primary-50 px-4 py-1.5 rounded-full inline-block">
+                        Made for Every Shop & Business!
                     </p>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 max-w-6xl mx-auto">
+                    {businessTypes.map((b, i) => (
+                        <div key={i} className="group p-5 rounded-2xl border border-primary-700/20 bg-linear-to-br from-primary-600 to-primary-700 shadow-sm hover:shadow-md hover:from-primary-700 hover:to-primary-800 hover:-translate-y-1 transition-all duration-300 flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-white flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:bg-white/20 transition-all duration-300 shadow-2xs">
+                                <b.icon size={20} className="text-primary-600 group-hover:text-white transition-colors duration-300" />
+                            </div>
+                            <span className="text-sm font-bold text-white tracking-wide">{b.name}</span>
+                        </div>
+                    ))}
+                </div>
+                <div className="text-center mt-10">
+                    <span className="text-xs font-bold text-slate-500 bg-slate-100/80 border border-slate-200/50 rounded-full py-2.5 px-6 inline-block shadow-2xs">
+                        And Much More...
+                    </span>
+                </div>
+            </section>
+
+
+            {/* Pricing Section */}
+            <section id="pricing" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto border-t border-slate-200/60">
+                <div className="text-center mb-10">
+                    <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Simple, Transparent Pricing</h2>
+                    <p className="text-slate-500 max-w-xl mx-auto">Choose the perfect version for your business model. No hidden charges.</p>
+                </div>
+                <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                    {[
+                        {
+                            name: 'Offline Version',
+                            price: '35,000 PKR',
+                            period: '/ per single branch',
+                            renewal: 'Each year renewal: 10,000 PKR',
+                            desc: 'Best for local shops and stores requiring an independent, internet-free solution.',
+                            features: [
+                                'Single Branch Deployment',
+                                'Offline Local Database (No Internet Required)',
+                                'Thermal Receipt & Invoice Printing',
+                                'Standard Sales & Inventory Tracking',
+                                'Customer & Supplier Ledgers',
+                                'Lifetime Software Usage License'
+                            ],
+                            popular: false
+                        },
+                        {
+                            name: 'Online Version',
+                            price: '50,000 PKR',
+                            period: '/ per year',
+                            renewal: 'Each year renewal: 10,000 PKR',
+                            desc: 'Perfect for businesses needing cloud connectivity, automated backups, and multi-device access.',
+                            features: [
+                                'Single Shop Cloud Access',
+                                'Real-time Online Syncing',
+                                'Multi-device Dashboard View',
+                                'FBR Tax Compliance Integration',
+                                'Automated Secure Cloud Backups',
+                                'Priority Remote Technical Support'
+                            ],
+                            popular: true
+                        },
+                    ].map((p, i) => (
+                        <div key={i} className={`relative rounded-3xl p-8 border ${p.popular ? 'border-primary-500 shadow-md ring-1 ring-primary-500/25 bg-white' : 'border-slate-200/80 bg-white/60 shadow-xs'} transition-all duration-300 hover:scale-102 flex flex-col justify-between`}>
+                            <div>
+                                {p.popular && (
+                                    <span className="absolute -top-4 left-1/2 -translate-x-1/2 px-3.5 py-1 bg-primary-600 text-white text-xs font-semibold rounded-full tracking-wider uppercase">
+                                        Recommended
+                                    </span>
+                                )}
+                                <h3 className="text-xl font-bold text-slate-900 mb-2">{p.name}</h3>
+                                <p className="text-sm text-slate-500 mb-6">{p.desc}</p>
+                                <div className="flex flex-col gap-1 mb-6">
+                                    <div className="flex items-baseline gap-1">
+                                        <span className="text-2xl sm:text-3xl font-extrabold text-slate-900">{p.price}</span>
+                                        <span className="text-slate-500 text-sm font-medium">{p.period}</span>
+                                    </div>
+                                    <span className="text-xs font-semibold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-md self-start mt-1">{p.renewal}</span>
+                                </div>
+                                <button onClick={() => navigate('/login')}
+                                    className={`w-full py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 ${p.popular ? 'bg-primary-600 text-white hover:bg-primary-700 shadow-md shadow-primary-600/10' : 'bg-slate-100 text-slate-800 hover:bg-slate-200'}`}>
+                                    Get Started
+                                </button>
+                                <div className="mt-8 pt-8 border-t border-slate-100">
+                                    <p className="text-xs font-semibold text-slate-900 uppercase tracking-wider mb-4">What's Included</p>
+                                    <ul className="space-y-3">
+                                        {p.features.map((feat, fi) => (
+                                            <li key={fi} className="flex items-center gap-2.5">
+                                                <CheckCircle2 size={16} className="text-primary-600 shrink-0" />
+                                                <span className="text-sm text-slate-600">{feat}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Testimonials Section */}
+            <section id="testimonials" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto border-t border-slate-200/60">
+                <div className="text-center mb-10">
+                    <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">Trusted by Store Owners</h2>
+                    <p className="text-slate-500 max-w-xl mx-auto">See how businesses across Pakistan are streamlining their daily sales operations.</p>
+                </div>
+                <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+                    {[
+                        { name: 'Muhammad Ali', role: 'General Store Owner (Lahore)', text: 'Aazify POS has simplified our sales. The FBR invoicing works seamlessly and barcode tracking is lightning-fast.', stars: 5 },
+                        { name: 'Ayesha Khan', role: 'Boutique Manager (Karachi)', text: 'We love the customer ledger feature. Managing credit accounts and payments is no longer a headache for our staff.', stars: 5 },
+                        { name: 'Zeeshan Ahmed', role: 'Cold Store Director (Multan)', text: 'The multi-warehouse inventory management is exactly what we needed. Highly reliable desktop application.', stars: 5 },
+                    ].map((t, i) => (
+                        <div key={i} className="p-8 rounded-2xl border border-slate-200/80 bg-white/70 shadow-xs hover:shadow-md transition-all duration-300">
+                            <div className="flex gap-1 mb-4">
+                                {[...Array(t.stars)].map((_, si) => (
+                                    <Star key={si} size={16} className="fill-amber-400 text-amber-400" />
+                                ))}
+                            </div>
+                            <p className="text-slate-600 text-sm italic mb-6">"{t.text}"</p>
+                            <div>
+                                <h4 className="text-sm font-bold text-slate-900">{t.name}</h4>
+                                <p className="text-xs text-slate-500">{t.role}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* CTA / Contact Section */}
+            <section id="contact" className="relative z-10 px-6 sm:px-12 pt-16 pb-12 max-w-7xl mx-auto">
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+                    <div className="absolute inset-0 bg-linear-to-r from-primary-800 to-primary-900" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_45%)]" />
+                    <div className="absolute -bottom-16 -left-16 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="relative p-12 sm:p-16 text-center backdrop-blur-xs">
+                        <span className="inline-block px-4 py-1.5 mb-6 text-xs font-semibold tracking-wider text-teal-300 uppercase bg-teal-500/10 rounded-full border border-teal-500/20">
+                            Upgrade Your Operations
+                        </span>
+                        <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-6 tracking-tight">
+                            Ready to Transform Your Business?
+                        </h2>
+                        <p className="text-emerald-100/90 max-w-xl mx-auto mb-10 text-base sm:text-lg leading-relaxed">
+                            Set up your complete POS system in minutes. Secure your data, automate your billing, and get live reporting from anywhere.
+                        </p>
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                            <button onClick={() => navigate('/login')}
+                                className="group w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-8 py-4 text-base font-semibold rounded-xl text-primary-900 bg-white hover:bg-slate-50 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-103 cursor-pointer">
+                                Launch POS System
+                                <ArrowRight size={18} className="transition-transform group-hover:translate-x-1 text-primary-900" />
+                            </button>
+                            <a href="mailto:contact@aazify.com"
+                                className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-base font-medium rounded-xl text-white bg-white/10 hover:bg-white/15 border border-white/25 hover:border-white/40 transition-all duration-300 hover:scale-103">
+                                Contact Support
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Professional Footer Section */}
+            <footer className="relative z-10 w-full bg-slate-50 border-t border-slate-200 mt-12">
+                <div className="max-w-7xl mx-auto px-6 sm:px-12 py-10">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-10">
+                        {/* Column 1: Brand */}
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary-600 to-primary-850 flex items-center justify-center shadow-md">
+                                    <ShoppingBag size={20} className="text-white" />
+                                </div>
+                                <span className="text-lg font-bold tracking-tight text-slate-900">Aazify POS</span>
+                            </div>
+                            <p className="text-sm text-slate-500 leading-relaxed">
+                                A complete, secure, and compliant point-of-sale system tailored for retail, wholesale, and distribution businesses in Pakistan. Simplify your operations, track stock in real time, and scale your brand.
+                            </p>
+
+                            <div className="space-y-3 pt-2">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Follow us & stay connected</p>
+                                <div className="flex items-center gap-3 text-slate-400">
+                                    <a href="https://www.facebook.com/aazify" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-[#1877F2] transition-all duration-300 border border-slate-200/60 hover:scale-110" title="Facebook">
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z" />
+                                        </svg>
+                                    </a>
+                                    <a href="https://www.instagram.com/aazify_" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-[#E1306C] transition-all duration-300 border border-slate-200/60 hover:scale-110" title="Instagram">
+                                        <svg className="w-5 h-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                                        </svg>
+                                    </a>
+                                    <a href="https://www.youtube.com/@aazify.official" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-[#FF0000] transition-all duration-300 border border-slate-200/60 hover:scale-110" title="YouTube">
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.108C19.53 3.5 12 3.5 12 3.5s-7.53 0-9.388.555A3.003 3.003 0 0 0 .502 6.163C0 8.07 0 12 0 12s0 3.93.502 5.837a3.003 3.003 0 0 0 2.11 2.108C4.47 20.5 12 20.5 12 20.5s7.53 0 9.388-.555a3.003 3.003 0 0 0 2.11-2.108C24 15.93 24 12 24 12s0-3.93-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                                        </svg>
+                                    </a>
+                                    <a href="https://www.tiktok.com/@aazify" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-black transition-all duration-300 border border-slate-200/60 hover:scale-110" title="TikTok">
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path d="M12.53.02C13.84.02 15.1.4 16.18 1.07A8.87 8.87 0 0 1 15.1 4.5c-.9-1.32-2.39-2.2-4.09-2.2a5.53 5.53 0 0 0-5.53 5.53 5.53 5.53 0 0 0 5.53 5.53c3.05 0 5.53-2.48 5.53-5.53V3.82c1.04.75 2.3 1.2 3.66 1.2h.01v2.88c-1.36 0-2.61-.45-3.66-1.2v6.63c0 4.63-3.75 8.38-8.38 8.38A8.38 8.38 0 0 1 3.75 13.5c0-4.63 3.75-8.38 8.38-8.38V.02h2.4z" />
+                                        </svg>
+                                    </a>
+                                    <a href="https://www.pinterest.com/aazifycom/" target="_blank" rel="noopener noreferrer" className="p-2.5 rounded-xl bg-white shadow-xs hover:text-white hover:bg-[#BD081C] transition-all duration-300 border border-slate-200/60 hover:scale-110" title="Pinterest">
+                                        <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                            <path fillRule="evenodd" d="M20.12 12c0 4.42-3.58 8-8 8-.66 0-1.29-.08-1.9-.22.25-.43.64-1.12.74-1.52.06-.23.36-1.4.36-1.4.2.39.8.72 1.44.72 1.9 0 3.28-1.74 3.28-3.9 0-1.89-1.61-3.66-4.14-3.66-2.93 0-4.64 2.1-4.64 4.38 0 1 .53 2.24 1.34 2.64.12.06.19.03.22-.09.02-.09.08-.34.11-.47.04-.15.02-.2-.09-.33-.36-.43-.59-1.24-.59-2.02 0-2.02 1.95-4.48 4.62-4.48 2.5 0 3.89 1.56 3.89 3.65 0 2.55-1.12 4.31-2.77 4.31-.86 0-1.51-.71-1.3-1.58.25-1.03.74-2.14.74-2.88 0-.66-.36-1.22-1.1-1.22-.87 0-1.56.9-1.56 2.1 0 .77.26 1.29.26 1.29s-.86 3.64-1.02 4.32c-.17.72-.08 1.6-.04 2.05A8.003 8.003 0 0 1 4 12c0-4.42 3.58-8 8-8s8 3.58 8 8z" clipRule="evenodd" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Column 2: Quick Links */}
+                        <div className="md:pl-12">
+                            <h4 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-6">Quick Links</h4>
+                            <ul className="space-y-3">
+                                <li><a href="#" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Home</a></li>
+                                <li><a href="#features" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Key Features</a></li>
+                                <li><a href="#businesses" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Businesses</a></li>
+                                <li><a href="#pricing" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Pricing Plans</a></li>
+                                <li><a href="#testimonials" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Testimonials</a></li>
+                                <li><a href="#contact" className="text-sm text-slate-500 hover:text-primary-750 transition-colors">Contact Support</a></li>
+                            </ul>
+                        </div>
+
+                        {/* Column 3: Contact Info */}
+                        <div className="space-y-6">
+                            <h4 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">Contact Info</h4>
+                            <ul className="space-y-4">
+                                <li className="flex items-start gap-3">
+                                    <div className="p-1.5 rounded-lg bg-emerald-50 text-primary-600 shrink-0">
+                                        <Globe size={18} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Website</p>
+                                        <a href="https://www.aazify.com" target="_blank" rel="noopener noreferrer" className="text-sm text-slate-600 hover:text-primary-750 transition-colors font-medium">www.aazify.com</a>
+                                    </div>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <div className="p-1.5 rounded-lg bg-emerald-50 text-[#25D366] shrink-0">
+                                        <Phone size={18} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">WhatsApp</p>
+                                        <a href="https://wa.me/923007395147" target="_blank" rel="noopener noreferrer" className="text-sm text-slate-600 hover:text-primary-750 transition-colors font-medium">03007395147</a>
+                                    </div>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                    <div className="p-1.5 rounded-lg bg-emerald-50 text-primary-600 shrink-0">
+                                        <Mail size={18} />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Email</p>
+                                        <a href="mailto:contact@aazify.com" className="text-sm text-slate-600 hover:text-primary-750 transition-colors font-medium">contact@aazify.com</a>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                </div>
+
+                {/* Green themed bottom copyright bar */}
+                <div className="w-full bg-linear-to-r from-primary-800 to-primary-900 py-4 text-emerald-100/90 border-t border-primary-900/20">
+                    <div className="max-w-7xl mx-auto px-6 sm:px-12 flex flex-col sm:flex-row items-center justify-center gap-4">
+                        <p className="text-xs text-emerald-100/75">
+                            &copy; {new Date().getFullYear()} AAZ Solutions. All rights reserved.
+                        </p>
+
+                    </div>
+                </div>
             </footer>
+
+            {/* Floating WhatsApp Button */}
+            <div
+                className={`fixed bottom-6 right-6 z-50 transition-all duration-500 ease-out flex items-center gap-3 group ${
+                    showWhatsApp 
+                        ? 'translate-y-0 opacity-100' 
+                        : 'translate-y-16 opacity-0 pointer-events-none'
+                }`}
+            >
+                {/* Message Bubble Tooltip / Chat Notification */}
+                <div className="hidden sm:flex flex-col items-end pointer-events-none select-none">
+                    <div className="bg-white dark:bg-gray-800 text-slate-800 dark:text-gray-100 text-xs font-semibold py-2.5 px-4 rounded-2xl rounded-br-xs shadow-xl border border-slate-100 dark:border-gray-700/80 mb-1 transition-all duration-300 transform translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 max-w-[200px] text-right">
+                        <span className="block text-[10px] font-bold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider mb-0.5">Online Support</span>
+                        Chat with us!
+                    </div>
+                    <div className="bg-white/90 backdrop-blur-md dark:bg-slate-900/90 text-slate-700 dark:text-slate-300 text-[10px] font-medium py-1.5 px-3 rounded-full shadow-md border border-slate-200/50 dark:border-slate-800/80 flex items-center gap-1.5 transition-all duration-300 transform translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#25D366] animate-pulse"></span>
+                        We are online
+                    </div>
+                </div>
+
+                {/* The Interactive Button */}
+                <a
+                    href="https://wa.me/923007395147"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="relative w-14 h-14 rounded-full bg-[#25D366] text-white shadow-xl hover:bg-[#20ba5a] active:scale-95 transition-all duration-300 flex items-center justify-center animate-whatsapp-pulse animate-whatsapp-float"
+                    aria-label="Contact on WhatsApp"
+                >
+                    {/* Pulsing ring visual background */}
+                    <span className="absolute inset-0 rounded-full bg-[#25D366] opacity-0 group-hover:opacity-20 group-hover:scale-125 transition-all duration-300 -z-10" />
+                    
+                    {/* WhatsApp SVG Icon */}
+                    <svg className="w-7 h-7 fill-current transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110" viewBox="0 0 24 24">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.513 2.262 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.458L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.37 9.864-9.799.002-2.63-1.023-5.101-2.885-6.965C16.428 2.025 13.96 1 11.348 1 5.908 1 1.482 5.37 1.479 10.8c-.001 1.73.456 3.418 1.323 4.925L1.82 20.898l5.247-1.378c1.5.82 3.111 1.254 4.747 1.256-.002 0-.002 0 0 0zm11.348-7.854c-.26-.13-1.536-.759-1.774-.846-.237-.087-.41-.13-.58.13-.17.26-.66.846-.808 1.018-.149.172-.299.195-.56.065-.26-.13-1.1-.405-2.096-1.292-.775-.69-1.299-1.544-1.45-1.804-.15-.26-.016-.401.115-.53.118-.117.26-.303.39-.455.13-.152.173-.26.26-.433.087-.173.043-.325-.022-.455-.065-.13-.58-1.4-.795-1.92-.21-.51-.43-.44-.58-.448-.15-.008-.323-.008-.495-.008-.172 0-.452.065-.688.323-.236.258-.902.88-.902 2.148 0 1.268.923 2.496 1.05 2.67.127.172 1.817 2.775 4.402 3.89 1.08.463 1.9.742 2.549.948.748.238 1.43.204 1.97.124.6-.089 1.536-.628 1.752-1.236.216-.607.216-1.127.151-1.236-.065-.11-.237-.172-.497-.302z" />
+                    </svg>
+                </a>
+            </div>
         </div>
     );
 }
+
