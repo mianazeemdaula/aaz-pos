@@ -3,8 +3,9 @@ import {
   LayoutDashboard, ShoppingCart, ShoppingBag, Package, Users, Truck,
   UserCheck, Receipt, TrendingDown, Wallet, BarChart3, Settings,
   Menu, X, ChevronDown, LogOut, User, Tag, Bookmark,
-  Layers, RefreshCw, Gift, Pause, Sliders, CalendarCheck,
+  Layers, RefreshCw, Gift, Pause, Sliders, CalendarCheck, Printer,
   PanelLeftClose, PanelLeftOpen, KeyRound, Eye, EyeOff, AlertCircle, Check,
+
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts';
@@ -41,11 +42,13 @@ const MENU: MenuGroup[] = [
     heading: 'Inventory',
     items: [
       { label: 'Products', icon: Package, path: '/products' },
+      { label: 'Print Labels', icon: Printer, path: '/print-labels' },
       { label: 'Categories', icon: Tag, path: '/categories' },
       { label: 'Brands', icon: Bookmark, path: '/brands' },
       { label: 'Stock', icon: Sliders, path: '/stock-adjustments' },
     ],
   },
+
   {
     heading: 'Parties',
     items: [

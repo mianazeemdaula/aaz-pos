@@ -28,3 +28,5 @@ export { Promotions } from './Promotions';
 export { StockAdjustments } from './StockAdjustments';
 export { Settings } from './Settings';
 export { AdvanceBookings } from './AdvanceBookings';
+export { PrintLabels } from './PrintLabels';
+

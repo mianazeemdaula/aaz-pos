@@ -62,6 +62,8 @@ const AdvanceBookings = lazy(() => import('./pages/AdvanceBookings').then(m => (
 const Returns = lazy(() => import('./pages/Returns').then(m => ({ default: m.Returns })));
 const Payments = lazy(() => import('./pages/Payments').then(m => ({ default: m.Payments })));
 const Home = lazy(() => import('./pages/Home').then(m => ({ default: m.Home })));
+const PrintLabels = lazy(() => import('./pages/PrintLabels').then(m => ({ default: m.PrintLabels })));
+
 
 const Spinner = () => (
   <div className="flex items-center justify-center min-h-50">
@@ -113,6 +115,8 @@ function App() {
                 <Route path="advance-bookings" element={<ErrorBoundary><AdvanceBookings /></ErrorBoundary>} />
                 <Route path="returns" element={<ErrorBoundary><Returns /></ErrorBoundary>} />
                 <Route path="payments" element={<ErrorBoundary><Payments /></ErrorBoundary>} />
+                <Route path="print-labels" element={<ErrorBoundary><PrintLabels /></ErrorBoundary>} />
+
                 <Route path="settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
                 <Route path="admin" element={<Navigate to="/settings" replace />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
