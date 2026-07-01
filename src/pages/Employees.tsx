@@ -114,6 +114,15 @@ export function Employees() {
 
   const createAdvance = async () => {
     if (!advanceModal || !advForm.amount || !advForm.accountId) { alert('Amount and Account are required'); return; }
+
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    if (advForm.year < curYear || (advForm.year === curYear && advForm.month < curMonth)) {
+      alert('Advance cannot be created for a previous month.');
+      return;
+    }
+
     setAdvSaving(true);
     try {
       await employeeService.createAdvance(advanceModal.id, advForm);
@@ -207,8 +216,15 @@ export function Employees() {
                             </span>
                           </td>
                           <td className="px-4 py-2.5">
-                            <div className="flex gap-1">
-                              <button onClick={() => openAdvances(item)} title="Advances" className="text-gray-400 hover:text-amber-600"><Banknote size={14} /></button>
+                            <div className="flex gap-1 items-center">
+                              <button onClick={() => openAdvances(item)} title="Advances" className="relative p-1.5 rounded-lg text-gray-500 bg-gray-50 hover:bg-gray-100 dark:text-gray-400 dark:bg-gray-500/10 dark:hover:bg-gray-500/20 transition-colors">
+                                <Banknote size={14} />
+                                {item.pendingAdvancesCount && item.pendingAdvancesCount > 0 ? (
+                                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white ring-1 ring-white dark:ring-gray-800">
+                                    {item.pendingAdvancesCount}
+                                  </span>
+                                ) : null}
+                              </button>
                               <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
                               <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
                             </div>
@@ -330,119 +346,131 @@ export function Employees() {
       />
 
       {/* Advances Modal */}
-      <Modal open={!!advanceModal} onClose={() => setAdvanceModal(null)} title={`Advances — ${advanceModal?.name ?? ''}`} size="lg">
+      <Modal open={!!advanceModal} onClose={() => setAdvanceModal(null)} title={`Advances — ${advanceModal?.name ?? ''}`} size="w-1/2">
         {advLoading ? (
           <div className="flex justify-center py-8"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
         ) : (
-          <div className="space-y-4 text-sm">
-            {/* Give Advance Form */}
-            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase">Give Advance</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-sm items-start">
+            {/* Left Column: Give Advance Form */}
+            <div className="lg:col-span-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-4 border border-gray-100 dark:border-gray-800">
+              <p className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Give Advance</p>
+              <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Amount *</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Amount *</label>
                   <input type="number" value={advForm.amount} min={1} onChange={e => setAdvForm(p => ({ ...p, amount: Number(e.target.value) }))}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Account *</label>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Account *</label>
                   <select value={advForm.accountId} onChange={e => setAdvForm(p => ({ ...p, accountId: Number(e.target.value) }))}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none">
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500">
                     <option value={0} disabled>Select account</option>
                     {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs text-gray-500 block mb-1">Month</label>
-                  <select value={advForm.month} onChange={e => setAdvForm(p => ({ ...p, month: Number(e.target.value) }))}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none">
-                    {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-                  </select>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Month</label>
+                    <select value={advForm.month} onChange={e => setAdvForm(p => ({ ...p, month: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500">
+                      {MONTH_NAMES.map((m, i) => {
+                        const isDisabled = advForm.year === new Date().getFullYear() && (i + 1) < (new Date().getMonth() + 1);
+                        return <option key={i} value={i + 1} disabled={isDisabled}>{m}</option>;
+                      })}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Year</label>
+                    <input type="number" value={advForm.year} min={new Date().getFullYear()} onChange={e => setAdvForm(p => ({ ...p, year: Number(e.target.value) }))}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
+                  </div>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Year</label>
-                  <input type="number" value={advForm.year} min={2020} onChange={e => setAdvForm(p => ({ ...p, year: Number(e.target.value) }))}
-                    className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Reason</label>
+                  <input value={advForm.reason} onChange={e => setAdvForm(p => ({ ...p, reason: e.target.value }))} placeholder="Optional reason"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
                 </div>
-              </div>
-              <div>
-                <label className="text-xs text-gray-500 block mb-1">Reason</label>
-                <input value={advForm.reason} onChange={e => setAdvForm(p => ({ ...p, reason: e.target.value }))} placeholder="Optional reason"
-                  className="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
               </div>
               <button onClick={createAdvance} disabled={advSaving || !advForm.amount || !advForm.accountId}
-                className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
+                className="w-full px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-1.5 font-semibold transition-colors">
                 {advSaving && <Loader2 size={13} className="animate-spin" />} Give Advance
               </button>
             </div>
 
-            {/* Advances List */}
-            {advances.length === 0 ? (
-              <p className="text-center text-gray-400 py-4">No advances recorded</p>
-            ) : (
-              <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-                      <th className="px-3 py-2 text-left text-gray-500">Date</th>
-                      <th className="px-3 py-2 text-right text-gray-500">Amount</th>
-                      <th className="px-3 py-2 text-left text-gray-500">Account</th>
-                      <th className="px-3 py-2 text-left text-gray-500">Month/Year</th>
-                      <th className="px-3 py-2 text-left text-gray-500">Reason</th>
-                      <th className="px-3 py-2 text-left text-gray-500">Status</th>
-                      <th className="px-3 py-2 text-left text-gray-500">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {advances.map(adv => (
-                      <tr key={adv.id} className="border-b border-gray-100 dark:border-gray-700/50 last:border-0">
-                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{new Date(adv.date).toLocaleDateString('en-PK')}</td>
-                        <td className="px-3 py-2 text-right font-medium text-red-600">{fmt(adv.amount)}</td>
-                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{adv.account?.name ?? '—'}</td>
-                        <td className="px-3 py-2 text-gray-600 dark:text-gray-400">{getMonthName(adv.month)} {adv.year}</td>
-                        <td className="px-3 py-2 text-gray-500">{adv.reason ?? '—'}</td>
-                        <td className="px-3 py-2">
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${adv.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                            adv.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
-                              adv.status === 'DEDUCTED' ? 'bg-green-100 text-green-700' :
-                                adv.status === 'REPAID' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-500'
-                            }`}>{adv.status}</span>
-                        </td>
-                        <td className="px-3 py-2">
-                          {adv.status === 'PENDING' && (
-                            <div className="flex gap-1">
-                              <button onClick={() => advanceAction('approve', adv)}
-                                className="px-1.5 py-0.5 text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
-                                title="Approve this advance">Approve</button>
-                              <button onClick={() => advanceAction('repay', adv)}
-                                className="px-1.5 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
-                                title="Mark as repaid by employee">Repay</button>
-                              <button onClick={() => advanceAction('reject', adv)}
-                                className="px-1.5 py-0.5 text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded hover:bg-red-100 dark:hover:bg-red-900/40"
-                                title="Reject and reverse this advance">Reject</button>
-                            </div>
-                          )}
-                          {adv.status === 'APPROVED' && (
-                            <div className="flex gap-1">
-                              <button onClick={() => advanceAction('repay', adv)}
-                                className="px-1.5 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
-                                title="Mark as repaid by employee">Repay</button>
-                              <button onClick={() => advanceAction('waive', adv)}
-                                className="px-1.5 py-0.5 text-[10px] bg-gray-50 dark:bg-gray-600/20 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-600/40"
-                                title="Waive off this advance">Waive</button>
-                              <button onClick={() => advanceAction('reject', adv)}
-                                className="px-1.5 py-0.5 text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded hover:bg-red-100 dark:hover:bg-red-900/40"
-                                title="Reject and reverse this advance">Reject</button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {/* Right Column: Advance History */}
+            <div className="lg:col-span-8 space-y-3 flex flex-col">
+              <p className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Advance History</p>
+              {advances.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center border border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-8 min-h-[250px]">
+                  <p className="text-gray-400 text-sm">No advances recorded</p>
+                </div>
+              ) : (
+                <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 flex flex-col">
+                  <div className="overflow-x-auto max-h-[350px]">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0 border-b border-gray-200 dark:border-gray-700 z-10">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-gray-500 font-semibold">Date</th>
+                          <th className="px-3 py-2 text-right text-gray-500 font-semibold">Amount</th>
+                          <th className="px-3 py-2 text-left text-gray-500 font-semibold">Account</th>
+                          <th className="px-3 py-2 text-left text-gray-500 font-semibold">Month/Year</th>
+                          <th className="px-3 py-2 text-left text-gray-500 font-semibold">Reason</th>
+                          <th className="px-3 py-2 text-left text-gray-500 font-semibold">Status</th>
+                          <th className="px-3 py-2 text-left text-gray-500 font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                        {advances.map(adv => (
+                          <tr key={adv.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20">
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">{new Date(adv.date).toLocaleDateString('en-PK')}</td>
+                            <td className="px-3 py-2 text-right font-medium text-red-600 whitespace-nowrap">{fmt(adv.amount)}</td>
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">{adv.account?.name ?? '—'}</td>
+                            <td className="px-3 py-2 text-gray-600 dark:text-gray-400 whitespace-nowrap">{getMonthName(adv.month)} {adv.year}</td>
+                            <td className="px-3 py-2 text-gray-500 max-w-[120px] truncate" title={adv.reason ?? ''}>{adv.reason ?? '—'}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${adv.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
+                                adv.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' :
+                                  adv.status === 'DEDUCTED' ? 'bg-green-100 text-green-700' :
+                                    adv.status === 'REPAID' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-gray-100 text-gray-500'
+                                }`}>{adv.status}</span>
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {adv.status === 'PENDING' && (
+                                <div className="flex gap-1">
+                                  <button onClick={() => advanceAction('approve', adv)}
+                                    className="px-1.5 py-0.5 text-[10px] bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-700 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                                    title="Approve this advance">Approve</button>
+                                  <button onClick={() => advanceAction('repay', adv)}
+                                    className="px-1.5 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                                    title="Mark as repaid by employee">Repay</button>
+                                  <button onClick={() => advanceAction('reject', adv)}
+                                    className="px-1.5 py-0.5 text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded hover:bg-red-100 dark:hover:bg-red-900/40"
+                                    title="Reject and reverse this advance">Reject</button>
+                                </div>
+                              )}
+                              {adv.status === 'APPROVED' && (
+                                <div className="flex gap-1">
+                                  <button onClick={() => advanceAction('repay', adv)}
+                                    className="px-1.5 py-0.5 text-[10px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-700 rounded hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                                    title="Mark as repaid by employee">Repay</button>
+                                  <button onClick={() => advanceAction('waive', adv)}
+                                    className="px-1.5 py-0.5 text-[10px] bg-gray-50 dark:bg-gray-600/20 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-100 dark:hover:bg-gray-600/40"
+                                    title="Waive off this advance">Waive</button>
+                                  <button onClick={() => advanceAction('reject', adv)}
+                                    className="px-1.5 py-0.5 text-[10px] bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-700 rounded hover:bg-red-100 dark:hover:bg-red-900/40"
+                                    title="Reject and reverse this advance">Reject</button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </Modal>

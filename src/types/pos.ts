@@ -226,6 +226,7 @@ export interface Employee {
     joiningDate: string;
     active: boolean;
     createdAt?: string;
+    pendingAdvancesCount?: number;
 }
 
 export interface EmployeeAdvance {

@@ -68,6 +68,55 @@ export function SalarySlips() {
     }).catch(() => { });
   }, []);
 
+  // Advances for selected employee & month/year
+  const [advancesForMonth, setAdvancesForMonth] = useState<number>(0);
+  const [pendingAdvances, setPendingAdvances] = useState<any[]>([]);
+  const [fetchingAdvances, setFetchingAdvances] = useState<boolean>(false);
+  const [approvingAdvId, setApprovingAdvId] = useState<number | null>(null);
+
+  const fetchAdvances = useCallback(() => {
+    if (!genForm.employeeId) {
+      setAdvancesForMonth(0);
+      setPendingAdvances([]);
+      return;
+    }
+    setFetchingAdvances(true);
+    employeeService.getAdvances(genForm.employeeId, {
+      month: genForm.month,
+      year: genForm.year,
+      pageSize: 100
+    }).then(r => {
+      const approved = r.data.filter((a: any) => a.status === 'APPROVED');
+      const pending = r.data.filter((a: any) => a.status === 'PENDING');
+      const totalApproved = approved.reduce((sum: number, a: any) => sum + a.amount, 0);
+      setAdvancesForMonth(totalApproved);
+      setPendingAdvances(pending);
+    }).catch(() => {
+      setAdvancesForMonth(0);
+      setPendingAdvances([]);
+    }).finally(() => {
+      setFetchingAdvances(false);
+    });
+  }, [genForm.employeeId, genForm.month, genForm.year]);
+
+  useEffect(() => {
+    fetchAdvances();
+  }, [fetchAdvances]);
+
+  const approveAdvanceInModal = async (advId: number) => {
+    if (!genForm.employeeId) return;
+    setApprovingAdvId(advId);
+    try {
+      await employeeService.approveAdvance(genForm.employeeId, advId);
+      fetchAdvances();
+      load(); // refresh balance in list
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to approve advance');
+    } finally {
+      setApprovingAdvId(null);
+    }
+  };
+
   const selectedEmployee = employees.find(e => e.id === genForm.employeeId);
 
   const openGenerate = () => {
@@ -77,6 +126,13 @@ export function SalarySlips() {
 
   const generate = async () => {
     if (!genForm.employeeId) { alert('Please select an employee'); return; }
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    if (genForm.year < curYear || (genForm.year === curYear && genForm.month < curMonth)) {
+      alert('Salary slip cannot be generated for a previous month.');
+      return;
+    }
     setGenSaving(true);
     try {
       await salarySlipService.create({
@@ -127,6 +183,16 @@ export function SalarySlips() {
       setCancelSlip(null);
       load();
     } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Failed to cancel'); }
+  };
+
+  const approveSlip = async (id: number) => {
+    if (!window.confirm('Are you sure you want to approve this salary slip?')) return;
+    try {
+      await salarySlipService.approve(id);
+      load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Failed to approve salary slip');
+    }
   };
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -192,7 +258,15 @@ export function SalarySlips() {
                             >
                               <Eye size={12} />
                             </button>
-                            {item.status !== 'PAID' && item.status !== 'CANCELLED' && (
+                            {item.status === 'DRAFT' && (
+                              <button
+                                onClick={() => approveSlip(item.id)}
+                                className="flex items-center gap-1 px-2 py-1 text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 whitespace-nowrap"
+                              >
+                                Approve
+                              </button>
+                            )}
+                            {item.status === 'APPROVED' && (
                               <button
                                 onClick={() => openPay(item)}
                                 className="flex items-center gap-1 px-2 py-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-700 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/40 whitespace-nowrap"
@@ -207,6 +281,7 @@ export function SalarySlips() {
                               <button
                                 onClick={() => setCancelSlip(item)}
                                 className="flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:text-red-700 border border-red-200 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                                title="Cancel Slip"
                               >
                                 <XCircle size={12} />
                               </button>
@@ -249,7 +324,10 @@ export function SalarySlips() {
                 onChange={e => setGenForm(p => ({ ...p, month: Number(e.target.value) }))}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none"
               >
-                {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                {MONTH_NAMES.map((m, i) => {
+                  const isDisabled = genForm.year === new Date().getFullYear() && (i + 1) < (new Date().getMonth() + 1);
+                  return <option key={i} value={i + 1} disabled={isDisabled}>{m}</option>;
+                })}
               </select>
             </div>
             <div>
@@ -258,7 +336,7 @@ export function SalarySlips() {
                 type="number"
                 value={genForm.year}
                 onChange={e => setGenForm(p => ({ ...p, year: Number(e.target.value) }))}
-                min={2020}
+                min={new Date().getFullYear()}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
@@ -293,7 +371,7 @@ export function SalarySlips() {
           </div>
 
           {selectedEmployee && (
-            <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg text-xs text-blue-700 dark:text-blue-400 space-y-0.5">
+            <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg text-xs text-blue-700 dark:text-blue-400 space-y-1">
               <div className="flex justify-between">
                 <span>Basic Salary</span>
                 <span className="font-semibold">{fmt(selectedEmployee.baseSalary)}</span>
@@ -303,16 +381,43 @@ export function SalarySlips() {
                   <span>+ Bonus</span><span>{fmt(genForm.bonus)}</span>
                 </div>
               )}
+              {fetchingAdvances ? (
+                <div className="flex justify-between text-gray-500 animate-pulse">
+                  <span>Fetching Advances...</span><span>—</span>
+                </div>
+              ) : advancesForMonth > 0 ? (
+                <div className="flex justify-between text-red-600 font-semibold">
+                  <span>– Advances (Approved)</span><span>{fmt(advancesForMonth)}</span>
+                </div>
+              ) : null}
               {genForm.otherDeductions > 0 && (
                 <div className="flex justify-between text-red-600">
-                  <span>– Deductions</span><span>{fmt(genForm.otherDeductions)}</span>
+                  <span>– Other Deductions</span><span>{fmt(genForm.otherDeductions)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold border-t border-blue-200 dark:border-blue-700 pt-0.5 mt-0.5">
                 <span>Est. Net</span>
-                <span>{fmt(selectedEmployee.baseSalary + genForm.bonus - genForm.otherDeductions)}</span>
+                <span>{fmt(selectedEmployee.baseSalary + genForm.bonus - advancesForMonth - genForm.otherDeductions)}</span>
               </div>
-              <p className="text-gray-500 pt-0.5">Pending advances will be auto-deducted.</p>
+              <p className="text-gray-500 pt-0.5">Approved advances will be auto-deducted.</p>
+
+              {pendingAdvances.length > 0 && (
+                <div className="border-t border-blue-200 dark:border-blue-700 pt-1.5 mt-1.5 space-y-1">
+                  <span className="text-[10px] uppercase font-semibold text-amber-600 block">Pending Advances (Need Approval):</span>
+                  {pendingAdvances.map(adv => (
+                    <div key={adv.id} className="flex items-center justify-between text-[11px] bg-amber-50/50 dark:bg-amber-900/10 p-1.5 rounded border border-amber-100 dark:border-amber-900/30">
+                      <span>Rs {adv.amount.toLocaleString()} ({adv.reason || 'No reason'})</span>
+                      <button
+                        onClick={() => approveAdvanceInModal(adv.id)}
+                        disabled={approvingAdvId === adv.id}
+                        className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded text-[10px] font-semibold transition-colors"
+                      >
+                        {approvingAdvId === adv.id ? 'Approving...' : 'Approve & Deduct'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
