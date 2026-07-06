@@ -6,14 +6,15 @@ import {
   Building2, Image, Trash2,
 } from 'lucide-react';
 import { apiClient } from '../services/api';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS, FBR_CONFIG } from '../config/api';
 import { settingsService, userService } from '../services/pos.service';
 import { saveThermalConfig, loadThermalConfig, listPrinters, type ThermalPrinterConfig, type PrinterInfo } from '../utils/thermalPrinter';
 import { invalidateLogoCache } from '../utils/invoices/saleInvoice';
 import type { User } from '../types/pos';
+import { fbrService } from '../services/fbr.service';
 
 const LS_FBR = 'pos_fbr_settings';
-interface FbrSettings { url: string; enabled: boolean; }
+interface FbrSettings { url?: string; enabled: boolean; posId?: number; }
 type Module = 'overview' | 'company' | 'thermal' | 'database' | 'fbr' | 'sales' | 'user-permissions';
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -47,8 +48,17 @@ export function Settings() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoMsg, setLogoMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [fbr, setFbr] = useState<FbrSettings>(() => {
-    try { const raw = localStorage.getItem(LS_FBR); if (raw) return JSON.parse(raw) as FbrSettings; } catch { }
-    return { url: 'http://localhost:8524/api/IMSFiscal', enabled: false };
+    try {
+      const raw = localStorage.getItem(LS_FBR);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          enabled: !!parsed.enabled,
+          posId: parsed.posId !== undefined ? parsed.posId : FBR_CONFIG.posId,
+        };
+      }
+    } catch { }
+    return { enabled: FBR_CONFIG.enabled, posId: FBR_CONFIG.posId };
   });
   const [fbrSaving, setFbrSaving] = useState(false);
   const [fbrMsg, setFbrMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -175,6 +185,25 @@ export function Settings() {
     setFbrSaving(true); setFbrMsg(null);
     try { localStorage.setItem(LS_FBR, JSON.stringify(fbr)); setFbrMsg({ ok: true, text: 'FBR settings saved.' }); }
     catch { setFbrMsg({ ok: false, text: 'Failed to save.' }); } finally { setFbrSaving(false); }
+  };
+  const [testingFbr, setTestingFbr] = useState(false);
+  const [fbrTestResult, setFbrTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const testFbrConnection = async () => {
+    setTestingFbr(true);
+    setFbrTestResult(null);
+    try {
+      const res = await fbrService.checkHealth();
+      if (res.isAvailable) {
+        setFbrTestResult({ ok: true, text: `Connection successful: ${res.message}` });
+      } else {
+        setFbrTestResult({ ok: false, text: `Connection failed: ${res.message}` });
+      }
+    } catch (e: any) {
+      setFbrTestResult({ ok: false, text: `Connection error: ${e.message || 'Unknown error'}` });
+    } finally {
+      setTestingFbr(false);
+    }
   };
   const saveAppSetting = async (key: string, value: unknown) => {
     setAppSaving(true); setAppMsg(null);
@@ -343,8 +372,21 @@ export function Settings() {
             </div>
             <div><p className="text-sm font-medium text-gray-800 dark:text-gray-100">FBR Active</p><p className="text-xs text-gray-400">Invoices reported to FBR automatically.</p></div>
           </label>
-          <Field label="FBR API URL"><input value={fbr.url} onChange={e => setFbr(f => ({ ...f, url: e.target.value }))} className={inputCls} /></Field>
-          <StatusMsg msg={fbrMsg} /><div className="flex justify-end"><SaveBtn loading={fbrSaving} onClick={saveFbr} label="Save FBR Settings" /></div>
+          <Field label="POS ID (PSID)"><input value={fbr.posId ?? ''} onChange={e => setFbr(f => ({ ...f, posId: e.target.value ? parseInt(e.target.value) || 0 : undefined }))} type="number" className={inputCls} placeholder="e.g. 123456" /></Field>
+          <div className="flex gap-2 justify-between items-center pt-2">
+            <button 
+              type="button" 
+              onClick={testFbrConnection} 
+              disabled={testingFbr} 
+              className="px-3 py-1.5 text-xs font-semibold border border-primary-200 dark:border-primary-700/50 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/40 rounded-lg flex items-center gap-1.5 disabled:opacity-50"
+            >
+              {testingFbr ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+              Test Connection
+            </button>
+            <SaveBtn loading={fbrSaving} onClick={saveFbr} label="Save FBR Settings" />
+          </div>
+          <StatusMsg msg={fbrTestResult} />
+          <StatusMsg msg={fbrMsg} />
         </div></>)}
 
       {module === 'sales' && (<><BackButton />

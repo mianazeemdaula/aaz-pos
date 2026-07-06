@@ -20,7 +20,7 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
             const r = await productService.uploadImage(file);
             onChange(r.imageUrl);
         } catch (e: unknown) {
-            alert(e instanceof Error ? e.message : 'Upload failed');
+            alert(parseError(e, 'Upload failed'));
         } finally {
             setUploading(false);
         }
@@ -91,7 +91,7 @@ const inp = 'w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-
 const lbl = 'text-xs font-medium text-gray-600 dark:text-gray-400 block mb-0.5';
 const card = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4';
 
-// â”€â”€â”€ Strip leading zeros on blur â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Strip leading zeros on blur ───────────────────────────────────────────────
 const stripLeadingZeros = (e: React.FocusEvent<HTMLInputElement>) => {
     const val = e.target.value;
     if (val && val !== '0' && /^0+\d/.test(val)) {
@@ -100,7 +100,18 @@ const stripLeadingZeros = (e: React.FocusEvent<HTMLInputElement>) => {
     }
 };
 
-// â”€â”€â”€ Variant types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function parseError(e: unknown, fallback: string): string {
+    if (e && typeof e === 'object') {
+        const ae = e as any;
+        if (ae.error?.message) return ae.error.message;
+        if (typeof ae.error === 'string') return ae.error;
+        if (ae.message) return ae.message;
+    }
+    if (e instanceof Error) return e.message;
+    return fallback;
+}
+
+// ─── Variant types ─────────────────────────────────────────────────────────────
 interface VariantDraft {
     _key: number;
     id?: number;
@@ -337,7 +348,7 @@ export function ProductForm() {
             }
             navigate('/products');
         } catch (e: unknown) {
-            alert(e instanceof Error ? e.message : 'Error saving product');
+            alert(parseError(e, 'Error saving product'));
         } finally {
             setSaving(false);
         }
@@ -615,7 +626,7 @@ export function ProductVariantsPage() {
             await reload();
             setEditingVariant(null);
         } catch (e: unknown) {
-            alert(e instanceof Error ? e.message : 'Error saving variant');
+            alert(parseError(e, 'Error saving variant'));
         } finally {
             setVariantSaving(false);
         }
@@ -627,7 +638,7 @@ export function ProductVariantsPage() {
             await productService.deleteVariant(product.id, confirmDelete.variantId);
             await reload();
         } catch (e: unknown) {
-            alert(e instanceof Error ? e.message : 'Error deleting variant');
+            alert(parseError(e, 'Error deleting variant'));
         } finally {
             setConfirmDelete(null);
         }

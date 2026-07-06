@@ -265,6 +265,7 @@ export function Returns() {
                             <div className="grid grid-cols-2 gap-3 text-sm">
                                 <div><span className="text-gray-500">Date: </span>{new Date(viewSale.createdAt).toLocaleString()}</div>
                                 <div><span className="text-gray-500">Customer: </span>{viewSale.customer?.name ?? 'Walk-in'}</div>
+                                {viewSale.taxInvoiceId && <div><span className="text-gray-500">FBR Invoice: </span>{viewSale.taxInvoiceId}</div>}
                             </div>
                             {(viewSale.items ?? []).length > 0 && (
                                 <div>

@@ -8,7 +8,7 @@ import type { FBRHealthResponse, FBRInvoiceRequest, FBRInvoiceResponse } from '.
 
 const LS_FBR_KEY = 'pos_fbr_settings';
 
-function getLocalFbrSettings(): { url: string; enabled: boolean } | null {
+function getLocalFbrSettings(): { url: string; enabled: boolean; posId?: number } | null {
     try {
         const raw = localStorage.getItem(LS_FBR_KEY);
         if (raw) return JSON.parse(raw);
@@ -17,8 +17,7 @@ function getLocalFbrSettings(): { url: string; enabled: boolean } | null {
 }
 
 function getEffectiveBaseURL(): string {
-    const local = getLocalFbrSettings();
-    return local?.url || FBR_CONFIG.baseURL;
+    return FBR_CONFIG.baseURL;
 }
 
 function getEffectiveEnabled(): boolean {
@@ -27,16 +26,22 @@ function getEffectiveEnabled(): boolean {
     return FBR_CONFIG.enabled;
 }
 
+function getEffectivePosId(): number {
+    const local = getLocalFbrSettings();
+    return (local?.posId !== undefined && local.posId !== null) ? Number(local.posId) : FBR_CONFIG.posId;
+}
+
 export const fbrService = {
     /**
      * Check FBR service availability (Ping)
      */
-    async checkHealth(): Promise<FBRHealthResponse> {
+    async checkHealth(overrideUrl?: string): Promise<FBRHealthResponse> {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), FBR_CONFIG.timeout);
 
         try {
-            const response = await fetch(`${getEffectiveBaseURL()}/get`, {
+            const url = overrideUrl || getEffectiveBaseURL();
+            const response = await fetch(`${url}/get`, {
                 signal: controller.signal,
                 headers: { 'Accept': 'application/xml, text/xml, */*' },
             });
@@ -76,7 +81,7 @@ export const fbrService = {
                 },
                 body: JSON.stringify(request),
             });
-
+            console.log(request);
             clearTimeout(timeoutId);
 
             if (!response.ok) {
@@ -114,7 +119,7 @@ export const fbrService = {
      */
     getConfig() {
         return {
-            posId: FBR_CONFIG.posId,
+            posId: getEffectivePosId(),
             baseURL: getEffectiveBaseURL(),
             enabled: getEffectiveEnabled(),
         };

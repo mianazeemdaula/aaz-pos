@@ -16,6 +16,7 @@ import { renderHtmlToBase64Png } from './htmlInvoiceRenderer';
 import { buildSaleInvoiceSections as buildLegacySections } from './saleInvoiceLegacy';
 import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
+import { buildFbrCompositeBase64 } from './fbrComposite';
 
 // Paper width in pixels for each supported paper size
 const PAPER_WIDTH_PX: Record<string, number> = {
@@ -64,6 +65,16 @@ async function buildSaleInvoiceImageSection(data: SaleInvoiceData): Promise<Prin
 
     const logoBase64 = await fetchLogoBase64();
 
+    const fbrId = data.fbrInvoiceId || data.sale.taxInvoiceId;
+    let fbrCompositeBase64: string | undefined = undefined;
+    if (fbrId) {
+        try {
+            fbrCompositeBase64 = await buildFbrCompositeBase64(fbrId.toString(), widthPx - 40);
+        } catch (e) {
+            console.error('[SaleInvoice] Failed to build FBR composite base64', e);
+        }
+    }
+
     const htmlConfig: HtmlInvoiceConfig = {
         businessName: config.businessName,
         businessAddress: config.businessAddress,
@@ -72,6 +83,7 @@ async function buildSaleInvoiceImageSection(data: SaleInvoiceData): Promise<Prin
         printWidthPx: widthPx,
         language: 'both',
         logoBase64,
+        fbrCompositeBase64,
     };
 
     const html = buildInvoiceHtml(data, htmlConfig);

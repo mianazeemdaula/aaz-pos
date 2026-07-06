@@ -35,6 +35,8 @@ export interface HtmlInvoiceConfig {
     printWidthPx: number;
     /** Optional base64 logo */
     logoBase64?: string;
+    /** Optional base64 FBR composite logo + QR */
+    fbrCompositeBase64?: string;
     /** Language mode for the footer / labels */
     language?: 'en' | 'ur' | 'both';
 }
@@ -158,6 +160,10 @@ export function buildInvoiceHtml(
     const fbrSection = fbrId
         ? `
       <div class="fbr-section">
+        ${config.fbrCompositeBase64 ? `
+        <div style="text-align: center; margin-bottom: 8px;">
+          <img src="data:image/png;base64,${config.fbrCompositeBase64}" style="max-width: 100%; height: auto;" alt="FBR Logo & QR"/>
+        </div>` : ''}
         <div class="fbr-label">${L.fbrLabel}</div>
         <div class="fbr-id mono">${escHtml(fbrId.toString())}</div>
       </div>`

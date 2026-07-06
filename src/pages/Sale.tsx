@@ -8,7 +8,6 @@ import { saleService, heldService, productService, accountService } from '../ser
 import { useSaleSettings } from '../hooks/useSaleSettings';
 import { fbrService } from '../services/fbr.service';
 import { FBRPaymentMode, FBRInvoiceType } from '../types/fbr';
-import { FBR_CONFIG } from '../config/api';
 import { printSaleInvoice, type SaleInvoiceData } from '../utils/invoices';
 import type { Product, ProductVariant, Customer, Account, HeldSale } from '../types/pos';
 
@@ -532,7 +531,7 @@ export function Sale() {
             const hasBankPayment = paymentEntries.some(p => p.accountId == 2);
             const fbrResponse = await fbrService.generateInvoice({
               InvoiceNumber: '',
-              POSID: FBR_CONFIG.posId,
+              POSID: fbrService.getConfig().posId,
               USIN: String(sale.id),
               DateTime: new Date(sale.createdAt).toISOString().replace('T', ' ').slice(0, 19),
               SaleValue: saleVal,
@@ -554,7 +553,7 @@ export function Sale() {
                   ItemCode: i.variant.barcode ?? String(i.variant.id),
                   ItemName: i.variant.product?.name ?? i.variant.name,
                   Quantity: i.qty,
-                  PCTCode: i.hsCode || '00000000',
+                  PCTCode: i.hsCode ? i.hsCode.replace(/\./g, '') : '00000000',
                   TaxRate: i.taxRate,
                   TaxCharged: lc.taxAmt,
                   TotalAmount: lc.lineTotal,
@@ -578,6 +577,7 @@ export function Sale() {
             }
           } catch (e: unknown) {
             console.error('[FBR submit]', e);
+            showToast('error', `FBR error: ${parseError(e, 'Failed to report to FBR')}`);
           }
         })();
         // Wait briefly for FBR (up to 3s) before showing print dialog
