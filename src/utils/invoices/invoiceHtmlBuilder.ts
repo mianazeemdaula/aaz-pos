@@ -635,7 +635,7 @@ export function buildInvoiceHtml(
     ${config.invoiceNote ? `<div class="invoice-note" style="margin-bottom: 8px; font-size: 13px; font-weight: 500; color: #1e293b; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; font-style: italic;">${escHtml(config.invoiceNote)}</div>` : ''}
     <div class="footer-en">${L.footer}</div>
     ${showUrdu ? `<div class="footer-ur">${UR.footer}</div>` : ''}
-    <div class="powered">Powered by AAZify.</div>
+    <div class="powered">Powered by AAZify 03007395147</div>
   </div>
 
 </div>

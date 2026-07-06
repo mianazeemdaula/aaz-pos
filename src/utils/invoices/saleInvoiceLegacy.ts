@@ -213,6 +213,7 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
         sections.push(printLine('-'));
     }
     sections.push(textCenter('Thank you for your purchase!'));
+    sections.push(textCenter('Powered by AAZify 03007395147'));
     sections.push(feed(2));
     return sections;
 }
