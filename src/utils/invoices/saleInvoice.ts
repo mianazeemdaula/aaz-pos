@@ -97,7 +97,7 @@ async function buildSaleInvoiceImageSection(data: SaleInvoiceData): Promise<Prin
     };
 
     const html = buildInvoiceHtml(data, htmlConfig);
-    const base64 = await renderHtmlToBase64Png(html, { widthPx, scale: 2 });
+    const base64 = await renderHtmlToBase64Png(html, { widthPx, scale: 1 });
 
     return {
         Image: {

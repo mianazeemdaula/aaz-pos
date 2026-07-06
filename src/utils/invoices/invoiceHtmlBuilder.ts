@@ -243,57 +243,62 @@ export function buildInvoiceHtml(
     html, body {
       width: ${w}px;
       background: #ffffff;
-      font-family: "Segoe UI", Arial, sans-serif;
-      font-size: 15px;
-      color: #111111;
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-size: 17px;
+      color: #000000;
       -webkit-print-color-adjust: exact;
-      line-height: 1.4;
+      line-height: 1.35;
+      -webkit-font-smoothing: none;
+      -moz-osx-font-smoothing: none;
+      font-smoothing: none;
+      text-rendering: optimizeLegibility;
     }
 
     .page {
       width: ${w}px;
-      padding: 8px 6px 24px;
+      padding: 10px 8px 30px;
       background: #ffffff;
     }
 
     /* ── Font helpers ── */
     .mono  { font-family: Consolas, "Courier New", monospace; }
-    .bold  { font-weight: 700; }
+    .bold  { font-weight: 800; }
     .urdu  { font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Traditional Arabic", serif; direction: rtl; }
 
     /* ── Header — light background ── */
     .header {
       text-align: center;
       padding: 12px 12px 10px;
-      border-bottom: 2px solid #334155;
-      margin-bottom: 10px;
+      border-bottom: 2.5px solid #000000;
+      margin-bottom: 12px;
     }
     .logo {
       display: block;
       margin: 0 auto 8px;
-      width: 96px;
-      height: 96px;
+      width: 110px;
+      height: 110px;
       object-fit: contain;
     }
     .biz-name {
-      font-size: 20px;
-      font-weight: 700;
-      color: #0f172a;
+      font-size: 23px;
+      font-weight: 800;
+      color: #000000;
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
     .biz-sub {
-      font-size: 13px;
-      color: #475569;
-      margin-top: 3px;
-      line-height: 1.5;
+      font-size: 15px;
+      font-weight: 600;
+      color: #000000;
+      margin-top: 4px;
+      line-height: 1.45;
     }
     .biz-ntn {
-      font-size: 13px;
-      color: #1e40af;
-      margin-top: 3px;
+      font-size: 15px;
+      color: #000000;
+      margin-top: 4px;
       font-family: Consolas, monospace;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     /* ── Invoice title ── */
@@ -303,21 +308,21 @@ export function buildInvoiceHtml(
       align-items: center;
       gap: 10px;
       padding: 8px 0;
-      margin-bottom: 8px;
-      border-bottom: 1px solid #cbd5e1;
+      margin-bottom: 10px;
+      border-bottom: 1.5px solid #000000;
     }
     .en-title {
-      font-size: 16px;
-      font-weight: 700;
-      color: #1e40af;
+      font-size: 19px;
+      font-weight: 800;
+      color: #000000;
       letter-spacing: 1.5px;
       text-transform: uppercase;
     }
     .urdu-title {
       font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
-      font-size: 17px;
-      font-weight: 600;
-      color: #334155;
+      font-size: 20px;
+      font-weight: 700;
+      color: #000000;
       direction: rtl;
     }
 
@@ -325,213 +330,223 @@ export function buildInvoiceHtml(
     .meta-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 10px;
-      border: 1px solid #e2e8f0;
+      margin-bottom: 12px;
+      border: 1.5px solid #000000;
       border-radius: 4px;
     }
     .meta-table tr:not(:last-child) td {
-      border-bottom: 1px solid #f1f5f9;
+      border-bottom: 1.5px solid #000000;
     }
     .meta-label {
-      font-size: 13px;
-      color: #64748b;
-      font-weight: 500;
-      padding: 5px 10px 5px 10px;
+      font-size: 15px;
+      color: #000000;
+      font-weight: 600;
+      padding: 6px 10px;
       width: 45%;
       white-space: nowrap;
     }
     .meta-value {
-      font-size: 14px;
-      color: #0f172a;
-      font-weight: 600;
-      padding: 5px 10px 5px 6px;
+      font-size: 16px;
+      color: #000000;
+      font-weight: 750;
+      padding: 6px 10px;
       text-align: right;
     }
 
     /* ── Divider ── */
     .divider {
       border: none;
-      border-top: 1px dashed #94a3b8;
-      margin: 8px 0;
+      border-top: 1.5px dashed #000000;
+      margin: 10px 0;
     }
 
     /* ── Items table ── */
     .items-table {
       width: 100%;
       border-collapse: collapse;
-      border: 1.5px solid #334155;
+      border: 2px solid #000000;
     }
     .items-table thead tr {
       background: #f1f5f9;
     }
     .items-table thead th {
-      padding: 7px 8px;
-      font-size: 13px;
-      font-weight: 700;
-      color: #0f172a;
-      border-bottom: 1.5px solid #334155;
+      padding: 8px;
+      font-size: 15px;
+      font-weight: 800;
+      color: #000000;
+      border-bottom: 2px solid #000000;
     }
     .items-table tbody td {
-      padding: 7px 8px;
-      font-size: 14px;
-      border-bottom: 1px solid #e2e8f0;
+      padding: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      border-bottom: 1.5px solid #000000;
       vertical-align: middle;
+      color: #000000;
     }
     .items-table tbody tr:last-child td { border-bottom: none; }
-    .item-name { font-weight: 500; }
+    .item-name { font-weight: 700; }
     .td-left   { text-align: left; }
     .td-right  { text-align: right; }
     .td-center { text-align: center; }
 
     /* ── Totals ── */
     .totals-block {
-      margin-top: 8px;
-      border: 1px solid #e2e8f0;
+      margin-top: 10px;
+      border: 1.5px solid #000000;
     }
     .total-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 6px 10px;
-      border-bottom: 1px solid #f1f5f9;
+      padding: 7px 10px;
+      border-bottom: 1.5px solid #000000;
     }
     .total-row:last-child { border-bottom: none; }
     .total-label {
-      font-size: 14px;
-      color: #334155;
+      font-size: 16px;
+      font-weight: 600;
+      color: #000000;
     }
     .total-label .urdu-label {
       font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
-      font-size: 13px;
-      color: #64748b;
+      font-size: 15px;
+      color: #000000;
       margin-right: 4px;
     }
     .total-value {
       font-family: Consolas, "Courier New", monospace;
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 16px;
+      font-weight: 800;
+      color: #000000;
     }
 
     /* ── Grand Total — no dark background ── */
     .grand-total-box {
-      border: 2px solid #0f172a;
+      border: 2.5px solid #000000;
       padding: 10px 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 10px;
+      margin-top: 12px;
     }
     .grand-total-label {
-      font-size: 16px;
-      font-weight: 700;
-      color: #0f172a;
+      font-size: 19px;
+      font-weight: 800;
+      color: #000000;
       letter-spacing: 0.5px;
       text-transform: uppercase;
     }
     .urdu-gt {
       font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
-      font-size: 15px;
+      font-size: 17px;
       margin-right: 6px;
       direction: rtl;
-      color: #334155;
+      color: #000000;
+      font-weight: 700;
     }
     .grand-total-amount {
       font-family: Consolas, "Courier New", monospace;
-      font-size: 22px;
-      font-weight: 700;
-      color: #0f172a;
+      font-size: 28px;
+      font-weight: 800;
+      color: #000000;
       letter-spacing: 1px;
     }
     .currency-sym {
-      font-size: 15px;
-      color: #475569;
+      font-size: 18px;
+      color: #000000;
       margin-right: 3px;
+      font-weight: 700;
     }
 
     /* ── Payments ── */
     .payments-block {
-      margin-top: 8px;
-      border: 1px solid #e2e8f0;
+      margin-top: 10px;
+      border: 1.5px solid #000000;
       padding: 4px 0;
     }
     .pay-row {
       display: flex;
       justify-content: space-between;
-      padding: 5px 10px;
-      font-size: 14px;
+      padding: 6px 10px;
+      font-size: 16px;
+      color: #000000;
     }
-    .pay-label { color: #475569; font-weight: 500; }
-    .pay-value { font-family: Consolas, "Courier New", monospace; font-weight: 700; }
+    .pay-label { color: #000000; font-weight: 600; }
+    .pay-value { font-family: Consolas, "Courier New", monospace; font-weight: 800; }
 
     /* ── FBR ── */
     .fbr-section {
-      margin-top: 10px;
-      border: 1.5px solid #1e40af;
-      padding: 7px 10px;
-      background: #eff6ff;
+      margin-top: 12px;
+      border: 2px solid #000000;
+      padding: 8px 10px;
+      background: #ffffff;
       text-align: center;
     }
     .fbr-label {
-      font-size: 12px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 800;
       letter-spacing: 1px;
       text-transform: uppercase;
-      color: #1e40af;
+      color: #000000;
     }
     .fbr-id {
-      font-size: 14px;
-      font-weight: 600;
-      color: #1e3a8a;
-      margin-top: 3px;
+      font-size: 16px;
+      font-weight: 750;
+      color: #000000;
+      margin-top: 4px;
       word-break: break-all;
       font-family: Consolas, monospace;
     }
 
     /* ── Footer ── */
     .footer {
-      margin-top: 14px;
+      margin-top: 16px;
       text-align: center;
-      padding-top: 10px;
-      border-top: 1px dashed #94a3b8;
+      padding-top: 12px;
+      border-top: 1.5px dashed #000000;
     }
     .footer-en {
-      font-size: 14px;
-      font-weight: 600;
-      color: #334155;
+      font-size: 16px;
+      font-weight: 700;
+      color: #000000;
     }
     .footer-ur {
       font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
-      font-size: 16px;
-      color: #64748b;
+      font-size: 18px;
+      color: #000000;
+      font-weight: 700;
       margin-top: 4px;
       direction: rtl;
     }
     .powered {
-      font-size: 11px;
-      color: #94a3b8;
-      margin-top: 8px;
+      font-size: 13px;
+      color: #000000;
+      font-weight: 600;
+      margin-top: 10px;
     }
     /* ── Ledger Balance ── */
     .ledger-block {
-      margin-top: 8px;
-      border: 1px solid #cbd5e1;
+      margin-top: 10px;
+      border: 1.5px solid #000000;
       padding: 6px 0;
-      background: #f8fafc;
+      background: #ffffff;
     }
     .ledger-row {
       display: flex;
       justify-content: space-between;
-      padding: 4px 10px;
-      font-size: 13px;
+      padding: 5px 10px;
+      font-size: 15px;
+      color: #000000;
     }
-    .ledger-label { color: #475569; font-weight: 500; }
-    .ledger-value { font-family: Consolas, "Courier New", monospace; font-weight: 700; color: #1e293b; }
+    .ledger-label { color: #000000; font-weight: 600; }
+    .ledger-value { font-family: Consolas, "Courier New", monospace; font-weight: 800; color: #000000; }
     .ledger-total-row {
-      border-top: 1px dashed #cbd5e1;
-      margin-top: 4px;
+      border-top: 1.5px dashed #000000;
+      margin-top: 5px;
       padding-top: 6px;
-      font-weight: 700;
-      font-size: 14px;
+      font-weight: 800;
+      font-size: 16px;
     }
   </style>
 </head>
