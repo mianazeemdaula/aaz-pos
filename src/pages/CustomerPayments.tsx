@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Loader2, ChevronLeft, ChevronRight, ArrowDownCircle, Download, FileText } from 'lucide-react';
+import { Plus, Loader2, ChevronLeft, ChevronRight, ArrowDownCircle, Download, FileText, Printer } from 'lucide-react';
 import { customerService } from '../services/pos.service';
 import { apiClient } from '../services/api';
 import { API_ENDPOINTS } from '../config/api';
@@ -7,6 +7,7 @@ import { CustomerSearch } from '../components/ui/CustomerSearch';
 import { AccountSelect } from '../components/ui/AccountSelect';
 import { Modal } from '../components/ui/Modal';
 import type { Customer, CustomerPayment } from '../types/pos';
+import { printCustomerPayment } from '../utils/invoices';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -137,6 +138,18 @@ export function CustomerPayments() {
         }
     };
 
+    const handlePrintPayment = async (p: CustomerPayment) => {
+        if (!selectedCustomer) return;
+        try {
+            await printCustomerPayment({
+                payment: p,
+                customer: selectedCustomer
+            });
+        } catch (e: any) {
+            alert(`Failed to print payment receipt: ${e.message || 'Unknown error'}`);
+        }
+    };
+
     return (
         <div className="space-y-4">
             {/* Header */}
@@ -234,6 +247,7 @@ export function CustomerPayments() {
                                     <th className="px-4 py-2.5">Account</th>
                                     <th className="px-4 py-2.5">Note</th>
                                     <th className="px-4 py-2.5 text-right">Amount</th>
+                                    <th className="px-4 py-2.5 text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -246,7 +260,7 @@ export function CustomerPayments() {
                                         <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
                                             {new Date(p.date ?? p.createdAt).toLocaleDateString('en-PK', {
                                                 day: '2-digit', month: 'short', year: 'numeric',
-                                            })}
+                                             })}
                                         </td>
                                         <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
                                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'SENT' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
@@ -259,6 +273,15 @@ export function CustomerPayments() {
                                         <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
                                         <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'SENT' ? 'text-red-600' : 'text-green-600'}`}>
                                             {p.type === 'SENT' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-center">
+                                            <button
+                                                onClick={() => handlePrintPayment(p)}
+                                                title="Print Receipt"
+                                                className="p-1.5 text-gray-400 hover:text-primary-600 rounded transition-colors"
+                                            >
+                                                <Printer size={14} />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}

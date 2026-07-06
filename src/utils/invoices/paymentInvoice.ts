@@ -46,7 +46,20 @@ export function buildCustomerPaymentSections(data: CustomerPaymentInvoiceData): 
 
     // Payment details
     const is80mm = config.paperSize === 'Mm80';
-    const colWidths = is80mm ? [32, 16] : [20, 12];
+    const defaultWidth = is80mm ? 48 : 32;
+    const width = config.nativeColumns || defaultWidth;
+    const ratio = width / defaultWidth;
+
+    let colWidths = is80mm ? [32, 16] : [20, 12];
+    if (config.nativeColumns) {
+        colWidths = colWidths.map(w => Math.max(1, Math.floor(w * ratio)));
+        const sum = colWidths.reduce((a, b) => a + b, 0);
+        const diff = width - sum;
+        if (diff !== 0) {
+            colWidths[0] += diff; // Adjust label column
+        }
+    }
+
     const body = [
         [cell('Amount Received:'), cell(fmt(payment.amount), 'right')],
     ];
@@ -60,8 +73,10 @@ export function buildCustomerPaymentSections(data: CustomerPaymentInvoiceData): 
     sections.push(line('='));
 
     // Balance
-    sections.push(textLeft(`Previous Balance: ${fmt(customer.balance + payment.amount)}`));
-    sections.push(textLeft(`Current Balance: ${fmt(customer.balance)}`));
+    const pBalance = payment.previousBalance !== undefined ? payment.previousBalance : (customer.balance + payment.amount);
+    const cBalance = payment.newBalance !== undefined ? payment.newBalance : customer.balance;
+    sections.push(textLeft(`Previous Balance: ${fmt(pBalance)}`));
+    sections.push(textLeft(`Current Balance: ${fmt(cBalance)}`));
 
     if (payment.note) {
         sections.push(textLeft(`Note: ${payment.note}`));
@@ -99,7 +114,20 @@ export function buildSupplierPaymentSections(data: SupplierPaymentInvoiceData): 
 
     // Payment details
     const is80mm = config.paperSize === 'Mm80';
-    const colWidths = is80mm ? [32, 16] : [20, 12];
+    const defaultWidth = is80mm ? 48 : 32;
+    const width = config.nativeColumns || defaultWidth;
+    const ratio = width / defaultWidth;
+
+    let colWidths = is80mm ? [32, 16] : [20, 12];
+    if (config.nativeColumns) {
+        colWidths = colWidths.map(w => Math.max(1, Math.floor(w * ratio)));
+        const sum = colWidths.reduce((a, b) => a + b, 0);
+        const diff = width - sum;
+        if (diff !== 0) {
+            colWidths[0] += diff; // Adjust label column
+        }
+    }
+
     const body = [
         [cell('Amount Paid:'), cell(fmt(payment.amount), 'right')],
     ];

@@ -67,6 +67,8 @@ export interface ThermalPrinterConfig {
     businessNTN?: string;
     businessLogoPath?: string; // Path to logo image for receipt header
     invoiceMode: 'html' | 'native'; // HTML image pipeline vs ESC/POS text
+    imageWidth?: number; // Custom print width in pixels (e.g. 512 or 504 for Bixolon 180dpi)
+    nativeColumns?: number; // Custom native characters per line (e.g. 42 for Bixolon Font A)
 }
 
 const THERMAL_CONFIG_KEY = 'thermal_printer_config';
@@ -145,11 +147,18 @@ export function buildPrintJob(
     options?: PrinterOptions,
 ): PrintJobRequest {
     const config = loadThermalConfig();
+    
+    // Explicitly set default Font A and normal size at the beginning of the print job
+    const jobSections: PrintSection[] = [
+        { GlobalStyles: { font: 'A', size: 'normal' } },
+        ...sections
+    ];
+
     return {
         printer: resolvePrinter(config),
         paper_size: config.paperSize,
         options: { cut_paper: true, beep: false, open_cash_drawer: false, ...options },
-        sections,
+        sections: jobSections,
     };
 }
 
@@ -184,15 +193,15 @@ export const qrCode = (data: string, size = 6, align = 'center'): PrintSection =
     Qr: { data, size, error_correction: 'M', model: 2, align },
 });
 
-export const image = (base64Data: string, align = 'center'): PrintSection => ({
-    Image: { data: base64Data, max_width: 0, align, dithering: false, size: 'normal' },
+export const image = (base64Data: string, align = 'center', maxWidth = 0): PrintSection => ({
+    Image: { data: base64Data, max_width: maxWidth, align, dithering: false, size: 'normal' },
 });
 
 /**
  * Read a local file and return an Image print section with base64-encoded data.
  */
-export async function imageFromFile(filePath: string, align = 'center'): Promise<PrintSection> {
+export async function imageFromFile(filePath: string, align = 'center', maxWidth = 0): Promise<PrintSection> {
     const { invoke } = await import('@tauri-apps/api/core');
     const base64Data = await invoke<string>('read_file_base64', { path: filePath });
-    return image(base64Data, align);
+    return image(base64Data, align, maxWidth);
 }

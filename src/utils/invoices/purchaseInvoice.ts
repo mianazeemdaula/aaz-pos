@@ -53,7 +53,20 @@ export function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): PrintSe
 
     // Items table
     const is80mm = config.paperSize === 'Mm80';
-    const colWidths = is80mm ? [3, 21, 10, 14] : [3, 13, 7, 9];
+    const defaultWidth = is80mm ? 48 : 32;
+    const width = config.nativeColumns || defaultWidth;
+    const ratio = width / defaultWidth;
+
+    let colWidths = is80mm ? [3, 21, 10, 14] : [3, 13, 7, 9];
+    if (config.nativeColumns) {
+        colWidths = colWidths.map(w => Math.max(1, Math.floor(w * ratio)));
+        const sum = colWidths.reduce((a, b) => a + b, 0);
+        const diff = width - sum;
+        if (diff !== 0) {
+            colWidths[1] += diff; // Adjust Item column
+        }
+    }
+
     const header = [
         cell('Qty', 'left', true),
         cell('Item', 'left', true),
@@ -70,7 +83,15 @@ export function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): PrintSe
     sections.push(line('='));
 
     // Totals
-    const totalsWidth = is80mm ? [32, 16] : [20, 12];
+    let totalsWidth = is80mm ? [32, 16] : [20, 12];
+    if (config.nativeColumns) {
+        totalsWidth = totalsWidth.map(w => Math.max(1, Math.floor(w * ratio)));
+        const sum = totalsWidth.reduce((a, b) => a + b, 0);
+        const diff = width - sum;
+        if (diff !== 0) {
+            totalsWidth[0] += diff; // Adjust label column
+        }
+    }
     const totalsBody = [
         [cell('Subtotal:'), cell(fmt(data.subtotal), 'right')],
     ];

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Plus, Loader2, ChevronLeft, ChevronRight,
-    Download, FileText, Wallet,
+    Download, FileText, Wallet, Printer,
 } from 'lucide-react';
 import { customerService, supplierService } from '../services/pos.service';
 import { apiClient } from '../services/api';
@@ -11,6 +11,7 @@ import { SupplierSearch } from '../components/ui/SupplierSearch';
 import { AccountSelect } from '../components/ui/AccountSelect';
 import { Modal } from '../components/ui/Modal';
 import type { Customer, Supplier, CustomerPayment, SupplierPayment } from '../types/pos';
+import { printCustomerPayment, printSupplierPayment } from '../utils/invoices';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -193,6 +194,30 @@ export function Payments() {
         } catch { alert('Failed to generate ledger PDF.'); } finally { setSupLedgerLoading(false); }
     };
 
+    const handlePrintCustPayment = async (p: CustomerPayment) => {
+        if (!selectedCustomer) return;
+        try {
+            await printCustomerPayment({
+                payment: p,
+                customer: selectedCustomer
+            });
+        } catch (e: any) {
+            alert(`Failed to print payment receipt: ${e.message || 'Unknown error'}`);
+        }
+    };
+
+    const handlePrintSupPayment = async (p: SupplierPayment) => {
+        if (!selectedSupplier) return;
+        try {
+            await printSupplierPayment({
+                payment: p,
+                supplier: selectedSupplier
+            });
+        } catch (e: any) {
+            alert(`Failed to print payment voucher: ${e.message || 'Unknown error'}`);
+        }
+    };
+
     const custTotalPages = Math.ceil(custTotal / PAGE_SIZE);
     const supTotalPages = Math.ceil(supTotal / PAGE_SIZE);
 
@@ -282,6 +307,7 @@ export function Payments() {
                                         <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider">
                                             <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Type</th><th className="px-4 py-2.5">Account</th>
                                             <th className="px-4 py-2.5">Note</th><th className="px-4 py-2.5 text-right">Amount</th>
+                                            <th className="px-4 py-2.5 text-center">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -298,6 +324,15 @@ export function Payments() {
                                                 <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
                                                 <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'SENT' ? 'text-red-600' : 'text-green-600'}`}>
                                                     {p.type === 'SENT' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
+                                                </td>
+                                                <td className="px-4 py-2.5 text-center">
+                                                    <button
+                                                        onClick={() => handlePrintCustPayment(p)}
+                                                        title="Print Receipt"
+                                                        className="p-1.5 text-gray-400 hover:text-primary-600 rounded transition-colors"
+                                                    >
+                                                        <Printer size={14} />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}
@@ -419,6 +454,7 @@ export function Payments() {
                                         <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider">
                                             <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Type</th><th className="px-4 py-2.5">Account</th>
                                             <th className="px-4 py-2.5">Note</th><th className="px-4 py-2.5 text-right">Amount</th>
+                                            <th className="px-4 py-2.5 text-center">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -435,6 +471,15 @@ export function Payments() {
                                                 <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
                                                 <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'RECEIVED' ? 'text-green-600' : 'text-amber-600'}`}>
                                                     {p.type === 'RECEIVED' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
+                                                </td>
+                                                <td className="px-4 py-2.5 text-center">
+                                                    <button
+                                                        onClick={() => handlePrintSupPayment(p)}
+                                                        title="Print Receipt"
+                                                        className="p-1.5 text-gray-400 hover:text-primary-600 rounded transition-colors"
+                                                    >
+                                                        <Printer size={14} />
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))}

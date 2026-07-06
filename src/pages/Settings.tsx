@@ -72,7 +72,7 @@ export function Settings() {
   const [usersSaving, setUsersSaving] = useState<number | null>(null);
 
   // Company info
-  const [company, setCompany] = useState<Record<string, string>>({ businessName: '', address: '', phone: '', ntn: '', strn: '', currency: 'PKR' });
+  const [company, setCompany] = useState<Record<string, string>>({ businessName: '', address: '', phone: '', ntn: '', strn: '', currency: 'PKR', invoiceNote: '' });
   const [companySaving, setCompanySaving] = useState(false);
   const [companyMsg, setCompanyMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [companyLoading, setCompanyLoading] = useState(false);
@@ -88,6 +88,7 @@ export function Settings() {
         ntn: (data.ntn as string) ?? '',
         strn: (data.strn as string) ?? '',
         currency: (data.currency as string) ?? 'PKR',
+        invoiceNote: (data.invoiceNote as string) ?? '',
       });
     } catch { }
     finally { setCompanyLoading(false); }
@@ -259,6 +260,7 @@ export function Settings() {
                 <Field label="STRN"><input value={company.strn} onChange={e => setCompany(p => ({ ...p, strn: e.target.value }))} className={inputCls} /></Field>
               </div>
               <Field label="Currency"><input value={company.currency} onChange={e => setCompany(p => ({ ...p, currency: e.target.value }))} className={inputCls} /></Field>
+              <Field label="Invoice Note (Printed at receipt footer)"><textarea value={company.invoiceNote} onChange={e => setCompany(p => ({ ...p, invoiceNote: e.target.value }))} className={inputCls} placeholder="e.g. Thank you for shopping with us!" rows={2} /></Field>
             </div>
           )}
           <StatusMsg msg={companyMsg} /><div className="flex justify-end"><SaveBtn loading={companySaving} onClick={saveCompany} label="Save Company Info" /></div>
@@ -301,6 +303,33 @@ export function Settings() {
               <p className="text-xs text-gray-400">{thermal.invoiceMode !== 'native' ? 'Image-based receipt with logo & formatting.' : 'Plain text ESC/POS receipt (faster, no logo).'}</p>
             </div>
           </label>
+          {thermal.invoiceMode !== 'native' ? (
+            <Field label="Custom Print Width (Pixels)">
+              <input
+                type="number"
+                value={thermal.imageWidth ?? ''}
+                onChange={e => setThermal(p => ({ ...p, imageWidth: e.target.value ? parseInt(e.target.value) || undefined : undefined }))}
+                placeholder={thermal.paperSize === 'Mm80' ? '576 (Default)' : '384 (Default)'}
+                className={inputCls}
+              />
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                For Bixolon SRP-350 (180 DPI), set to <strong>512</strong> or <strong>504</strong> to utilize the full width and prevent cropping/margins.
+              </p>
+            </Field>
+          ) : (
+            <Field label="Custom Characters Per Line (CPL)">
+              <input
+                type="number"
+                value={thermal.nativeColumns ?? ''}
+                onChange={e => setThermal(p => ({ ...p, nativeColumns: e.target.value ? parseInt(e.target.value) || undefined : undefined }))}
+                placeholder={thermal.paperSize === 'Mm80' ? '48 (Default)' : '32 (Default)'}
+                className={inputCls}
+              />
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+                For Bixolon SRP-350 Font A, set to <strong>42</strong> if standard text wraps incorrectly on the receipt.
+              </p>
+            </Field>
+          )}
           <div className="pt-3 border-t border-gray-100 dark:border-gray-700 space-y-3">
             <p className="text-xs font-medium text-gray-500">Receipt Header</p>
             <Field label="Business Name"><input value={thermal.businessName} onChange={e => setThermal(p => ({ ...p, businessName: e.target.value }))} className={inputCls} /></Field>

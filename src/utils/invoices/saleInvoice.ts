@@ -20,7 +20,7 @@ import { buildFbrCompositeBase64 } from './fbrComposite';
 
 // Paper width in pixels for each supported paper size
 const PAPER_WIDTH_PX: Record<string, number> = {
-    Mm80: 560,
+    Mm80: 576,
     Mm58: 384,
 };
 
@@ -61,29 +61,39 @@ export interface SaleInvoiceData {
 
 async function buildSaleInvoiceImageSection(data: SaleInvoiceData): Promise<PrintSection> {
     const config = loadThermalConfig();
-    const widthPx = PAPER_WIDTH_PX[config.paperSize] ?? 560;
+    const defaultWidth = PAPER_WIDTH_PX[config.paperSize] ?? 560;
+    const widthPx = config.imageWidth || defaultWidth;
 
     const logoBase64 = await fetchLogoBase64();
+
+    // Fetch fresh company settings from DB to get invoiceNote and other business details
+    let dbCompany: Record<string, any> = {};
+    try {
+        dbCompany = await apiClient.get<Record<string, any>>(API_ENDPOINTS.settings.get);
+    } catch (e) {
+        console.warn('[SaleInvoice] Failed to fetch company settings from DB', e);
+    }
 
     const fbrId = data.fbrInvoiceId || data.sale.taxInvoiceId;
     let fbrCompositeBase64: string | undefined = undefined;
     if (fbrId) {
         try {
-            fbrCompositeBase64 = await buildFbrCompositeBase64(fbrId.toString(), widthPx - 40);
+            fbrCompositeBase64 = await buildFbrCompositeBase64(fbrId.toString(), widthPx - 24);
         } catch (e) {
             console.error('[SaleInvoice] Failed to build FBR composite base64', e);
         }
     }
 
     const htmlConfig: HtmlInvoiceConfig = {
-        businessName: config.businessName,
-        businessAddress: config.businessAddress,
-        businessPhone: config.businessPhone,
-        businessNTN: config.businessNTN,
+        businessName: dbCompany.businessName || config.businessName,
+        businessAddress: dbCompany.address || config.businessAddress,
+        businessPhone: dbCompany.phone || config.businessPhone,
+        businessNTN: dbCompany.ntn || config.businessNTN,
         printWidthPx: widthPx,
         language: 'both',
         logoBase64,
         fbrCompositeBase64,
+        invoiceNote: dbCompany.invoiceNote,
     };
 
     const html = buildInvoiceHtml(data, htmlConfig);
@@ -119,8 +129,19 @@ export async function buildSaleInvoiceJob(data: SaleInvoiceData): Promise<PrintJ
  */
 export async function printSaleInvoice(data: SaleInvoiceData): Promise<boolean> {
     const config = loadThermalConfig();
+
+    // Fetch fresh company settings from DB to get STRN, NTN and invoiceNote
+    let dbCompany: Record<string, any> = {};
+    try {
+        dbCompany = await apiClient.get<Record<string, any>>(API_ENDPOINTS.settings.get);
+    } catch (e) {
+        console.warn('[SaleInvoice] Failed to fetch company settings from DB', e);
+    }
+
+    const invoiceNote = dbCompany.invoiceNote;
+
     if (config.invoiceMode === 'native') {
-        const sections = await buildLegacySections(data);
+        const sections = await buildLegacySections(data, invoiceNote);
         return printDocument(buildPrintJob(sections));
     }
     try {
@@ -128,7 +149,7 @@ export async function printSaleInvoice(data: SaleInvoiceData): Promise<boolean> 
         return await printDocument(job);
     } catch (err) {
         console.warn('[SaleInvoice] HTML image render failed, falling back to text mode:', err);
-        const sections = await buildLegacySections(data);
+        const sections = await buildLegacySections(data, invoiceNote);
         return printDocument(buildPrintJob(sections));
     }
 }

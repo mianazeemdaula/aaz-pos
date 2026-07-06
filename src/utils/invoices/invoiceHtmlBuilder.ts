@@ -39,6 +39,8 @@ export interface HtmlInvoiceConfig {
     fbrCompositeBase64?: string;
     /** Language mode for the footer / labels */
     language?: 'en' | 'ur' | 'both';
+    /** Optional custom invoice note printed at footer */
+    invoiceNote?: string;
 }
 
 // ─── Label Maps ───────────────────────────────────────────────────────────────
@@ -201,6 +203,34 @@ export function buildInvoiceHtml(
         ? `<th class="td-right" style="width:${discColWidth}px;">${L.discount}</th>`
         : '';
 
+    // ── Ledger Balance Block ──
+    const showLedger = data.customer && 
+        (data.customer.previousBalance !== undefined || data.customer.newBalance !== undefined) &&
+        (data.customer.previousBalance !== 0 || data.customer.newBalance !== 0 || data.paidAmount < data.grandTotal);
+
+    const ledgerHtml = showLedger
+        ? `
+      <div class="ledger-block">
+        <div style="text-align: center; font-weight: bold; font-size: 11px; color: #475569; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Customer Ledger Summary</div>
+        <div class="ledger-row">
+          <span class="ledger-label">Previous Balance:</span>
+          <span class="ledger-value">Rs ${fmt(data.customer?.previousBalance ?? 0)}</span>
+        </div>
+        <div class="ledger-row">
+          <span class="ledger-label">This Bill:</span>
+          <span class="ledger-value">Rs ${fmt(data.grandTotal)}</span>
+        </div>
+        <div class="ledger-row">
+          <span class="ledger-label">Paid Amount:</span>
+          <span class="ledger-value">Rs ${fmt(data.paidAmount)}</span>
+        </div>
+        <div class="ledger-row ledger-total-row">
+          <span class="ledger-label" style="font-weight: 700;">Remaining Balance:</span>
+          <span class="ledger-value" style="font-weight: 700; color: #0f172a;">Rs ${fmt(data.customer?.newBalance ?? 0)}</span>
+        </div>
+      </div>`
+        : '';
+
     return `<!DOCTYPE html>
 <html lang="${lang === 'ur' ? 'ur' : 'en'}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}">
 <head>
@@ -222,7 +252,7 @@ export function buildInvoiceHtml(
 
     .page {
       width: ${w}px;
-      padding: 16px 16px 28px;
+      padding: 8px 6px 24px;
       background: #ffffff;
     }
 
@@ -241,8 +271,8 @@ export function buildInvoiceHtml(
     .logo {
       display: block;
       margin: 0 auto 8px;
-      max-height: 60px;
-      max-width: ${w - 40}px;
+      width: 96px;
+      height: 96px;
       object-fit: contain;
     }
     .biz-name {
@@ -481,6 +511,28 @@ export function buildInvoiceHtml(
       color: #94a3b8;
       margin-top: 8px;
     }
+    /* ── Ledger Balance ── */
+    .ledger-block {
+      margin-top: 8px;
+      border: 1px solid #cbd5e1;
+      padding: 6px 0;
+      background: #f8fafc;
+    }
+    .ledger-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 10px;
+      font-size: 13px;
+    }
+    .ledger-label { color: #475569; font-weight: 500; }
+    .ledger-value { font-family: Consolas, "Courier New", monospace; font-weight: 700; color: #1e293b; }
+    .ledger-total-row {
+      border-top: 1px dashed #cbd5e1;
+      margin-top: 4px;
+      padding-top: 6px;
+      font-weight: 700;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -558,14 +610,17 @@ export function buildInvoiceHtml(
     ${paymentRows}
   </div>
 
+  ${ledgerHtml}
+
   <!-- FBR -->
   ${fbrSection}
 
   <!-- FOOTER -->
   <div class="footer">
+    ${config.invoiceNote ? `<div class="invoice-note" style="margin-bottom: 8px; font-size: 13px; font-weight: 500; color: #1e293b; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; font-style: italic;">${escHtml(config.invoiceNote)}</div>` : ''}
     <div class="footer-en">${L.footer}</div>
     ${showUrdu ? `<div class="footer-ur">${UR.footer}</div>` : ''}
-    <div class="powered">Powered by POS System</div>
+    <div class="powered">Powered by AAZify.</div>
   </div>
 
 </div>

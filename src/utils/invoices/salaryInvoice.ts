@@ -40,7 +40,19 @@ export function buildSalaryInvoiceSections(data: SalaryInvoiceData): PrintSectio
 
     // Earnings & Deductions
     const is80mm = config.paperSize === 'Mm80';
-    const colWidths = is80mm ? [32, 16] : [20, 12];
+    const defaultWidth = is80mm ? 48 : 32;
+    const width = config.nativeColumns || defaultWidth;
+    const ratio = width / defaultWidth;
+
+    let colWidths = is80mm ? [32, 16] : [20, 12];
+    if (config.nativeColumns) {
+        colWidths = colWidths.map(w => Math.max(1, Math.floor(w * ratio)));
+        const sum = colWidths.reduce((a, b) => a + b, 0);
+        const diff = width - sum;
+        if (diff !== 0) {
+            colWidths[0] += diff; // Adjust label column
+        }
+    }
 
     const earningsBody = [
         [cell('Base Salary:'), cell(fmt(slip.baseSalary), 'right')],

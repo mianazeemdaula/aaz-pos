@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Loader2, ChevronLeft, ChevronRight, ArrowUpCircle, Download, FileText } from 'lucide-react';
+import { Plus, Loader2, ChevronLeft, ChevronRight, ArrowUpCircle, Download, FileText, Printer } from 'lucide-react';
 import { supplierService } from '../services/pos.service';
 import { apiClient } from '../services/api';
 import { API_ENDPOINTS } from '../config/api';
@@ -7,6 +7,7 @@ import { SupplierSearch } from '../components/ui/SupplierSearch';
 import { AccountSelect } from '../components/ui/AccountSelect';
 import { Modal } from '../components/ui/Modal';
 import type { Supplier, SupplierPayment } from '../types/pos';
+import { printSupplierPayment } from '../utils/invoices';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -137,6 +138,18 @@ export function SupplierPayments() {
         }
     };
 
+    const handlePrintPayment = async (p: SupplierPayment) => {
+        if (!selectedSupplier) return;
+        try {
+            await printSupplierPayment({
+                payment: p,
+                supplier: selectedSupplier
+            });
+        } catch (e: any) {
+            alert(`Failed to print payment receipt: ${e.message || 'Unknown error'}`);
+        }
+    };
+
     return (
         <div className="space-y-4">
             {/* Header */}
@@ -240,6 +253,7 @@ export function SupplierPayments() {
                                     <th className="px-4 py-2.5">Account</th>
                                     <th className="px-4 py-2.5">Note</th>
                                     <th className="px-4 py-2.5 text-right">Amount</th>
+                                    <th className="px-4 py-2.5 text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -265,6 +279,15 @@ export function SupplierPayments() {
                                         <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
                                         <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'RECEIVED' ? 'text-green-600' : 'text-amber-600'}`}>
                                             {p.type === 'RECEIVED' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-center">
+                                            <button
+                                                onClick={() => handlePrintPayment(p)}
+                                                title="Print Receipt"
+                                                className="p-1.5 text-gray-400 hover:text-primary-600 rounded transition-colors"
+                                            >
+                                                <Printer size={14} />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))}

@@ -41,6 +41,8 @@ export interface Customer {
     cnic?: string | null;
     creditLimit?: number | null;
     balance: number;
+    previousBalance?: number;
+    newBalance?: number;
     active: boolean;
     createdAt?: string;
 }
@@ -412,6 +414,8 @@ export interface CustomerPayment {
     note?: string | null;
     date: string;
     createdAt: string;
+    previousBalance?: number;
+    newBalance?: number;
 }
 
 export interface SupplierPayment {
@@ -424,6 +428,8 @@ export interface SupplierPayment {
     note?: string | null;
     date: string;
     createdAt: string;
+    previousBalance?: number;
+    newBalance?: number;
 }
 
 export interface HeldSale {
