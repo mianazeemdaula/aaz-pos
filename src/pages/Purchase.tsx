@@ -20,10 +20,11 @@ type DiscountType = 'PERCENTAGE' | 'FIXED';
 
 interface CartItem {
   product: Product
-  & { barcode?: string }
+  & { barcode?: string };
   variant: ProductVariant;
   qty: number;
-  totalCost: number; // total for this line (qty × unitCost), user-entered
+  unitCost: number;  // cost price per unit, user-entered
+  totalCost: number; // auto-calculated: qty × unitCost
   discount: number;  // discount value (Rs if FIXED, % if PERCENTAGE)
   discountType: DiscountType;
   unitRate: number;  // intended selling price per unit (for profit display)
@@ -283,7 +284,11 @@ export function Purchase() {
   useEffect(() => {
     const draft = loadDraft();
     if (!draft?.cart?.length) return;
-    setCart(draft.cart.map(i => ({ ...i, discountType: i.discountType ?? 'FIXED' as DiscountType })));
+    setCart(draft.cart.map(i => ({
+      ...i,
+      discountType: i.discountType ?? 'FIXED' as DiscountType,
+      unitCost: (i as any).unitCost ?? (i.qty > 0 ? i.totalCost / i.qty : 0),
+    })));
     setSupplier(draft.supplier ?? null);
     setNote(draft.note ?? '');
     setRefNo(draft.refNo ?? '');
@@ -327,12 +332,12 @@ export function Purchase() {
       if (idx >= 0) {
         const next = [...prev];
         const cur = next[idx];
-        const unitCost = cur.qty > 0 ? cur.totalCost / cur.qty : costPerUnit;
-        next[idx] = { ...cur, qty: cur.qty + 1, totalCost: (cur.qty + 1) * unitCost };
+        const newQty = cur.qty + 1;
+        next[idx] = { ...cur, qty: newQty, totalCost: newQty * cur.unitCost };
         return next;
       }
       const sellingPrice = v.price || 0;
-      return [{ product, variant: { ...v, product }, qty: 1, totalCost: costPerUnit, discount: 0, discountType: 'FIXED' as DiscountType, unitRate: sellingPrice }, ...prev];
+      return [{ product, variant: { ...v, product }, qty: 1, unitCost: costPerUnit, totalCost: costPerUnit, discount: 0, discountType: 'FIXED' as DiscountType, unitRate: sellingPrice }, ...prev];
     });
     setBarcode('');
     setTimeout(() => barcodeRef.current?.focus(), 30);
@@ -357,22 +362,29 @@ export function Purchase() {
     setCart(prev => prev.map((item, i) => {
       if (i !== idx) return item;
       const newQty = Math.max(1, item.qty + delta);
-      const unitCost = item.qty > 0 ? item.totalCost / item.qty : 0;
-      return { ...item, qty: newQty, totalCost: newQty * unitCost };
+      return { ...item, qty: newQty, totalCost: newQty * item.unitCost };
     }));
 
-  const updateField = (idx: number, field: 'qty' | 'totalCost' | 'discount' | 'unitRate', val: number) => {
+  const updateField = (idx: number, field: 'qty' | 'unitCost' | 'totalCost' | 'discount' | 'unitRate', val: number) => {
     setCart(prev =>
       prev.map((item, i) => {
         if (i !== idx) return item;
         if (field === 'qty') {
           const newQty = Math.max(1, val);
-          const unitCost = item.qty > 0 ? item.totalCost / item.qty : 0;
-          return { ...item, qty: newQty, totalCost: newQty * unitCost };
+          return { ...item, qty: newQty, totalCost: newQty * item.unitCost };
+        }
+        if (field === 'unitCost') {
+          const newUnitCost = Math.max(0, val);
+          return { ...item, unitCost: newUnitCost, totalCost: item.qty * newUnitCost };
+        }
+        if (field === 'totalCost') {
+          const newTotal = Math.max(0, val);
+          const newUnitCost = item.qty > 0 ? newTotal / item.qty : 0;
+          return { ...item, totalCost: newTotal, unitCost: newUnitCost };
         }
         if (field === 'discount') return { ...item, discount: Math.max(0, val) };
         if (field === 'unitRate') return { ...item, unitRate: Math.max(0, val) };
-        return { ...item, totalCost: Math.max(0, val) };
+        return item;
       })
     );
     // Update the default variant's retail price when sale price (unitRate) changes
@@ -429,7 +441,7 @@ export function Purchase() {
             variantId: i.variant.id,
             qty: i.qty,
             totalCost: i.totalCost,
-            unitCost: i.qty > 0 ? i.totalCost / i.qty : 0,
+            unitCost: i.unitCost,
             discount: i.discount,
             discountType: i.discountType,
             sellingPrice: i.unitRate,
@@ -523,7 +535,10 @@ export function Purchase() {
         isDefault: true,
         product,
       };
-      return { product, variant, qty: item.qty ?? 1, totalCost: item.totalCost ?? 0, discount: item.discount ?? 0, discountType: ((item as any).discountType as DiscountType) ?? 'FIXED', unitRate: (item as any).sellingPrice ?? 0 };
+      const tc = item.totalCost ?? 0;
+      const q = item.qty ?? 1;
+      const uc = (item as any).unitCost ?? (q > 0 ? tc / q : 0);
+      return { product, variant, qty: q, unitCost: uc, totalCost: tc, discount: item.discount ?? 0, discountType: ((item as any).discountType as DiscountType) ?? 'FIXED', unitRate: (item as any).sellingPrice ?? 0 };
     });
     setCart(newCart);
     setRefNo(data?.refNo ?? '');
@@ -561,7 +576,7 @@ export function Purchase() {
         expenses: invoiceExpenses,
         note: note || undefined,
         items: cart.map(i => {
-          const unitCost = i.qty > 0 ? i.totalCost / i.qty : 0;
+          const unitCost = i.unitCost;
           const discAmt = getDiscountAmount(i);
           const discountPerUnit = i.qty > 0 ? discAmt / i.qty : 0;
           return {
@@ -584,7 +599,7 @@ export function Purchase() {
         items: cart.map(i => ({
           name: i.product.name,
           qty: i.qty,
-          unitCost: i.qty > 0 ? i.totalCost / i.qty : 0,
+          unitCost: i.unitCost,
           discount: getDiscountAmount(i),
           total: i.totalCost - getDiscountAmount(i),
         })),
@@ -733,18 +748,18 @@ export function Purchase() {
                   <th className="text-left px-3 py-2 font-medium text-gray-500 min-w-[160px]">Product</th>
                   <th className="text-left px-2 py-2 font-medium text-gray-500 w-[100px]">Variant</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-center w-[96px]">Qty</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[112px]">Total Cost</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[112px]">Disc</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[100px]">Unit Price</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[104px]">Total Cost</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[100px]">Disc</th>
                   <th className="px-2 py-2 font-medium text-gray-500 text-right w-[100px]">Sale Rate</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[88px]">Profit</th>
-                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[104px]">Net</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[80px]">Profit</th>
+                  <th className="px-2 py-2 font-medium text-gray-500 text-right w-[96px]">Net</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
               <tbody>
                 {cart.map((item, idx) => {
                   const isFirst = idx === 0;
-                  const unitCost = item.qty > 0 ? item.totalCost / item.qty : 0;
                   const discAmt = getDiscountAmount(item);
                   const netTotal = item.totalCost - discAmt;
                   const netUnitCost = item.qty > 0 ? netTotal / item.qty : 0;
@@ -755,10 +770,9 @@ export function Purchase() {
                     <tr key={`${item.variant.id}-${idx}`} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-3 py-1.5 align-middle">
                         <p className="font-medium text-gray-900 dark:text-gray-100 break-words">{item.product.name}</p>
-                        <p className="text-gray-400 text-[11px] truncate" title={item.variant.barcode ? `${item.variant.barcode} @ ${fmt(unitCost)}/unit` : `@ ${fmt(unitCost)}/unit`}>
+                        <p className="text-gray-400 text-[11px] truncate" title={item.variant.barcode ? `${item.variant.barcode}` : undefined}>
                           {item.variant.barcode && <span className="mr-1">{item.variant.barcode}</span>}
-                          <span>@ {fmt(unitCost)}/unit</span>
-                          {item.variant.factor > 1 && <span className="ml-1 text-primary-500">×{item.variant.factor}</span>}
+                          {item.variant.factor > 1 && <span className="text-primary-500">×{item.variant.factor}</span>}
                         </p>
                       </td>
                       <td className="px-2 py-1.5 align-middle">
@@ -794,8 +808,11 @@ export function Purchase() {
                         </div>
                       </td>
                       <td className="px-2 py-1.5 align-middle">
-                        <input type="number" value={item.totalCost} min={0} step="0.01" onChange={e => updateField(idx, 'totalCost', Number(e.target.value))}
+                        <input type="number" value={item.unitCost} min={0} step="0.01" onChange={e => updateField(idx, 'unitCost', Number(e.target.value))}
                           className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs" />
+                      </td>
+                      <td className="px-2 py-1.5 align-middle text-right text-xs font-medium text-gray-700 dark:text-gray-300">
+                        {fmt(item.totalCost)}
                       </td>
                       <td className="px-2 py-1.5 align-middle">
                         <div className="flex items-center justify-end gap-0.5">
