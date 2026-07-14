@@ -407,6 +407,7 @@ export interface SupplierLedgerEntry {
 export interface CustomerPayment {
     id: number;
     customerId: number;
+    customer?: Customer;
     amount: number;
     type: 'RECEIVED' | 'SENT';
     accountId: number;
@@ -421,6 +422,7 @@ export interface CustomerPayment {
 export interface SupplierPayment {
     id: number;
     supplierId: number;
+    supplier?: Supplier;
     amount: number;
     type: 'SENT' | 'RECEIVED';
     accountId: number;

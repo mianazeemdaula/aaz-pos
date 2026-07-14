@@ -5,6 +5,10 @@ import { Pagination } from '../components/ui/Pagination';
 import type { Purchase, Account } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${Math.abs(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtDate = (d: string | Date) => {
+  const dt = new Date(d);
+  return dt.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) + " " + dt.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
+};
 const today = new Date().toISOString().slice(0, 10);
 const mon = today.slice(0, 8) + '01';
 
@@ -211,7 +215,7 @@ export function PurchaseReturns() {
                       return (
                         <tr key={p.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                           <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">PO-{p.id}</td>
-                          <td className="px-4 py-2.5 text-gray-500">{new Date(p.date ?? p.createdAt).toLocaleDateString()}</td>
+                          <td className="px-4 py-2.5 text-gray-500">{fmtDate(p.date ?? p.createdAt)}</td>
                           <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">{p.supplier?.name ?? ''}</td>
                           <td className="px-4 py-2.5 text-gray-500">{p.invoiceNo ?? ''}</td>
                           <td className="px-4 py-2.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(p.totalAmount)}</td>

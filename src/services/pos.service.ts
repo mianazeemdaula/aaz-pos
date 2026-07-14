@@ -33,6 +33,7 @@ export const customerService = {
   getLedger: (id: number, params?: object) => apiClient.get<PaginatedResponse<CustomerLedgerEntry>>(API_ENDPOINTS.customers.ledger(id), { params }),
   createLedgerEntry: (id: number, data: object) => apiClient.post<CustomerLedgerEntry>(API_ENDPOINTS.customers.ledger(id), data),
   getPayments: (id: number, params?: object) => apiClient.get<PaginatedResponse<CustomerPayment>>(API_ENDPOINTS.customers.payments(id), { params }),
+  getAllPayments: (params?: object) => apiClient.get<PaginatedResponse<CustomerPayment>>(API_ENDPOINTS.customers.allPayments, { params }),
   createPayment: (id: number, data: object) => apiClient.post<CustomerPayment>(API_ENDPOINTS.customers.payments(id), data),
 };
 
@@ -46,6 +47,7 @@ export const supplierService = {
   getLedger: (id: number, params?: object) => apiClient.get<PaginatedResponse<SupplierLedgerEntry>>(API_ENDPOINTS.suppliers.ledger(id), { params }),
   createLedgerEntry: (id: number, data: object) => apiClient.post<SupplierLedgerEntry>(API_ENDPOINTS.suppliers.ledger(id), data),
   getPayments: (id: number, params?: object) => apiClient.get<PaginatedResponse<SupplierPayment>>(API_ENDPOINTS.suppliers.payments(id), { params }),
+  getAllPayments: (params?: object) => apiClient.get<PaginatedResponse<SupplierPayment>>(API_ENDPOINTS.suppliers.allPayments, { params }),
   createPayment: (id: number, data: object) => apiClient.post<SupplierPayment>(API_ENDPOINTS.suppliers.payments(id), data),
 };
 

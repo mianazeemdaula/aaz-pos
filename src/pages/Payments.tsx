@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
     Plus, Loader2, ChevronLeft, ChevronRight,
-    Download, FileText, Wallet, Printer,
+    Wallet, Printer,
 } from 'lucide-react';
 import { customerService, supplierService } from '../services/pos.service';
-import { apiClient } from '../services/api';
-import { API_ENDPOINTS } from '../config/api';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
 import { SupplierSearch } from '../components/ui/SupplierSearch';
 import { AccountSelect } from '../components/ui/AccountSelect';
@@ -39,7 +37,6 @@ export function Payments() {
     const [tab, setTab] = useState<Tab>('customer');
 
     // Customer payments state
-    const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
     const [customerPayments, setCustomerPayments] = useState<CustomerPayment[]>([]);
     const [custTotal, setCustTotal] = useState(0);
     const [custPage, setCustPage] = useState(1);
@@ -50,12 +47,8 @@ export function Payments() {
     });
     const [custSaving, setCustSaving] = useState(false);
     const [custSaveError, setCustSaveError] = useState('');
-    const [custLedgerFrom, setCustLedgerFrom] = useState(() => new Date().toISOString().slice(0, 8) + '01');
-    const [custLedgerTo, setCustLedgerTo] = useState(() => new Date().toISOString().slice(0, 10));
-    const [custLedgerLoading, setCustLedgerLoading] = useState(false);
- 
+
     // Supplier payments state
-    const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
     const [supplierPayments, setSupplierPayments] = useState<SupplierPayment[]>([]);
     const [supTotal, setSupTotal] = useState(0);
     const [supPage, setSupPage] = useState(1);
@@ -66,27 +59,30 @@ export function Payments() {
     });
     const [supSaving, setSupSaving] = useState(false);
     const [supSaveError, setSupSaveError] = useState('');
-    const [supLedgerFrom, setSupLedgerFrom] = useState(() => new Date().toISOString().slice(0, 8) + '01');
-    const [supLedgerTo, setSupLedgerTo] = useState(() => new Date().toISOString().slice(0, 10));
-    const [supLedgerLoading, setSupLedgerLoading] = useState(false);
 
     const PAGE_SIZE = 20;
 
     // ── Customer Payment Functions ──
     const loadCustomerPayments = useCallback(async () => {
-        if (!selectedCustomer) { setCustomerPayments([]); setCustTotal(0); return; }
         setCustLoading(true);
         try {
-            const r = await customerService.getPayments(selectedCustomer.id, { page: custPage, pageSize: PAGE_SIZE });
-            setCustomerPayments(r.data ?? []); setCustTotal(r.pagination?.total ?? 0);
-        } catch { setCustomerPayments([]); } finally { setCustLoading(false); }
-    }, [selectedCustomer, custPage]);
+            const r = await customerService.getAllPayments({ page: custPage, pageSize: PAGE_SIZE });
+            setCustomerPayments(r.data ?? []);
+            setCustTotal(r.pagination?.total ?? 0);
+        } catch {
+            setCustomerPayments([]);
+        } finally {
+            setCustLoading(false);
+        }
+    }, [custPage]);
 
-    useEffect(() => { loadCustomerPayments(); }, [loadCustomerPayments]);
+    useEffect(() => {
+        loadCustomerPayments();
+    }, [loadCustomerPayments]);
 
     const openCustModal = () => {
         setCustSaveError('');
-        setCustForm({ amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), customer: selectedCustomer, type: 'RECEIVED' });
+        setCustForm({ amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), customer: null, type: 'RECEIVED' });
         setCustModal(true);
     };
 
@@ -105,49 +101,37 @@ export function Payments() {
                 type: custForm.type,
             });
             setCustModal(false);
-            if (selectedCustomer && target.id === selectedCustomer.id) {
-                const updated = await customerService.get(target.id);
-                setSelectedCustomer(updated);
-            }
             loadCustomerPayments();
         } catch (e: unknown) {
             const msg = (e as { error?: { message?: string } })?.error?.message
                 ?? (e instanceof Error ? e.message : 'Failed to save payment.');
             setCustSaveError(msg);
-        } finally { setCustSaving(false); }
-    };
-
-    const downloadCustLedger = async () => {
-        if (!selectedCustomer) return;
-        setCustLedgerLoading(true);
-        try {
-            const blob = await apiClient.getBlob(
-                API_ENDPOINTS.reports.customerLedgerPdf(selectedCustomer.id),
-                { params: { from: custLedgerFrom, to: custLedgerTo } },
-            );
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `customer-ledger-${selectedCustomer.name.replace(/\s+/g, '-')}-${custLedgerFrom}-${custLedgerTo}.pdf`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-        } catch { alert('Failed to generate ledger PDF.'); } finally { setCustLedgerLoading(false); }
+        } finally {
+            setCustSaving(false);
+        }
     };
 
     // ── Supplier Payment Functions ──
     const loadSupplierPayments = useCallback(async () => {
-        if (!selectedSupplier) { setSupplierPayments([]); setSupTotal(0); return; }
         setSupLoading(true);
         try {
-            const r = await supplierService.getPayments(selectedSupplier.id, { page: supPage, pageSize: PAGE_SIZE });
-            setSupplierPayments(r.data ?? []); setSupTotal(r.pagination?.total ?? 0);
-        } catch { setSupplierPayments([]); } finally { setSupLoading(false); }
-    }, [selectedSupplier, supPage]);
+            const r = await supplierService.getAllPayments({ page: supPage, pageSize: PAGE_SIZE });
+            setSupplierPayments(r.data ?? []);
+            setSupTotal(r.pagination?.total ?? 0);
+        } catch {
+            setSupplierPayments([]);
+        } finally {
+            setSupLoading(false);
+        }
+    }, [supPage]);
 
-    useEffect(() => { loadSupplierPayments(); }, [loadSupplierPayments]);
+    useEffect(() => {
+        loadSupplierPayments();
+    }, [loadSupplierPayments]);
 
     const openSupModal = () => {
         setSupSaveError('');
-        setSupForm({ amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), supplier: selectedSupplier, type: 'SENT' });
+        setSupForm({ amount: '', accountId: null, note: '', date: new Date().toISOString().slice(0, 10), supplier: null, type: 'SENT' });
         setSupModal(true);
     };
 
@@ -166,40 +150,23 @@ export function Payments() {
                 type: supForm.type,
             });
             setSupModal(false);
-            if (selectedSupplier && target.id === selectedSupplier.id) {
-                const updated = await supplierService.get(target.id);
-                setSelectedSupplier(updated);
-            }
             loadSupplierPayments();
         } catch (e: unknown) {
             const msg = (e as { error?: { message?: string } })?.error?.message
                 ?? (e instanceof Error ? e.message : 'Failed to save payment.');
             setSupSaveError(msg);
-        } finally { setSupSaving(false); }
-    };
-
-    const downloadSupLedger = async () => {
-        if (!selectedSupplier) return;
-        setSupLedgerLoading(true);
-        try {
-            const blob = await apiClient.getBlob(
-                API_ENDPOINTS.reports.supplierLedgerPdf(selectedSupplier.id),
-                { params: { from: supLedgerFrom, to: supLedgerTo } },
-            );
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `supplier-ledger-${selectedSupplier.name.replace(/\s+/g, '-')}-${supLedgerFrom}-${supLedgerTo}.pdf`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-        } catch { alert('Failed to generate ledger PDF.'); } finally { setSupLedgerLoading(false); }
+        } finally {
+            setSupSaving(false);
+        }
     };
 
     const handlePrintCustPayment = async (p: CustomerPayment) => {
-        if (!selectedCustomer) return;
+        const cust = p.customer;
+        if (!cust) return;
         try {
             await printCustomerPayment({
                 payment: p,
-                customer: selectedCustomer
+                customer: cust
             });
         } catch (e: any) {
             alert(`Failed to print payment receipt: ${e.message || 'Unknown error'}`);
@@ -207,11 +174,12 @@ export function Payments() {
     };
 
     const handlePrintSupPayment = async (p: SupplierPayment) => {
-        if (!selectedSupplier) return;
+        const sup = p.supplier;
+        if (!sup) return;
         try {
             await printSupplierPayment({
                 payment: p,
-                supplier: selectedSupplier
+                supplier: sup
             });
         } catch (e: any) {
             alert(`Failed to print payment voucher: ${e.message || 'Unknown error'}`);
@@ -258,56 +226,25 @@ export function Payments() {
             {/* ═══ CUSTOMER PAYMENTS TAB ═══ */}
             {tab === 'customer' && (
                 <>
-                    {/* Customer Filter */}
-                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                        <label className="text-xs font-medium text-gray-500 mb-1.5 block">Select Customer to View Payments</label>
-                        <CustomerSearch value={selectedCustomer} onSelect={c => { setSelectedCustomer(c); setCustPage(1); }} />
-                        {selectedCustomer && (
-                            <div className="mt-3 space-y-3">
-                                <div className="flex flex-wrap items-center gap-4 text-sm">
-                                    <div>
-                                        <span className="text-gray-500">Outstanding Balance: </span>
-                                        <span className={`font-semibold ${selectedCustomer.balance > 0 ? 'text-red-600' : selectedCustomer.balance < 0 ? 'text-blue-600' : 'text-green-600'}`}>
-                                            {selectedCustomer.balance > 0 ? `${fmt(selectedCustomer.balance)} (Due)` : selectedCustomer.balance < 0 ? `${fmt(Math.abs(selectedCustomer.balance))} (Advance)` : 'Clear'}
-                                        </span>
-                                    </div>
-                                    {selectedCustomer.creditLimit != null && (
-                                        <div><span className="text-gray-500">Credit Limit: </span><span className="font-medium">{fmt(selectedCustomer.creditLimit)}</span></div>
-                                    )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
-                                    <FileText size={13} className="text-gray-400 shrink-0" />
-                                    <span className="text-xs text-gray-500 shrink-0">Ledger PDF:</span>
-                                    <input type="date" value={custLedgerFrom} onChange={e => setCustLedgerFrom(e.target.value)}
-                                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500" />
-                                    <span className="text-gray-400 text-xs">—</span>
-                                    <input type="date" value={custLedgerTo} onChange={e => setCustLedgerTo(e.target.value)}
-                                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500" />
-                                    <button onClick={downloadCustLedger} disabled={custLedgerLoading}
-                                        className="flex items-center gap-1 px-2.5 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors">
-                                        {custLedgerLoading ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />} Download
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
                     {/* Customer Payments Table */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                        {!selectedCustomer ? (
-                            <p className="text-center text-gray-400 py-12 text-sm">Search and select a customer above to view their payment history</p>
-                        ) : custLoading ? (
+                        {custLoading ? (
                             <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
                         ) : customerPayments.length === 0 ? (
-                            <p className="text-center text-gray-400 py-12 text-sm">No payments found for <span className="font-medium text-gray-600 dark:text-gray-300">{selectedCustomer.name}</span></p>
+                            <p className="text-center text-gray-400 py-12 text-sm">No payments found</p>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider">
-                                            <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Type</th><th className="px-4 py-2.5">Account</th>
-                                            <th className="px-4 py-2.5">Note</th><th className="px-4 py-2.5 text-right">Amount</th>
-                                            <th className="px-4 py-2.5 text-center">Actions</th>
+                                        <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider font-semibold">
+                                            <th className="px-4 py-3">#</th>
+                                            <th className="px-4 py-3">Date</th>
+                                            <th className="px-4 py-3">Customer</th>
+                                            <th className="px-4 py-3">Type</th>
+                                            <th className="px-4 py-3">Account</th>
+                                            <th className="px-4 py-3">Note</th>
+                                            <th className="px-4 py-3 text-right">Amount</th>
+                                            <th className="px-4 py-3 text-center">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -315,21 +252,22 @@ export function Payments() {
                                             <tr key={p.id} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                                 <td className="px-4 py-2.5 text-gray-400 text-xs">{(custPage - 1) * PAGE_SIZE + i + 1}</td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{new Date(p.date ?? p.createdAt).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                                <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{p.customer?.name ?? '—'}</td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'SENT' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'SENT' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
                                                         {p.type === 'SENT' ? 'Refund' : 'Received'}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{p.account?.name ?? '—'}</td>
                                                 <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
-                                                <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'SENT' ? 'text-red-600' : 'text-green-600'}`}>
+                                                <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'SENT' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                                     {p.type === 'SENT' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
                                                 </td>
                                                 <td className="px-4 py-2.5 text-center">
                                                     <button
                                                         onClick={() => handlePrintCustPayment(p)}
                                                         title="Print Receipt"
-                                                        className="p-1.5 text-gray-400 hover:text-primary-600 rounded transition-colors"
+                                                        className="p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 rounded transition-colors"
                                                     >
                                                         <Printer size={14} />
                                                     </button>
@@ -402,59 +340,25 @@ export function Payments() {
             {/* ═══ SUPPLIER PAYMENTS TAB ═══ */}
             {tab === 'supplier' && (
                 <>
-                    {/* Supplier Filter */}
-                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                        <label className="text-xs font-medium text-gray-500 mb-1.5 block">Select Supplier to View Payments</label>
-                        <SupplierSearch value={selectedSupplier} onSelect={s => { setSelectedSupplier(s); setSupPage(1); }} />
-                        {selectedSupplier && (
-                            <div className="mt-3 space-y-3">
-                                <div className="flex flex-wrap items-center gap-4 text-sm">
-                                    <div>
-                                        <span className="text-gray-500">Outstanding Balance: </span>
-                                        <span className={`font-semibold ${selectedSupplier.balance > 0 ? 'text-amber-600' : selectedSupplier.balance < 0 ? 'text-blue-600' : 'text-green-600'}`}>
-                                            {selectedSupplier.balance > 0 ? `${fmt(selectedSupplier.balance)} (Payable)` : selectedSupplier.balance < 0 ? `${fmt(Math.abs(selectedSupplier.balance))} (Advance)` : 'Clear'}
-                                        </span>
-                                    </div>
-                                    {selectedSupplier.paymentTerms && (
-                                        <div><span className="text-gray-500">Payment Terms: </span><span className="font-medium">{selectedSupplier.paymentTerms}</span></div>
-                                    )}
-                                    {selectedSupplier.bankDetails && (
-                                        <div><span className="text-gray-500">Bank: </span><span className="font-medium">{selectedSupplier.bankDetails}</span></div>
-                                    )}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
-                                    <FileText size={13} className="text-gray-400 shrink-0" />
-                                    <span className="text-xs text-gray-500 shrink-0">Ledger PDF:</span>
-                                    <input type="date" value={supLedgerFrom} onChange={e => setSupLedgerFrom(e.target.value)}
-                                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500" />
-                                    <span className="text-gray-400 text-xs">—</span>
-                                    <input type="date" value={supLedgerTo} onChange={e => setSupLedgerTo(e.target.value)}
-                                        className="px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-primary-500" />
-                                    <button onClick={downloadSupLedger} disabled={supLedgerLoading}
-                                        className="flex items-center gap-1 px-2.5 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors">
-                                        {supLedgerLoading ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />} Download
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
                     {/* Supplier Payments Table */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                        {!selectedSupplier ? (
-                            <p className="text-center text-gray-400 py-12 text-sm">Search and select a supplier above to view their payment history</p>
-                        ) : supLoading ? (
+                        {supLoading ? (
                             <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
                         ) : supplierPayments.length === 0 ? (
-                            <p className="text-center text-gray-400 py-12 text-sm">No payments found for <span className="font-medium text-gray-600 dark:text-gray-300">{selectedSupplier.name}</span></p>
+                            <p className="text-center text-gray-400 py-12 text-sm">No payments found</p>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
-                                        <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider">
-                                            <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Type</th><th className="px-4 py-2.5">Account</th>
-                                            <th className="px-4 py-2.5">Note</th><th className="px-4 py-2.5 text-right">Amount</th>
-                                            <th className="px-4 py-2.5 text-center">Actions</th>
+                                        <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider font-semibold">
+                                            <th className="px-4 py-3">#</th>
+                                            <th className="px-4 py-3">Date</th>
+                                            <th className="px-4 py-3">Supplier</th>
+                                            <th className="px-4 py-3">Type</th>
+                                            <th className="px-4 py-3">Account</th>
+                                            <th className="px-4 py-3">Note</th>
+                                            <th className="px-4 py-3 text-right">Amount</th>
+                                            <th className="px-4 py-3 text-center">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -462,21 +366,22 @@ export function Payments() {
                                             <tr key={p.id} className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30">
                                                 <td className="px-4 py-2.5 text-gray-400 text-xs">{(supPage - 1) * PAGE_SIZE + i + 1}</td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{new Date(p.date ?? p.createdAt).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                                                <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{p.supplier?.name ?? '—'}</td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
-                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'RECEIVED' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'RECEIVED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
                                                         {p.type === 'RECEIVED' ? 'Refund' : 'Paid'}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{p.account?.name ?? '—'}</td>
                                                 <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
-                                                <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'RECEIVED' ? 'text-green-600' : 'text-amber-600'}`}>
+                                                <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'RECEIVED' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
                                                     {p.type === 'RECEIVED' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
                                                 </td>
                                                 <td className="px-4 py-2.5 text-center">
                                                     <button
                                                         onClick={() => handlePrintSupPayment(p)}
                                                         title="Print Receipt"
-                                                        className="p-1.5 text-gray-400 hover:text-primary-600 rounded transition-colors"
+                                                        className="p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 rounded transition-colors"
                                                     >
                                                         <Printer size={14} />
                                                     </button>

@@ -57,6 +57,7 @@ export const API_ENDPOINTS = {
         delete: (id: number) => `/customers/${id}`,
         ledger: (id: number) => `/customers/${id}/ledger`,
         payments: (id: number) => `/customers/${id}/payments`,
+        allPayments: '/customers/payments',
     },
     suppliers: {
         list: '/suppliers',
@@ -66,6 +67,7 @@ export const API_ENDPOINTS = {
         delete: (id: number) => `/suppliers/${id}`,
         ledger: (id: number) => `/suppliers/${id}/ledger`,
         payments: (id: number) => `/suppliers/${id}/payments`,
+        allPayments: '/suppliers/payments',
     },
     categories: {
         list: '/categories',
