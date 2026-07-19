@@ -47,7 +47,7 @@ export function QuickSupplierAdd({ open, onClose, onCreated }: QuickSupplierAddP
                 </div>
                 <div className="space-y-3">
                     <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Name *</label>
+                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Name *</label>
                         <input
                             autoFocus
                             type="text"
@@ -58,7 +58,7 @@ export function QuickSupplierAdd({ open, onClose, onCreated }: QuickSupplierAddP
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Phone</label>
+                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Phone</label>
                         <input
                             type="text"
                             value={phone}
@@ -68,7 +68,7 @@ export function QuickSupplierAdd({ open, onClose, onCreated }: QuickSupplierAddP
                         />
                     </div>
                     <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Opening Balance</label>
+                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Opening Balance</label>
                         <input
                             type="number"
                             value={openingBalance}

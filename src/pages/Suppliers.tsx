@@ -103,14 +103,17 @@ export function Suppliers() {
             : (
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
-                  <th className="px-4 py-2">Name</th><th className="px-4 py-2">Phone</th><th className="px-4 py-2">City</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2">Actions</th>
+                  <th className="px-4 py-2">Name</th><th className="px-4 py-2">Phone</th><th className="px-4 py-2">Email</th><th className="px-4 py-2">NTN</th><th className="px-4 py-2">City</th><th className="px-4 py-2">Address</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2">Actions</th>
                 </tr></thead>
                 <tbody>
                   {items.map(item => (
                     <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
                       <td className="px-4 py-2.5 text-gray-500">{formatPhone(item.phone)}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{item.email ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500">{item.ntn ?? '—'}</td>
                       <td className="px-4 py-2.5 text-gray-500">{item.city ?? '—'}</td>
+                      <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{item.address ?? '—'}</td>
                       <td className="px-4 py-2.5 text-right">
                         <span className={`text-xs font-medium ${item.balance > 0 ? 'text-amber-600' : item.balance < 0 ? 'text-green-600' : 'text-gray-400'}`}>
                           {item.balance !== 0 ? fmt(Math.abs(item.balance)) : 'Clear'}
@@ -150,15 +153,16 @@ export function Suppliers() {
               <input value={form.city ?? ''} onChange={e => f('city', e.target.value)} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
             <div>
               <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Opening Balance</label>
-              <div className="flex gap-2">
-                <input type="number" value={form.openingBalance ?? 0} onChange={e => f('openingBalance', Number(e.target.value))}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
-                <select value={form.openingBalanceType ?? 'CREDIT'} onChange={e => f('openingBalanceType', e.target.value)}
-                  className="px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500">
-                  <option value="CREDIT">Payable (Credit)</option>
-                  <option value="DEBIT">Receivable (Debit)</option>
-                </select>
-              </div>
+              <input type="number" value={form.openingBalance ?? 0} onChange={e => f('openingBalance', Number(e.target.value))}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Balance Type</label>
+              <select value={form.openingBalanceType ?? 'CREDIT'} onChange={e => f('openingBalanceType', e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500">
+                <option value="CREDIT">Payable (Credit)</option>
+                <option value="DEBIT">Receivable (Debit)</option>
+              </select>
             </div>
             <div className="col-span-2"><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Address</label>
               <textarea value={form.address ?? ''} onChange={e => f('address', e.target.value)} rows={2} className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none outline-none focus:ring-2 focus:ring-primary-500" /></div>

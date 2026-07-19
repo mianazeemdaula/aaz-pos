@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { ElementType } from 'react';
-import { BarChart2, ShoppingCart, Package, Users, DollarSign, Loader2, FileText, TrendingDown, BookOpen, Wallet, ArrowLeft, AlertTriangle, Sun } from 'lucide-react';
+import { BarChart2, ShoppingCart, Package, Users, DollarSign, Loader2, FileText, TrendingDown, BookOpen, Wallet, ArrowLeft, AlertTriangle, Sun, Briefcase, Scale } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { apiClient } from '../services/api';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
@@ -9,7 +9,7 @@ import { AccountSelect } from '../components/ui/AccountSelect';
 import { userService, categoryService, brandService } from '../services/pos.service';
 import type { Customer, Supplier, User, Category, Brand } from '../types/pos';
 
-type ReportId = 'sales' | 'cashier-sales' | 'detailed-sales' | 'purchases' | 'detailed-purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement' | 'stock-alert' | 'stock-negative' | 'stock-low' | 'daily' | 'purchase-recommendation';
+type ReportId = 'overall-business' | 'payables-receivables' | 'sales' | 'cashier-sales' | 'detailed-sales' | 'purchases' | 'detailed-purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement' | 'stock-alert' | 'stock-negative' | 'stock-low' | 'daily' | 'purchase-recommendation';
 
 interface ReportDef {
   id: ReportId;
@@ -23,6 +23,8 @@ interface ReportDef {
 }
 
 const REPORTS: ReportDef[] = [
+  { id: 'overall-business', label: 'Overall Business Summary', description: 'Executive summary: P&L, receivables, payables, cash/bank & net assets', icon: Briefcase, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800', params: ['dates'], endpoint: '/reports/overall-business' },
+  { id: 'payables-receivables', label: 'Payables & Receivables', description: 'Combined overview of all customer receivables & supplier payables', icon: Scale, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800', params: [], endpoint: '/reports/payables-receivables' },
   { id: 'daily', label: 'Daily Report', description: 'Comprehensive daily P&L: sales, purchases, expenses, salaries, payments', icon: Sun, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800', params: ['date'], endpoint: '/reports/daily' },
   { id: 'sales', label: 'Sales Report', description: 'Revenue, COGS, gross profit & all invoices', icon: ShoppingCart, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800', params: ['dates', 'user'], endpoint: '/reports/sales' },
   { id: 'detailed-sales', label: 'Customer Sales Report', description: 'Detailed sales transactions showing item details', icon: ShoppingCart, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800', params: ['dates', 'customer'], endpoint: '/reports/detailed-sales' },
@@ -185,9 +187,9 @@ export function Reports() {
   // ── Dashboard view ──────────────────────────────────────────────────────
   if (!active) {
     const sections: { title: string; ids: ReportId[] }[] = [
-      { title: 'Financial', ids: ['daily', 'sales', 'detailed-sales', 'cashier-sales', 'purchases', 'detailed-purchases', 'expenses'] },
+      { title: 'Executive & Financial', ids: ['overall-business', 'daily', 'sales', 'detailed-sales', 'cashier-sales', 'purchases', 'detailed-purchases', 'expenses'] },
       { title: 'Inventory', ids: ['inventory', 'stock-alert', 'stock-negative', 'stock-low', 'purchase-recommendation'] },
-      { title: 'Party Balances', ids: ['customers', 'suppliers'] },
+      { title: 'Party Balances & Working Capital', ids: ['payables-receivables', 'customers', 'suppliers'] },
       { title: 'Ledgers & Statements', ids: ['customer-ledger', 'supplier-ledger', 'account-statement'] },
     ];
 
