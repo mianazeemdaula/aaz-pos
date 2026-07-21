@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, Loader2, ArrowRightLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Loader2, ArrowRightLeft, FileText } from 'lucide-react';
 import { accountService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -8,9 +9,21 @@ import type { Account } from '../types/pos';
 
 const PAGE_SIZE = 20;
 
+interface AccountTransferRecord {
+  id: number;
+  fromAccountId: number;
+  toAccountId: number;
+  amount: number;
+  note?: string;
+  createdAt: string;
+  fromAccount?: { id: number; name: string; code: string };
+  toAccount?: { id: number; name: string; code: string };
+}
+
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function Accounts() {
+  const navigate = useNavigate();
   const [items, setItems] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -25,100 +38,184 @@ export function Accounts() {
   const [transferForm, setTransferForm] = useState({ fromAccountId: 0, toAccountId: 0, amount: 0, note: '' });
   const [transferSaving, setTransferSaving] = useState(false);
 
+  // Transfers history state
+  const [transfers, setTransfers] = useState<AccountTransferRecord[]>([]);
+  const [transfersLoading, setTransfersLoading] = useState(false);
+  const [transferPage, setTransferPage] = useState(1);
+  const [transferTotal, setTransferTotal] = useState(0);
+
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await accountService.list({ page, pageSize: PAGE_SIZE }); setItems(r.data); setTotal(r.pagination?.total ?? 0); }
-    catch { setItems([]); } finally { setLoading(false); }
+    try {
+      const r = await accountService.list({ page, pageSize: PAGE_SIZE });
+      setItems(r.data);
+      setTotal(r.pagination?.total ?? 0);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   }, [page]);
 
+  const loadTransfers = useCallback(async () => {
+    setTransfersLoading(true);
+    try {
+      const r = await accountService.listTransfers({ page: transferPage, pageSize: 10 });
+      setTransfers(r.data ?? []);
+      setTransferTotal(r.pagination?.total ?? 0);
+    } catch {
+      setTransfers([]);
+    } finally {
+      setTransfersLoading(false);
+    }
+  }, [transferPage]);
+
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { loadTransfers(); }, [loadTransfers]);
 
   const save = async () => {
     setSaving(true);
     try {
       modal?.mode === 'edit' && modal.item ? await accountService.update(modal.item.id, form) : await accountService.create(form);
-      setModal(null); load();
-    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Error'); }
-    finally { setSaving(false); }
+      setModal(null);
+      load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const del = async () => {
     if (!confirm) return;
-    try { await accountService.delete(confirm.id); load(); }
-    catch (e: unknown) { alert(e instanceof Error ? e.message : 'Error'); }
-    finally { setConfirm(null); }
+    try {
+      await accountService.delete(confirm.id);
+      load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setConfirm(null);
+    }
   };
 
-  const cashTotal = items.filter(a => a.type === 'ASSET').reduce((s, a) => s + (a.balance ?? 0), 0);
-  const bankTotal = items.filter(a => a.type === 'LIABILITY').reduce((s, a) => s + (a.balance ?? 0), 0);
+  const cashTotal = items.filter(a => a.type === 'ASSET' && a.name.toLowerCase().includes('cash')).reduce((s, a) => s + (a.balance ?? 0), 0);
+  const bankTotal = items.filter(a => a.type === 'ASSET' && !a.name.toLowerCase().includes('cash')).reduce((s, a) => s + (a.balance ?? 0), 0);
+  const netAssetsTotal = items.filter(a => a.type === 'ASSET').reduce((s, a) => s + (a.balance ?? 0), 0);
 
   const openTransfer = () => {
-    setTransferForm({ fromAccountId: items[0]?.id ?? 0, toAccountId: items[1]?.id ?? 0, amount: 0, note: '' });
+    const activeAccs = items.filter(a => a.active);
+    setTransferForm({
+      fromAccountId: activeAccs[0]?.id ?? 0,
+      toAccountId: activeAccs[1]?.id ?? 0,
+      amount: 0,
+      note: ''
+    });
     setTransferModal(true);
   };
 
   const doTransfer = async () => {
-    if (!transferForm.fromAccountId || !transferForm.toAccountId) { alert('Select both accounts'); return; }
-    if (transferForm.fromAccountId === transferForm.toAccountId) { alert('Source and destination must be different'); return; }
-    if (!transferForm.amount || transferForm.amount <= 0) { alert('Enter a valid amount'); return; }
+    if (!transferForm.fromAccountId || !transferForm.toAccountId) { alert('Select both source and destination accounts'); return; }
+    if (transferForm.fromAccountId === transferForm.toAccountId) { alert('Source and destination accounts must be different'); return; }
+    if (!transferForm.amount || transferForm.amount <= 0) { alert('Enter a valid positive amount'); return; }
     setTransferSaving(true);
     try {
       await accountService.transfer({
-        fromAccountId: transferForm.fromAccountId,
-        toAccountId: transferForm.toAccountId,
-        amount: transferForm.amount,
-        note: transferForm.note || undefined,
+        fromAccountId: Number(transferForm.fromAccountId),
+        toAccountId: Number(transferForm.toAccountId),
+        amount: Number(transferForm.amount),
+        note: transferForm.note ? transferForm.note.trim() : undefined,
       });
       setTransferModal(false);
       load();
-    } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Transfer failed'); }
-    finally { setTransferSaving(false); }
+      loadTransfers();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Transfer failed');
+    } finally {
+      setTransferSaving(false);
+    }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Accounts</h1>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Accounts & Ledger</h1>
         <div className="flex gap-2">
           <button onClick={openTransfer}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-sm rounded-lg"><ArrowRightLeft size={14} /> Transfer</button>
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-sm rounded-lg">
+            <ArrowRightLeft size={14} /> Transfer
+          </button>
           <button onClick={() => { setForm({ type: 'ASSET', balance: 0 }); setModal({ mode: 'add' }); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg"><Plus size={14} /> Add Account</button>
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
+            <Plus size={14} /> Add Account
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <p className="text-xs text-gray-500 mb-1">Total Cash</p>
           <p className="text-xl font-bold text-green-600">{fmt(cashTotal)}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-          <p className="text-xs text-gray-500 mb-1">Total Bank</p>
+          <p className="text-xs text-gray-500 mb-1">Total Bank / Other</p>
           <p className="text-xl font-bold text-blue-600">{fmt(bankTotal)}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+          <p className="text-xs text-gray-500 mb-1">Total Liquid Assets</p>
+          <p className="text-xl font-bold text-primary-600">{fmt(netAssetsTotal)}</p>
         </div>
       </div>
 
+      {/* Chart of Accounts */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Chart of Accounts</h2>
+        </div>
         {loading ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
           : items.length === 0 ? <p className="text-center text-gray-400 py-12 text-sm">No accounts yet</p>
             : (
               <table className="w-full text-sm">
-                <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
-                  <th className="px-4 py-2">Code</th><th className="px-4 py-2">Account Name</th><th className="px-4 py-2">Type</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2">Actions</th>
-                </tr></thead>
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
+                    <th className="px-4 py-2">Code</th>
+                    <th className="px-4 py-2">Account Name</th>
+                    <th className="px-4 py-2">Type</th>
+                    <th className="px-4 py-2 text-right">Current Balance</th>
+                    <th className="px-4 py-2 text-right">Actions</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {items.map(item => (
                     <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 text-xs font-mono">{item.code}</td>
                       <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
                       <td className="px-4 py-2.5">
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.type === 'ASSET' || item.type === 'INCOME' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{item.type}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${item.type === 'ASSET' || item.type === 'INCOME' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>{item.type}</span>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-medium">{fmt(item.balance ?? 0)}</td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex gap-1">
-                          <button onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
-                          <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
+                      <td className="px-4 py-2.5 text-right font-semibold text-gray-900 dark:text-gray-100">{fmt(item.balance ?? 0)}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            title="View Account Statement / Ledger"
+                            onClick={() => navigate('/reports', { state: { reportId: 'account-statement', accountId: item.id } })}
+                            className="p-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 transition-colors flex items-center gap-1 text-xs"
+                          >
+                            <FileText size={14} /> Statement
+                          </button>
+                          <button
+                            title="Edit Account"
+                            onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }}
+                            className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            title="Delete Account"
+                            onClick={() => setConfirm({ id: item.id })}
+                            className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -127,6 +224,53 @@ export function Accounts() {
               </table>
             )}
         {(() => { const totalPages = Math.ceil(total / PAGE_SIZE); return totalPages > 1 ? <Pagination currentPage={page} totalPages={totalPages} totalItems={total} itemsPerPage={PAGE_SIZE} onPageChange={setPage} /> : null; })()}
+      </div>
+
+      {/* Account Transfers History */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Account Transfers History</h2>
+            <p className="text-xs text-gray-400">All inter-account fund transfers and ledger logs</p>
+          </div>
+        </div>
+        {transfersLoading ? <div className="flex justify-center py-8"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+          : transfers.length === 0 ? <p className="text-center text-gray-400 py-8 text-sm">No transfer records found</p>
+            : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
+                    <th className="px-4 py-2">Date & Time</th>
+                    <th className="px-4 py-2">From Account</th>
+                    <th className="px-4 py-2">To Account</th>
+                    <th className="px-4 py-2 text-right">Amount</th>
+                    <th className="px-4 py-2">Note</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transfers.map(tr => (
+                    <tr key={tr.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 text-xs">
+                      <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">
+                        {new Date(tr.createdAt).toLocaleString('en-PK', { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td className="px-4 py-2.5 font-medium text-red-600 dark:text-red-400">
+                        {tr.fromAccount ? `${tr.fromAccount.name} (${tr.fromAccount.code})` : `Account #${tr.fromAccountId}`}
+                      </td>
+                      <td className="px-4 py-2.5 font-medium text-green-600 dark:text-green-400">
+                        {tr.toAccount ? `${tr.toAccount.name} (${tr.toAccount.code})` : `Account #${tr.toAccountId}`}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-bold text-gray-900 dark:text-gray-100">
+                        {fmt(tr.amount)}
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 italic">
+                        {tr.note || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+        {(() => { const totalPages = Math.ceil(transferTotal / 10); return totalPages > 1 ? <Pagination currentPage={transferPage} totalPages={totalPages} totalItems={transferTotal} itemsPerPage={10} onPageChange={setTransferPage} /> : null; })()}
       </div>
 
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit Account' : 'Add Account'} size="sm">

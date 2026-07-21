@@ -8,72 +8,67 @@ import {
 
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts';
+import { useAuth, useGlobalSettings } from '../../contexts';
+import type { PermissionModule } from '../../contexts';
 import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
 
-type MenuItem = { label: string; icon: React.FC<{ size?: number; className?: string }>; path: string };
+type MenuItem = { label: string; icon: React.FC<{ size?: number; className?: string }>; path: string; perm?: PermissionModule };  
 type MenuGroup = { heading: string; items: MenuItem[] };
-
-/** Paths a CASHIER is allowed to visit */
-const CASHIER_PATHS = new Set(['/sale', '/sale/returns', '/payments', '/customer-payments', '/supplier-payments']);
 
 const MENU: MenuGroup[] = [
   {
     heading: 'Quick Actions',
     items: [
-      { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
-      { label: 'New Sale', icon: ShoppingCart, path: '/sale' },
-      { label: 'New Purchase', icon: ShoppingBag, path: '/purchase' },
-      { label: 'Advance Bookings', icon: CalendarCheck, path: '/advance-bookings' },
+      { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', perm: 'dashboard' },
+      { label: 'New Sale', icon: ShoppingCart, path: '/sale', perm: 'sales' },
+      { label: 'New Purchase', icon: ShoppingBag, path: '/purchase', perm: 'purchases' },
+      { label: 'Advance Bookings', icon: CalendarCheck, path: '/advance-bookings', perm: 'advance-bookings' },
     ],
   },
   {
     heading: 'History',
     items: [
-      { label: 'Held', icon: Pause, path: '/held' },
-      { label: 'Sales', icon: ShoppingCart, path: '/sale/returns' },
-      { label: 'Purchases', icon: ShoppingBag, path: '/purchase/returns' },
-      { label: 'Returns', icon: RefreshCw, path: '/returns' },
-      { label: 'Payments', icon: Wallet, path: '/payments' },
+      { label: 'Held', icon: Pause, path: '/held', perm: 'held' },
+      { label: 'Sales', icon: ShoppingCart, path: '/sale/returns', perm: 'sale-history' },
+      { label: 'Purchases', icon: ShoppingBag, path: '/purchase/returns', perm: 'purchase-history' },
+      { label: 'Returns', icon: RefreshCw, path: '/returns', perm: 'returns' },
+      { label: 'Payments', icon: Wallet, path: '/payments', perm: 'payments' },
     ],
   },
   {
     heading: 'Inventory',
     items: [
-      { label: 'Products', icon: Package, path: '/products' },
-      { label: 'Print Labels', icon: Printer, path: '/print-labels' },
-      { label: 'Categories', icon: Tag, path: '/categories' },
-      { label: 'Brands', icon: Bookmark, path: '/brands' },
-      { label: 'Stock', icon: Sliders, path: '/stock-adjustments' },
+      { label: 'Products', icon: Package, path: '/products', perm: 'products' },
+      { label: 'Print Labels', icon: Printer, path: '/print-labels', perm: 'print-labels' },
+      { label: 'Categories', icon: Tag, path: '/categories', perm: 'categories' },
+      { label: 'Brands', icon: Bookmark, path: '/brands', perm: 'brands' },
+      { label: 'Stock', icon: Sliders, path: '/stock-adjustments', perm: 'stock-adjustments' },
     ],
   },
-
   {
     heading: 'Parties',
     items: [
-      { label: 'Customers', icon: Users, path: '/customers' },
-      // { label: 'Customer Payments', icon: ArrowDownCircle, path: '/customer-payments' },
-      { label: 'Suppliers', icon: Truck, path: '/suppliers' },
-      // { label: 'Supplier Payments', icon: ArrowUpCircle, path: '/supplier-payments' },
+      { label: 'Customers', icon: Users, path: '/customers', perm: 'customers' },
+      { label: 'Suppliers', icon: Truck, path: '/suppliers', perm: 'suppliers' },
     ],
   },
   {
     heading: 'HR & Finance',
     items: [
-      { label: 'Employees', icon: UserCheck, path: '/employees' },
-      { label: 'Salary Slips', icon: Receipt, path: '/salary-slips' },
-      { label: 'Expenses', icon: TrendingDown, path: '/expenses' },
-      { label: 'Accounts', icon: Wallet, path: '/accounts' },
-      { label: 'Promotions', icon: Gift, path: '/promotions' },
+      { label: 'Employees', icon: UserCheck, path: '/employees', perm: 'employees' },
+      { label: 'Salary Slips', icon: Receipt, path: '/salary-slips', perm: 'salary-slips' },
+      { label: 'Expenses', icon: TrendingDown, path: '/expenses', perm: 'expenses' },
+      { label: 'Accounts', icon: Wallet, path: '/accounts', perm: 'accounts' },
+      { label: 'Promotions', icon: Gift, path: '/promotions', perm: 'promotions' },
     ],
   },
   {
     heading: 'Admin',
     items: [
-      { label: 'Reports', icon: BarChart3, path: '/reports' },
-      { label: 'Users', icon: User, path: '/users' },
-      { label: 'Settings', icon: Settings, path: '/settings' },
+      { label: 'Reports', icon: BarChart3, path: '/reports', perm: 'reports' },
+      { label: 'Users', icon: User, path: '/users', perm: 'users' },
+      { label: 'Settings', icon: Settings, path: '/settings', perm: 'settings' },
     ],
   },
 ];
@@ -174,6 +169,7 @@ export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { hasPermission } = useGlobalSettings();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -189,10 +185,16 @@ export function MainLayout() {
     return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
-  const isCashier = user?.role === 'CASHIER';
-  const visibleMenu = isCashier
-    ? MENU.map(g => ({ ...g, items: g.items.filter(i => CASHIER_PATHS.has(i.path)) })).filter(g => g.items.length > 0)
-    : MENU;
+  // Filter sidebar items based on user permissions
+  const visibleMenu = MENU
+    .map(g => ({
+      ...g,
+      items: g.items.filter(item => {
+        if (!item.perm) return true; // items without perm field are always visible
+        return hasPermission(item.perm, 'view');
+      }),
+    }))
+    .filter(g => g.items.length > 0);
 
   const sidebarW = collapsed ? 'w-16' : 'w-60';
   const mainML = collapsed ? 'lg:ml-16' : 'lg:ml-60';

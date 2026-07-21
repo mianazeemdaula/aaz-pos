@@ -108,9 +108,15 @@ export function Reports() {
     }
   }, [active, categoriesList.length, brandsList.length]);
 
-  // Reset to reports home when user navigates to /reports (e.g. clicking sidebar link again)
+  // Handle navigation with state (e.g. opening Account Statement from Accounts page)
   useEffect(() => {
-    setActiveId(null);
+    const st = location.state as { reportId?: ReportId; accountId?: number } | null;
+    if (st?.reportId) {
+      setActiveId(st.reportId);
+      if (st.accountId) setAccountId(st.accountId);
+    } else {
+      setActiveId(null);
+    }
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     setPdfUrl(null);
     setError('');
