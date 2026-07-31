@@ -249,6 +249,77 @@ export function usePurchaseLogic() {
     }
   };
 
+  const updatePermanentSellingRate = useCallback(
+    async (idx: number, newRate: number) => {
+      const item = cart[idx];
+      if (!item) return;
+
+      const roundedRate = round2(newRate);
+      if (roundedRate < 0) return;
+
+      try {
+        const variants = item.product.variants ?? [];
+        const defaultVariant = variants.find(v => v.isDefault || v.factor === 1) || item.variant;
+        const factor = item.variant.factor || 1;
+
+        // Base selling price for factor=1 unit
+        const basePrice = round2(roundedRate / factor);
+
+        // Update default variant in DB (backend updateVariant automatically updates all other variants)
+        await productService.updateVariant(item.product.id, defaultVariant.id, {
+          price: basePrice,
+          retail: basePrice,
+        });
+
+        // Also update specific variant directly if different from default variant
+        if (defaultVariant.id !== item.variant.id) {
+          await productService.updateVariant(item.product.id, item.variant.id, {
+            price: roundedRate,
+            retail: roundedRate,
+          });
+        }
+
+        // Re-fetch product variants to get updated DB records
+        let freshVariants = variants;
+        try {
+          freshVariants = await productService.getVariants(item.product.id);
+        } catch {
+          /* fallback */
+        }
+
+        setCart(prev =>
+          prev.map((cartItem, i) => {
+            if (i !== idx) return cartItem;
+            const updatedProduct = {
+              ...cartItem.product,
+              variants: freshVariants,
+            };
+            const updatedCurrentVariant = freshVariants.find(v => v.id === cartItem.variant.id) ?? {
+              ...cartItem.variant,
+              price: roundedRate,
+              retail: roundedRate,
+            };
+            return {
+              ...cartItem,
+              product: updatedProduct,
+              variant: { ...updatedCurrentVariant, product: updatedProduct },
+              unitRate: roundedRate,
+            };
+          })
+        );
+
+        showToast(
+          'success',
+          `Sale rate updated permanently to Rs ${roundedRate.toFixed(2)} in DB (all variants updated)`
+        );
+      } catch (e: unknown) {
+        console.error('[updatePermanentSellingRate]', e);
+        showToast('error', parseError(e, 'Failed to update selling price in database'));
+      }
+    },
+    [cart, showToast]
+  );
+
   const removeItem = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx));
 
   const changeVariant = (idx: number, variantId: number) => {
@@ -637,6 +708,7 @@ export function usePurchaseLogic() {
     handleLeaveCancel,
     updateQty,
     updateField,
+    updatePermanentSellingRate,
     removeItem,
     changeVariant,
     toggleDiscountType,

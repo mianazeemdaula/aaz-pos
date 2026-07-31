@@ -15,6 +15,7 @@ interface PurchaseCartTableProps {
     field: 'qty' | 'unitCost' | 'totalCost' | 'discount' | 'unitRate',
     val: number
   ) => void;
+  updatePermanentSellingRate: (idx: number, newRate: number) => Promise<void>;
   removeItem: (idx: number) => void;
   changeVariant: (idx: number, variantId: number) => void;
   onToggleDiscountType: (idx: number) => void;
@@ -29,6 +30,7 @@ export function PurchaseCartTable({
   itemNetTotal,
   updateQty,
   updateField,
+  updatePermanentSellingRate,
   removeItem,
   changeVariant,
   onToggleDiscountType,
@@ -73,6 +75,7 @@ export function PurchaseCartTable({
                   allowDiscountTypeSwitch={allowDiscountTypeSwitch}
                   updateQty={updateQty}
                   updateField={updateField}
+                  updatePermanentSellingRate={updatePermanentSellingRate}
                   removeItem={removeItem}
                   changeVariant={changeVariant}
                   onToggleDiscountType={onToggleDiscountType}

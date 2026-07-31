@@ -70,6 +70,7 @@ export function Purchase() {
     handleLeaveCancel,
     updateQty,
     updateField,
+    updatePermanentSellingRate,
     removeItem,
     changeVariant,
     toggleDiscountType,
@@ -170,6 +171,7 @@ export function Purchase() {
           itemNetTotal={itemNetTotal}
           updateQty={updateQty}
           updateField={updateField}
+          updatePermanentSellingRate={updatePermanentSellingRate}
           removeItem={removeItem}
           changeVariant={changeVariant}
           onToggleDiscountType={toggleDiscountType}

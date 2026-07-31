@@ -1,4 +1,5 @@
-import { Plus, Minus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Minus, Trash2, Pencil, Check, X, Loader2 } from 'lucide-react';
 import type { CartItem } from './types';
 import { getDiscountAmount, fmt } from './types';
 
@@ -16,6 +17,7 @@ interface PurchaseCartRowProps {
     field: 'qty' | 'unitCost' | 'totalCost' | 'discount' | 'unitRate',
     val: number
   ) => void;
+  updatePermanentSellingRate: (idx: number, newRate: number) => Promise<void>;
   removeItem: (idx: number) => void;
   changeVariant: (idx: number, variantId: number) => void;
   onToggleDiscountType: (idx: number) => void;
@@ -31,6 +33,7 @@ export function PurchaseCartRow({
   allowDiscountTypeSwitch,
   updateQty,
   updateField,
+  updatePermanentSellingRate,
   removeItem,
   changeVariant,
   onToggleDiscountType,
@@ -41,6 +44,22 @@ export function PurchaseCartRow({
   const profitPerUnit = item.unitRate - netUnitCost;
   const profitTotal = profitPerUnit * item.qty;
   const variants = item.product.variants ?? [];
+
+  const [isEditingRate, setIsEditingRate] = useState(false);
+  const [editingRateVal, setEditingRateVal] = useState('');
+  const [isSavingRate, setIsSavingRate] = useState(false);
+
+  const handleSaveRate = async () => {
+    const val = parseFloat(editingRateVal);
+    if (isNaN(val) || val < 0) return;
+    setIsSavingRate(true);
+    try {
+      await updatePermanentSellingRate(idx, val);
+      setIsEditingRate(false);
+    } finally {
+      setIsSavingRate(false);
+    }
+  };
 
   return (
     <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
@@ -154,18 +173,61 @@ export function PurchaseCartRow({
           </button>
         </div>
       </td>
-      <td className="px-2 py-1.5 align-middle">
-        {allowPriceChange ? (
-          <input
-            type="number"
-            value={item.unitRate}
-            min={0}
-            step="0.01"
-            onChange={e => updateField(idx, 'unitRate', Number(e.target.value))}
-            className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs"
-          />
+      <td className="px-2 py-1.5 align-middle text-right">
+        {isEditingRate ? (
+          <div className="flex items-center justify-end gap-1">
+            <input
+              type="number"
+              autoFocus
+              value={editingRateVal}
+              min={0}
+              step="0.01"
+              onChange={e => setEditingRateVal(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSaveRate();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setIsEditingRate(false);
+                }
+              }}
+              className="w-16 text-right border border-primary-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs font-semibold focus:ring-1 focus:ring-primary-500 outline-none"
+            />
+            <button
+              onClick={handleSaveRate}
+              title="Save selling price permanently to DB for product & variants"
+              disabled={isSavingRate}
+              className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded shrink-0"
+            >
+              {isSavingRate ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+            </button>
+            <button
+              onClick={() => setIsEditingRate(false)}
+              title="Cancel"
+              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded shrink-0"
+            >
+              <X size={12} />
+            </button>
+          </div>
         ) : (
-          <p className="text-right w-full">{item.unitRate}</p>
+          <div className="flex items-center justify-end gap-1 group">
+            <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">
+              {item.unitRate.toFixed(2)}
+            </span>
+            {allowPriceChange && (
+              <button
+                onClick={() => {
+                  setEditingRateVal(item.unitRate.toString());
+                  setIsEditingRate(true);
+                }}
+                title="Edit sale rate & update permanently in DB for all variants"
+                className="opacity-70 group-hover:opacity-100 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-opacity p-0.5 rounded"
+              >
+                <Pencil size={11} />
+              </button>
+            )}
+          </div>
         )}
       </td>
       <td
