@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AppLogo, APP_NAME } from '../components/ui/AppLogo';
 import { useNavigate } from 'react-router-dom';
 import {
     ShoppingBag,
@@ -97,9 +98,9 @@ export function Home() {
             {/* Navigation Header */}
             <header className="sticky top-0 z-50 w-full bg-linear-to-r from-primary-700 to-primary-800 text-white shadow-md border-b border-primary-900/10">
                 <nav className="flex items-center justify-between px-6 sm:px-12 py-4 max-w-7xl mx-auto">
-                    <div className="flex items-center gap-3">
-
-                        <span className="text-xl font-bold tracking-tight text-white">Aazify</span>
+                    <div className="flex items-center gap-2.5">
+                        <AppLogo size={30} />
+                        <span className="text-xl font-bold tracking-tight text-white">{APP_NAME}</span>
                     </div>
 
                     {/* Header Menu Links */}
@@ -454,10 +455,8 @@ export function Home() {
                         {/* Column 1: Brand */}
                         <div className="space-y-6">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-linear-to-br from-primary-600 to-primary-850 flex items-center justify-center shadow-md">
-                                    <ShoppingBag size={20} className="text-white" />
-                                </div>
-                                <span className="text-lg font-bold tracking-tight text-slate-900">Aazify POS</span>
+                                <AppLogo size={34} />
+                                <span className="text-lg font-bold tracking-tight text-slate-900">{APP_NAME}</span>
                             </div>
                             <p className="text-sm text-slate-500 leading-relaxed">
                                 A complete, secure, and compliant point-of-sale system tailored for retail, wholesale, and distribution businesses in Pakistan. Simplify your operations, track stock in real time, and scale your brand.

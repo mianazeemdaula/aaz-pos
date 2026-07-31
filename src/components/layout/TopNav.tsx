@@ -3,13 +3,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
     LayoutDashboard, ShoppingCart, ShoppingBag, Package, Users, Truck,
     UserCheck, Receipt, TrendingDown, Wallet, BarChart3, Settings as SettingsIcon,
-    ChevronDown, LogOut, User, Tag, Bookmark, Layers, RefreshCw, Gift, Pause,
+    ChevronDown, LogOut, User, Tag, Bookmark, RefreshCw, Gift, Pause,
     Sliders, CalendarCheck, Printer, KeyRound, Menu, X, Sun, Moon, Monitor,
 } from 'lucide-react';
 
 import { useAuth, useGlobalSettings, useTheme } from '../../contexts';
 import type { PermissionModule } from '../../contexts';
 import { REPORT_GROUPS, reportPath } from '../../config/reports';
+import { AppLogo, APP_NAME } from '../ui/AppLogo';
 
 type NavIcon = React.FC<{ size?: number; className?: string }>;
 export type NavLeaf = { label: string; icon: NavIcon; path: string; perm?: PermissionModule };
@@ -186,10 +187,8 @@ export function TopNav({ onChangePassword }: TopNavProps) {
 
                 {/* Brand */}
                 <Link to="/dashboard" className="flex items-center gap-2 pr-3 mr-1 shrink-0">
-                    <div className="w-7 h-7 bg-primary-600 rounded-md grid place-items-center shadow-sm">
-                        <Layers size={15} className="text-white" />
-                    </div>
-                    <span className="text-[13.5px] font-semibold tracking-tight hidden sm:block">Aazify POS</span>
+                    <AppLogo size={24} />
+                    <span className="text-[13.5px] font-semibold tracking-tight hidden sm:block">{APP_NAME}</span>
                 </Link>
 
                 {/* Mobile menu trigger */}

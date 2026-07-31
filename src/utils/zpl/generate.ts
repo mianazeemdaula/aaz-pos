@@ -44,7 +44,7 @@ export const DEFAULT_LABEL_CONFIG: LabelConfig = {
     heightMm: 30,
     darkness: 0,
     showShop: true,
-    shopName: 'AAZ Point of Sale',
+    shopName: 'Aazify POS',
     showName: true,
     showVariant: false,
     showBarcode: true,

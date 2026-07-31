@@ -78,7 +78,7 @@ const DEFAULT_CONFIG: ThermalPrinterConfig = {
     ipAddress: '',
     printerName: '',
     paperSize: 'Mm80',
-    businessName: 'AAZ Point of Sale',
+    businessName: 'Aazify POS',
     businessAddress: '',
     businessPhone: '',
     businessNTN: '',

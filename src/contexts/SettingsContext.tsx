@@ -168,7 +168,7 @@ export interface GlobalSettings {
 }
 
 const DEFAULT_COMPANY: CompanySettings = {
-  businessName: 'AAZ Point of Sale',
+  businessName: 'Aazify POS',
   address: '',
   phone: '',
   ntn: '',

@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, Eye, EyeOff, Loader2, AlertCircle, User, Lock, Settings, X, Check, RotateCcw } from 'lucide-react';
+import { Eye, EyeOff, Loader2, AlertCircle, User, Lock, Settings, X, Check, RotateCcw } from 'lucide-react';
+import { AppLogo, APP_NAME } from '../components/ui/AppLogo';
 import { useAuth } from '../contexts';
 import { apiClient } from '../services/api';
 import { API_CONFIG } from '../config/api';
@@ -84,10 +85,10 @@ export function Login() {
       {/* Left panel – branding */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 bg-linear-to-br from-primary-900 via-primary-800 to-primary-600 p-12 text-white">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center">
-            <ShoppingBag size={20} className="text-white" />
+          <div className="w-11 h-11 bg-white/15 backdrop-blur rounded-lg flex items-center justify-center">
+            <AppLogo size={26} />
           </div>
-          <span className="text-xl font-bold tracking-tight">Aazify POS</span>
+          <span className="text-xl font-bold tracking-tight">{APP_NAME}</span>
         </div>
         <div>
           <h2 className="text-4xl font-extrabold leading-tight mb-4">
@@ -99,7 +100,7 @@ export function Login() {
           </p>
 
         </div>
-        <p className="text-white/40 text-xs">© {new Date().getFullYear()} Aazify POS</p>
+        <p className="text-white/40 text-xs">© {new Date().getFullYear()} {APP_NAME}</p>
       </div>
 
       {/* Right panel – login form */}
@@ -189,10 +190,8 @@ export function Login() {
 
         <div className="w-full max-w-sm">
           {/* Mobile logo */}
-          <div className="lg:hidden flex justify-center mb-8">
-            <div className="w-16 h-16 bg-linear-to-br from-secondary-700 to-primary-600 rounded-2xl flex items-center justify-center shadow-lg shadow-secondary-200 dark:shadow-secondary-900">
-              <ShoppingBag size={30} className="text-white" />
-            </div>
+          <div className="lg:hidden flex flex-col items-center gap-2 mb-8">
+            <AppLogo variant="full" size={72} />
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-8">
