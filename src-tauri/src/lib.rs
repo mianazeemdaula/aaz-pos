@@ -40,6 +40,7 @@ pub fn run() {
             printer::print_receipt,
             printer::print_invoice,
             printer::print_contract,
+            printer::print_raw,
             printer::list_serial_ports,
             printer::test_printer_connection,
             printer::open_cash_drawer

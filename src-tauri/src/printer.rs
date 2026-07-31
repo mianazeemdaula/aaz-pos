@@ -254,6 +254,167 @@ pub fn print_contract(
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Raw passthrough printing (ZPL / EPL / any printer language)
+//
+// The thermal-printer plugin only speaks ESC/POS, so label printers driven by
+// ZPL need a byte-for-byte passthrough. Three transports are supported:
+//   - System : Windows spooler RAW datatype / `lp -o raw` on unix
+//   - Tcp    : direct socket to the printer (JetDirect, port 9100)
+//   - Serial : COM / tty port
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum RawTarget {
+    System { name: String },
+    Tcp { host: String, port: Option<u16> },
+    Serial { port: String, baud: Option<u32> },
+}
+
+#[cfg(target_os = "windows")]
+fn print_raw_system(printer_name: &str, data: &[u8]) -> Result<String, String> {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use std::ptr;
+    use winapi::shared::minwindef::{DWORD, LPVOID};
+    use winapi::um::winspool::{
+        ClosePrinter, EndDocPrinter, EndPagePrinter, OpenPrinterW, StartDocPrinterW,
+        StartPagePrinter, WritePrinter, DOC_INFO_1W,
+    };
+
+    let wide = |s: &str| -> Vec<u16> {
+        OsStr::new(s)
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect()
+    };
+
+    let printer_wide = wide(printer_name);
+    let doc_name = wide("ZPL Label Batch");
+    let data_type = wide("RAW");
+    let mut h_printer: LPVOID = ptr::null_mut();
+
+    unsafe {
+        if OpenPrinterW(
+            printer_wide.as_ptr() as *mut _,
+            &mut h_printer,
+            ptr::null_mut(),
+        ) == 0
+        {
+            return Err(format!(
+                "Cannot open printer '{}': {}",
+                printer_name,
+                std::io::Error::last_os_error()
+            ));
+        }
+
+        let mut doc_info = DOC_INFO_1W {
+            pDocName: doc_name.as_ptr() as *mut _,
+            pOutputFile: ptr::null_mut(),
+            pDatatype: data_type.as_ptr() as *mut _,
+        };
+
+        if StartDocPrinterW(h_printer, 1, &mut doc_info as *mut _ as *mut _) == 0 {
+            let err = std::io::Error::last_os_error();
+            ClosePrinter(h_printer);
+            return Err(format!("Cannot start print job: {}", err));
+        }
+
+        if StartPagePrinter(h_printer) == 0 {
+            let err = std::io::Error::last_os_error();
+            EndDocPrinter(h_printer);
+            ClosePrinter(h_printer);
+            return Err(format!("Cannot start page: {}", err));
+        }
+
+        let mut written: DWORD = 0;
+        let ok = WritePrinter(
+            h_printer,
+            data.as_ptr() as LPVOID,
+            data.len() as DWORD,
+            &mut written,
+        );
+
+        EndPagePrinter(h_printer);
+        EndDocPrinter(h_printer);
+        ClosePrinter(h_printer);
+
+        if ok == 0 {
+            return Err(format!(
+                "Write to printer failed: {}",
+                std::io::Error::last_os_error()
+            ));
+        }
+
+        Ok(format!("Sent {} bytes to '{}'", written, printer_name))
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn print_raw_system(printer_name: &str, data: &[u8]) -> Result<String, String> {
+    use std::process::{Command, Stdio};
+
+    let mut child = Command::new("lp")
+        .args(["-d", printer_name, "-o", "raw"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to run lp: {}", e))?;
+
+    child
+        .stdin
+        .as_mut()
+        .ok_or_else(|| "Failed to open lp stdin".to_string())?
+        .write_all(data)
+        .map_err(|e| format!("Failed to write to lp: {}", e))?;
+
+    let status = child
+        .wait()
+        .map_err(|e| format!("lp did not complete: {}", e))?;
+
+    if status.success() {
+        Ok(format!("Sent {} bytes to '{}'", data.len(), printer_name))
+    } else {
+        Err(format!("lp exited with status {}", status))
+    }
+}
+
+/// Send raw printer-language bytes (ZPL, EPL, ESC/POS…) to a target verbatim.
+#[tauri::command]
+pub fn print_raw(target: RawTarget, data: String) -> Result<String, String> {
+    let bytes = data.as_bytes();
+
+    match target {
+        RawTarget::System { name } => {
+            if name.trim().is_empty() {
+                return Err("No printer selected".to_string());
+            }
+            print_raw_system(&name, bytes)
+        }
+        RawTarget::Tcp { host, port } => {
+            let config = PrinterConfig {
+                connection_type: PrinterConnectionType::TCP,
+                port: None,
+                ip_address: Some(host),
+                tcp_port: Some(port.unwrap_or(9100)),
+                baudrate: None,
+            };
+            print_via_tcp(&config, bytes)
+        }
+        RawTarget::Serial { port, baud } => {
+            let config = PrinterConfig {
+                connection_type: PrinterConnectionType::USB,
+                port: Some(port),
+                ip_address: None,
+                tcp_port: None,
+                baudrate: Some(baud.unwrap_or(9600)),
+            };
+            print_via_usb(&config, bytes)
+        }
+    }
+}
+
 #[tauri::command]
 pub fn list_serial_ports() -> Result<Vec<String>, String> {
     let ports =
