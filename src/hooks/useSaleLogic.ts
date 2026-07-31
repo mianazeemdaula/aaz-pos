@@ -6,7 +6,7 @@ import { FBRPaymentMode, FBRInvoiceType } from '../types/fbr';
 import { type SaleInvoiceData } from '../utils/invoices';
 import type { Product, ProductVariant, Customer, Account, HeldSale } from '../types/pos';
 import type { CartItem, PriceType, DiscountType } from '../components/sale/types';
-import { getVariantPrice, computeLine, parseError } from '../components/sale/types';
+import { getVariantPrice, computeLine, computeCartProfit, parseError } from '../components/sale/types';
 
 export function useSaleLogic() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -23,6 +23,7 @@ export function useSaleLogic() {
 
   const [showProductModal, setShowProductModal] = useState(false);
   const [showHeldModal, setShowHeldModal] = useState(false);
+  const [showProfitModal, setShowProfitModal] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -33,7 +34,8 @@ export function useSaleLogic() {
   const [pendingPrintData, setPendingPrintData] = useState<SaleInvoiceData | null>(null);
   const [returnMode, setReturnMode] = useState(false);
 
-  const { allowPriceChange, allowDiscountTypeSwitch } = useSaleSettings();
+  const { allowPriceChange, allowDiscountTypeSwitch, allowCartProfitView } = useSaleSettings();
+  const cartProfitInfo = computeCartProfit(cart, invoiceDiscount);
 
   const barcodeRef = useRef<HTMLInputElement>(null);
   const customerInputRef = useRef<HTMLInputElement>(null);
@@ -546,7 +548,7 @@ export function useSaleLogic() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (showProductModal || showHeldModal || showNewCustomer) return;
+      if (showProductModal || showHeldModal || showNewCustomer || showProfitModal) return;
       switch (e.key) {
         case 'F2':
           e.preventDefault();
@@ -595,7 +597,7 @@ export function useSaleLogic() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showProductModal, showHeldModal, showNewCustomer]);
+  }, [showProductModal, showHeldModal, showNewCustomer, showProfitModal]);
 
   return {
     cart,
@@ -619,6 +621,8 @@ export function useSaleLogic() {
     setShowProductModal,
     showHeldModal,
     setShowHeldModal,
+    showProfitModal,
+    setShowProfitModal,
     saving,
     toast,
     setToast,
@@ -632,6 +636,8 @@ export function useSaleLogic() {
     setReturnMode,
     allowPriceChange,
     allowDiscountTypeSwitch,
+    allowCartProfitView,
+    cartProfitInfo,
     barcodeRef,
     customerInputRef,
     firstAccountRef,

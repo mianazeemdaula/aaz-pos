@@ -16,6 +16,16 @@ export interface CartItem {
   hsCode: string;
 }
 
+export interface CartItemProfitDetail {
+  item: CartItem;
+  unitCost: number;
+  totalCost: number;
+  unitPrice: number;
+  netRevenue: number;
+  profit: number;
+  margin: number;
+}
+
 export function getVariantPrice(variant: ProductVariant, pt: PriceType): number {
   if (pt === 'Retail' && variant.retail != null) return variant.retail;
   if (pt === 'Wholesale' && variant.wholesale != null) return variant.wholesale;
@@ -36,6 +46,39 @@ export function computeLine(item: CartItem) {
     lineTotal = afterDisc + taxAmt;
   }
   return { gross, discAmt, afterDisc, taxAmt, lineTotal };
+}
+
+export function computeCartProfit(cart: CartItem[], invoiceDiscount: number = 0) {
+  let totalRevenue = 0;
+  let totalCost = 0;
+  const items: CartItemProfitDetail[] = [];
+
+  for (const item of cart) {
+    const lc = computeLine(item);
+    const netRevenue = item.taxMethod === 'INCLUSIVE' ? lc.afterDisc - lc.taxAmt : lc.afterDisc;
+    const unitCost = (item.variant.product?.avgCostPrice ?? item.product?.avgCostPrice ?? 0) * (item.variant.factor || 1);
+    const itemTotalCost = unitCost * item.qty;
+    const itemProfit = netRevenue - itemTotalCost;
+    const itemMargin = netRevenue !== 0 ? (itemProfit / Math.abs(netRevenue)) * 100 : 0;
+
+    totalRevenue += netRevenue;
+    totalCost += itemTotalCost;
+
+    items.push({
+      item,
+      unitCost,
+      totalCost: itemTotalCost,
+      unitPrice: item.price,
+      netRevenue,
+      profit: itemProfit,
+      margin: itemMargin,
+    });
+  }
+
+  const profit = totalRevenue - totalCost - invoiceDiscount;
+  const margin = totalRevenue > 0 ? (profit / totalRevenue) * 100 : 0;
+
+  return { totalRevenue, totalCost, profit, margin, items };
 }
 
 export const fmt = (n: number) =>

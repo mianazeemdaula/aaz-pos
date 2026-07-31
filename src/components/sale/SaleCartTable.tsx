@@ -45,8 +45,8 @@ export function SaleCartTable({
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-750">
-              <th className="text-left px-3 py-2 font-medium text-gray-500 min-w-[160px]">Product</th>
-              <th className="text-left px-2 py-2 font-medium text-gray-500 w-[100px]">Variant</th>
+              <th className="text-left px-3 py-2 font-medium text-gray-500 min-w-[140px]">Product</th>
+              <th className="text-left px-2 py-2 font-medium text-gray-500 w-[96px]">Variant</th>
               <th className="px-2 py-2 font-medium text-gray-500 text-center w-[96px]">Qty</th>
               <th className="px-2 py-2 font-medium text-gray-500 text-center w-[88px]">Price</th>
               <th className="px-2 py-2 font-medium text-gray-500 text-center w-[112px]">Disc</th>

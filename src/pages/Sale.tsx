@@ -6,6 +6,7 @@ import { printSaleInvoice } from '../utils/invoices';
 
 import { useSaleLogic } from '../hooks/useSaleLogic';
 import { HeldSalesModal } from '../components/sale/HeldSalesModal';
+import { CartProfitModal } from '../components/sale/CartProfitModal';
 import { SaleHeader } from '../components/sale/SaleHeader';
 import { SaleCartTable } from '../components/sale/SaleCartTable';
 import { SaleCustomerSection } from '../components/sale/SaleCustomerSection';
@@ -38,6 +39,8 @@ export function Sale() {
     setShowProductModal,
     showHeldModal,
     setShowHeldModal,
+    showProfitModal,
+    setShowProfitModal,
     saving,
     toast,
     setToast,
@@ -51,6 +54,7 @@ export function Sale() {
     setReturnMode,
     allowPriceChange,
     allowDiscountTypeSwitch,
+    allowCartProfitView,
     barcodeRef,
     customerInputRef,
     firstAccountRef,
@@ -111,6 +115,18 @@ export function Sale() {
           onLoad={loadHeldSale}
           onClose={() => {
             setShowHeldModal(false);
+            setTimeout(() => barcodeRef.current?.focus(), 30);
+          }}
+        />
+      )}
+
+      {/* Cart Profit Analysis Modal */}
+      {showProfitModal && (
+        <CartProfitModal
+          cart={cart}
+          invoiceDiscount={invoiceDiscount}
+          onClose={() => {
+            setShowProfitModal(false);
             setTimeout(() => barcodeRef.current?.focus(), 30);
           }}
         />
@@ -197,6 +213,8 @@ export function Sale() {
           paidTotal={paidTotal}
           change={change}
           cartLength={cart.length}
+          allowCartProfitView={allowCartProfitView}
+          onOpenProfitModal={() => setShowProfitModal(true)}
         />
 
         <SaleActionsSection

@@ -664,6 +664,19 @@ export function Settings() {
                 />
               </div>
 
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Allow Cashiers to View Cart Profit</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Permit non-admin cashiers to see estimated profit and margin for items in active cart</p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={!!appSettings['sale.allowCartProfitView']}
+                  onChange={e => setAppSettings(a => ({ ...a, 'sale.allowCartProfitView': e.target.checked }))}
+                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                />
+              </div>
+
               <div className="max-w-xs pt-2">
                 <label className={labelCls}>Max Cashier Discount Limit (%)</label>
                 <input

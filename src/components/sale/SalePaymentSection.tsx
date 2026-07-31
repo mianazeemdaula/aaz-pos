@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, TrendingUp } from 'lucide-react';
 import type { Account } from '../../types/pos';
 import { fmt } from './types';
 
@@ -17,6 +17,8 @@ interface SalePaymentSectionProps {
   paidTotal: number;
   change: number;
   cartLength: number;
+  allowCartProfitView?: boolean;
+  onOpenProfitModal?: () => void;
 }
 
 export function SalePaymentSection({
@@ -33,12 +35,28 @@ export function SalePaymentSection({
   paidTotal,
   change,
   cartLength,
+  allowCartProfitView,
+  onOpenProfitModal,
 }: SalePaymentSectionProps) {
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
-        Payment <span className="normal-case font-normal text-gray-400">(F6)</span>
-      </p>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-gray-500 uppercase">
+          Payment <span className="normal-case font-normal text-gray-400">(F6)</span>
+        </p>
+        {allowCartProfitView && cartLength > 0 && onOpenProfitModal && (
+          <button
+            type="button"
+            onClick={onOpenProfitModal}
+            title="View Cart Profit Analysis"
+            className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 rounded-md px-1.5 py-0.5 font-medium transition-colors"
+          >
+            <TrendingUp size={12} />
+            <span className="text-[11px]">Profit</span>
+          </button>
+        )}
+      </div>
+
       {accounts.length === 0 ? (
         <p className="text-xs text-gray-400 flex items-center gap-1.5">
           <Loader2 size={12} className="animate-spin" /> Loading accounts
@@ -98,6 +116,7 @@ export function SalePaymentSection({
         <span>{isReturnCart ? 'Refund Amount' : 'Grand Total'}</span>
         <span className={isReturnCart ? 'text-red-600' : ''}>{fmt(Math.abs(grandTotal))}</span>
       </div>
+
       {cartLength > 0 && (
         <div className="mt-2 border-t border-gray-100 dark:border-gray-700 pt-2 space-y-0.5 text-xs">
           <div className="flex justify-between font-bold text-sm text-gray-500">

@@ -4,7 +4,11 @@ import { settingsService } from '../services/pos.service';
 
 export function useSaleSettings() {
     const { user } = useAuth();
-    const [settings, setSettings] = useState({ allowPriceChange: true, allowDiscountTypeSwitch: true });
+    const [settings, setSettings] = useState({
+        allowPriceChange: true,
+        allowDiscountTypeSwitch: true,
+        allowCartProfitView: true,
+    });
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -12,22 +16,21 @@ export function useSaleSettings() {
 
         Promise.all([settingsService.getApp(), settingsService.getUserSettings(user.id)])
             .then(([app, usr]) => {
-                const resolve = (key: string) => {
-                    // Admin: always allowed unless global setting explicitly disabled AND no user override
-                    if (user.role === 'ADMIN') {
+                const resolve = (key: string, defaultVal: boolean) => {
+                    if (user.role === 'ADMIN' || user.role === 'MANAGER') {
                         const userVal = usr[key];
                         if (userVal !== undefined) return !!userVal;
-                        // Admin defaults to true even when global is off, unless global explicitly set to false
-                        return app[key] !== false;
+                        return app[key] !== undefined ? !!app[key] : defaultVal;
                     }
-                    return usr[key] !== undefined ? !!usr[key] : app[key] !== false;
+                    return usr[key] !== undefined ? !!usr[key] : (app[key] !== undefined ? !!app[key] : defaultVal);
                 };
                 setSettings({
-                    allowPriceChange: resolve('sale.allowPriceChange'),
-                    allowDiscountTypeSwitch: resolve('sale.allowDiscountTypeSwitch'),
+                    allowPriceChange: resolve('sale.allowPriceChange', true),
+                    allowDiscountTypeSwitch: resolve('sale.allowDiscountTypeSwitch', true),
+                    allowCartProfitView: resolve('sale.allowCartProfitView', user.role === 'ADMIN' || user.role === 'MANAGER'),
                 });
             })
-            .catch(() => { /* keep defaults (permissive) */ })
+            .catch(() => { /* keep defaults (permissive for admin/manager) */ })
             .finally(() => setLoading(false));
     }, [user]);
 
