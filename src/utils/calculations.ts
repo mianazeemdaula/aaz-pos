@@ -3,14 +3,22 @@
  */
 
 /**
+ * Round a numeric value to maximum 2 decimal places.
+ */
+export function round2(n: number | null | undefined): number {
+  if (n === null || n === undefined || !Number.isFinite(Number(n))) return 0;
+  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+}
+
+/**
  * Calculate percentage change between two values
  * @param current - Current value
  * @param previous - Previous value
  * @returns Percentage change (positive or negative)
  */
 export function calculatePercentageChange(current: number, previous: number): number {
-    if (previous === 0) return 0;
-    return ((current - previous) / previous) * 100;
+  if (previous === 0) return 0;
+  return round2(((current - previous) / previous) * 100);
 }
 
 /**
@@ -20,7 +28,7 @@ export function calculatePercentageChange(current: number, previous: number): nu
  * @returns Net balance
  */
 export function calculateNetBalance(income: number, expenses: number): number {
-    return income - expenses;
+  return round2(income - expenses);
 }
 
 /**
@@ -30,9 +38,6 @@ export function calculateNetBalance(income: number, expenses: number): number {
  * @returns Savings percentage
  */
 export function calculateSavingsPercentage(savings: number, income: number): number {
-    if (income === 0) return 0;
-    return (savings / income) * 100;
+  if (income === 0) return 0;
+  return round2((savings / income) * 100);
 }
-
-
-
