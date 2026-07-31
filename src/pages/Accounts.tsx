@@ -197,7 +197,7 @@ export function Accounts() {
                         <div className="flex justify-end gap-1">
                           <button
                             title="View Account Statement / Ledger"
-                            onClick={() => navigate('/reports', { state: { reportId: 'account-statement', accountId: item.id } })}
+                            onClick={() => navigate('/reports/account-statement', { state: { accountId: item.id } })}
                             className="p-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 transition-colors flex items-center gap-1 text-xs"
                           >
                             <FileText size={14} /> Statement

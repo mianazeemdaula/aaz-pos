@@ -348,7 +348,8 @@ export function PrintLabels() {
         </div>
 
         {/* Preview + settings */}
-        <div className="w-full lg:w-2/5 flex flex-col gap-3 lg:sticky lg:top-4">
+        {/* top-16 clears the sticky navigation bar */}
+        <div className="w-full lg:w-2/5 flex flex-col gap-3 lg:sticky lg:top-16">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-2">
               <div className="flex">

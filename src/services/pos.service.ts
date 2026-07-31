@@ -54,6 +54,24 @@ export const supplierService = {
 // ---- Categories ----
 export const categoryService = {
   list: (params?: object) => apiClient.get<PaginatedResponse<Category>>(API_ENDPOINTS.categories.list, { params }),
+  listAll: async (params?: object): Promise<Category[]> => {
+    let all: Category[] = [];
+    let page = 1;
+    let hasNext = true;
+    while (hasNext) {
+      const res = await apiClient.get<PaginatedResponse<Category>>(API_ENDPOINTS.categories.list, {
+        params: { ...params, page, pageSize: 1000 },
+      });
+      const data = Array.isArray(res) ? res : Array.isArray((res as any)?.data) ? (res as any).data : [];
+      all = [...all, ...data];
+      if (res && typeof res === 'object' && 'pagination' in res && (res as any).pagination?.hasNextPage) {
+        page++;
+      } else {
+        hasNext = false;
+      }
+    }
+    return all;
+  },
   create: (data: Partial<Category>) => apiClient.post<Category>(API_ENDPOINTS.categories.create, data),
   update: (id: number, data: Partial<Category>) => apiClient.put<Category>(API_ENDPOINTS.categories.update(id), data),
   delete: (id: number) => apiClient.delete(API_ENDPOINTS.categories.delete(id)),
@@ -62,6 +80,24 @@ export const categoryService = {
 // ---- Brands ----
 export const brandService = {
   list: (params?: object) => apiClient.get<PaginatedResponse<Brand>>(API_ENDPOINTS.brands.list, { params }),
+  listAll: async (params?: object): Promise<Brand[]> => {
+    let all: Brand[] = [];
+    let page = 1;
+    let hasNext = true;
+    while (hasNext) {
+      const res = await apiClient.get<PaginatedResponse<Brand>>(API_ENDPOINTS.brands.list, {
+        params: { ...params, page, pageSize: 1000 },
+      });
+      const data = Array.isArray(res) ? res : Array.isArray((res as any)?.data) ? (res as any).data : [];
+      all = [...all, ...data];
+      if (res && typeof res === 'object' && 'pagination' in res && (res as any).pagination?.hasNextPage) {
+        page++;
+      } else {
+        hasNext = false;
+      }
+    }
+    return all;
+  },
   create: (data: Partial<Brand>) => apiClient.post<Brand>(API_ENDPOINTS.brands.create, data),
   update: (id: number, data: Partial<Brand>) => apiClient.put<Brand>(API_ENDPOINTS.brands.update(id), data),
   delete: (id: number) => apiClient.delete(API_ENDPOINTS.brands.delete(id)),

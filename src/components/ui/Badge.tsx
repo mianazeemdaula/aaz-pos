@@ -9,39 +9,39 @@ interface BadgeProps {
     size?: BadgeSize;
     children: ReactNode;
     className?: string;
+    /** Adds a leading status dot, so state reads without relying on colour alone. */
+    dot?: boolean;
 }
 
 /**
- * Badge component for status indicators and labels
- * @param variant - Badge style variant (default: 'default')
- * @param size - Badge size (default: 'md')
- * @param children - Badge content
+ * Badge — semantic state. These colours mean something; the indigo accent is
+ * for action and is deliberately not available here.
  */
 export function Badge({
     variant = 'default',
     size = 'md',
     children,
-    className
+    className,
+    dot = false,
 }: BadgeProps) {
     return (
         <span
             className={clsx(
-                'inline-flex items-center font-medium rounded',
+                'inline-flex items-center gap-1.5 rounded-sm font-semibold whitespace-nowrap',
                 {
-                    // Variants
-                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400': variant === 'success',
-                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400': variant === 'danger',
-                    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400': variant === 'warning',
-                    'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400': variant === 'info',
-                    'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300': variant === 'default',
+                    'bg-green-50 text-green-700 dark:bg-green-700/15 dark:text-green-500': variant === 'success',
+                    'bg-red-50 text-red-700 dark:bg-red-600/15 dark:text-red-500': variant === 'danger',
+                    'bg-amber-50 text-amber-700 dark:bg-amber-600/15 dark:text-amber-500': variant === 'warning',
+                    'bg-primary-50 text-primary-700 dark:bg-primary-600/15 dark:text-primary-400': variant === 'info',
+                    'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300': variant === 'default',
 
-                    // Sizes
-                    'px-2 py-0.5 text-xs': size === 'sm',
-                    'px-2 py-1 text-xs': size === 'md',
+                    'px-1.5 py-0.5 text-[10px]': size === 'sm',
+                    'px-2 py-0.5 text-[11px]': size === 'md',
                 },
-                className
+                className,
             )}
         >
+            {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
             {children}
         </span>
     );

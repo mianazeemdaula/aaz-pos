@@ -72,27 +72,27 @@ export function RevenueTrendChart({
                 <AreaChart data={data}>
                     <defs>
                         <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#2f5bea" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#2f5bea" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="colorContracts" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#6f8ef2" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#6f8ef2" stopOpacity={0} />
                         </linearGradient>
                     </defs>
                     <CartesianGrid
                         strokeDasharray="3 3"
-                        stroke="#e5e7eb"
+                        stroke="#e3e8ee"
                         className="dark:stroke-gray-700"
                     />
                     <XAxis
                         dataKey="month"
-                        stroke="#6b7280"
+                        stroke="#667585"
                         className="dark:stroke-gray-400"
                         tick={{ fontSize: 12 }}
                     />
                     <YAxis
-                        stroke="#6b7280"
+                        stroke="#667585"
                         className="dark:stroke-gray-400"
                         tick={{ fontSize: 12 }}
                         tickFormatter={formatCurrency}
@@ -106,7 +106,7 @@ export function RevenueTrendChart({
                         type="monotone"
                         dataKey="revenue"
                         name="Revenue"
-                        stroke="#0d9488"
+                        stroke="#2f5bea"
                         strokeWidth={2}
                         fill="url(#colorRevenue)"
                     />
@@ -115,7 +115,7 @@ export function RevenueTrendChart({
                             type="monotone"
                             dataKey="contracts"
                             name="Active Contracts"
-                            stroke="#3b82f6"
+                            stroke="#6f8ef2"
                             strokeWidth={2}
                             fill="url(#colorContracts)"
                         />
@@ -125,27 +125,27 @@ export function RevenueTrendChart({
                 <LineChart data={data}>
                     <defs>
                         <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0d9488" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#0d9488" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#2f5bea" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#2f5bea" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="colorContracts" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#6f8ef2" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#6f8ef2" stopOpacity={0} />
                         </linearGradient>
                     </defs>
                     <CartesianGrid
                         strokeDasharray="3 3"
-                        stroke="#e5e7eb"
+                        stroke="#e3e8ee"
                         className="dark:stroke-gray-700"
                     />
                     <XAxis
                         dataKey="month"
-                        stroke="#6b7280"
+                        stroke="#667585"
                         className="dark:stroke-gray-400"
                         tick={{ fontSize: 12 }}
                     />
                     <YAxis
-                        stroke="#6b7280"
+                        stroke="#667585"
                         className="dark:stroke-gray-400"
                         tick={{ fontSize: 12 }}
                         tickFormatter={formatCurrency}
@@ -159,9 +159,9 @@ export function RevenueTrendChart({
                         type="monotone"
                         dataKey="revenue"
                         name="Revenue"
-                        stroke="#0d9488"
+                        stroke="#2f5bea"
                         strokeWidth={2}
-                        dot={{ fill: '#0d9488', r: 4 }}
+                        dot={{ fill: '#2f5bea', r: 4 }}
                         activeDot={{ r: 6 }}
                     />
                     {showContracts && (
@@ -169,9 +169,9 @@ export function RevenueTrendChart({
                             type="monotone"
                             dataKey="contracts"
                             name="Active Contracts"
-                            stroke="#3b82f6"
+                            stroke="#6f8ef2"
                             strokeWidth={2}
-                            dot={{ fill: '#3b82f6', r: 4 }}
+                            dot={{ fill: '#6f8ef2', r: 4 }}
                             activeDot={{ r: 6 }}
                         />
                     )}

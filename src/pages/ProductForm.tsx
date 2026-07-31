@@ -29,26 +29,39 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
     const imgSrc = value ? (value.startsWith('http') ? value : `${serverOrigin}${value}`) : '';
 
     return (
-        <div className="flex items-center gap-3">
-            {imgSrc ? (
-                <div className="relative w-16 h-16 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden bg-gray-100 dark:bg-gray-700 shrink-0">
-                    <img src={imgSrc} alt="Product" className="w-full h-full object-cover" />
-                    <button type="button" onClick={() => onChange('')}
-                        className="absolute top-0 right-0 p-0.5 bg-red-500 text-white rounded-bl-lg">
-                        <X size={10} />
-                    </button>
-                </div>
-            ) : null}
+        // A square well with the control beneath it, so the image column keeps a
+        // fixed footprint next to the field grid instead of reflowing it.
+        <div className="flex flex-col gap-2 w-full max-w-[176px]">
+            <div className="relative w-full aspect-square rounded-md border border-dashed border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/40 overflow-hidden grid place-items-center">
+                {imgSrc ? (
+                    <>
+                        <img src={imgSrc} alt="Product" className="w-full h-full object-cover" />
+                        <button type="button" onClick={() => onChange('')} title="Remove image"
+                            className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-sm hover:bg-red-700">
+                            <X size={11} />
+                        </button>
+                    </>
+                ) : (
+                    <div className="flex flex-col items-center gap-1 text-gray-400">
+                        <Upload size={18} />
+                        <span className="text-[10px]">No image</span>
+                    </div>
+                )}
+            </div>
             <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50">
-                {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                {uploading ? 'Uploading…' : value ? 'Change Image' : 'Select Image'}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-gray-300 dark:border-gray-600 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50">
+                {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                {uploading ? 'Uploading...' : value ? 'Change' : 'Select Image'}
             </button>
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden"
                 onChange={e => { const file = e.target.files?.[0]; if (file) handleFile(file); e.target.value = ''; }} />
         </div>
     );
 }
+
+/** Money is stored to 2dp, so the form never holds more precision than that. */
+const round2 = (n: number | null | undefined): number =>
+    n == null || !Number.isFinite(Number(n)) ? 0 : Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 
 const fmt = (n: number | null | undefined) =>
     n != null ? `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
@@ -90,6 +103,17 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 const inp = 'w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500';
 const lbl = 'text-xs font-medium text-gray-600 dark:text-gray-400 block mb-0.5';
 const card = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4';
+
+/* Form layout ---------------------------------------------------------------
+   Every field sits on one 12-column grid, so columns line up straight down the
+   page whatever the section. A standard field is a quarter row; halves are the
+   only other width used. */
+const grid12 = 'grid grid-cols-12 gap-x-4 gap-y-3.5';
+const cellQuarter = 'col-span-12 sm:col-span-6 lg:col-span-3';
+const cellHalf = 'col-span-12 sm:col-span-6';
+const variantCell = 'col-span-6 sm:col-span-4 lg:col-span-2';
+const sectionTitle = 'text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3.5';
+const quickAddBtn = 'shrink-0 w-8 h-8 flex items-center justify-center rounded-md border border-gray-300 dark:border-gray-600 text-gray-500 hover:text-primary-600 hover:border-primary-400 dark:hover:text-primary-400 transition-colors';
 
 // ─── Strip leading zeros on blur ───────────────────────────────────────────────
 const stripLeadingZeros = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -149,44 +173,44 @@ function VariantForm({ v, onChange, onCancel, onSave, saving }: {
 
     return (
         <div className="space-y-3">
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                <div>
+            <div className={grid12}>
+                <div className={variantCell}>
                     <label className={lbl}>Name *</label>
                     <input value={v.name} onChange={e => onChange('name', e.target.value)} className={inp} placeholder="e.g. Dozen" />
                 </div>
-                <div>
+                <div className={variantCell}>
                     <label className={lbl}>Barcode *</label>
                     <input value={v.barcode} onChange={e => onChange('barcode', e.target.value)} className={inp} placeholder="Unique barcode" />
                 </div>
-                <div>
+                <div className={variantCell}>
                     <label className={lbl}>Factor *</label>
                     <input type="number" value={v.factor} min={1} step="1"
                         onChange={e => onChange('factor', Number(e.target.value) || 1)}
                         onBlur={stripLeadingZeros} className={inp} />
                 </div>
-                <div>
+                <div className={variantCell}>
                     <label className={lbl}>Sale Price *</label>
                     <input type="number" value={v.price} min={0} step="0.01"
                         onChange={e => onChange('price', Number(e.target.value))}
                         onBlur={stripLeadingZeros} className={inp} />
                 </div>
-                <div>
+                <div className={variantCell}>
                     <label className={lbl}>Wholesale</label>
                     <input type="number" value={v.wholesale === '' ? '' : v.wholesale} min={0} step="0.01"
                         onChange={e => onChange('wholesale', e.target.value === '' ? '' : Number(e.target.value))}
                         onBlur={stripLeadingZeros}
                         className={`${inp} ${wholesaleErr ? 'border-red-400 ring-1 ring-red-400' : ''}`}
                         placeholder="Optional" />
-                    {wholesaleErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
+                    <p className={`text-[10px] mt-0.5 h-3.5 ${wholesaleErr ? 'text-red-500' : 'invisible'}`}>Must be at or below sale price</p>
                 </div>
-                <div>
+                <div className={variantCell}>
                     <label className={lbl}>Retail</label>
                     <input type="number" value={v.retail === '' ? '' : v.retail} min={0} step="0.01"
                         onChange={e => onChange('retail', e.target.value === '' ? '' : Number(e.target.value))}
                         onBlur={stripLeadingZeros}
                         className={`${inp} ${retailErr ? 'border-red-400 ring-1 ring-red-400' : ''}`}
                         placeholder="Optional" />
-                    {retailErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
+                    <p className={`text-[10px] mt-0.5 h-3.5 ${retailErr ? 'text-red-500' : 'invisible'}`}>Must be at or below sale price</p>
                 </div>
             </div>
             <div className="flex gap-2 justify-end">
@@ -248,8 +272,8 @@ export function ProductForm() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        categoryService.list({}).then(r => setCatRoots(extractCats(r).filter(c => !c.parentId))).catch(() => { });
-        brandService.list({ pageSize: 500 }).then(r => setBrands(Array.isArray(r?.data) ? r.data : [])).catch(() => { });
+        categoryService.listAll({}).then(cats => setCatRoots(cats.filter(c => !c.parentId))).catch(() => { });
+        brandService.listAll({}).then(b => setBrands(b)).catch(() => { });
         taxScheduleService.list().then(r => setTaxSchedules(Array.isArray(r) ? r : [])).catch(() => { });
     }, []);
 
@@ -276,7 +300,7 @@ export function ProductForm() {
                 showBarcodePrice: p.showBarcodePrice ?? true,
                 isFavorite: p.isFavorite ?? false,
                 saleBelowCost: p.saleBelowCost ?? false,
-                costPrice: p.avgCostPrice ?? 0,
+                costPrice: round2(p.avgCostPrice ?? 0),
                 stock: p.totalStock ?? 0,
             });
             setBaseUnit({
@@ -312,7 +336,7 @@ export function ProductForm() {
                 showBarcodePrice: form.showBarcodePrice,
                 isFavorite: form.isFavorite,
                 saleBelowCost: form.saleBelowCost,
-                costPrice: form.costPrice,
+                costPrice: round2(form.costPrice),
                 stock: form.stock,
                 defaultVariantPrice: baseUnit.price,
                 defaultVariantRetail: baseUnit.retail,
@@ -363,7 +387,7 @@ export function ProductForm() {
     }
 
     return (
-        <div className="space-y-4 max-w-4xl mx-auto pb-8">
+        <div className="space-y-4 pb-8">
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
@@ -395,68 +419,68 @@ export function ProductForm() {
                 </div>
             </div>
 
-            {/* Product info */}
+            {/* Identity - image beside one full row of four fields */}
             <div className={card}>
-                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Product Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div>
+                <h2 className={sectionTitle}>Product Details</h2>
+                <div className="flex flex-col lg:flex-row gap-5">
+                    <div className="lg:w-44 shrink-0">
                         <label className={lbl}>Image</label>
                         <ImageUpload value={form.imageUrl} onChange={url => f('imageUrl', url)} />
                     </div>
-                    <div>
-                        <label className={lbl}>Product Name *</label>
-                        <input value={form.name} onChange={e => f('name', e.target.value)} className={inp} placeholder="Enter product name" />
-                    </div>
-                    <div>
-                        <label className={lbl}>Category *</label>
-                        <div className="flex gap-1.5 items-center">
-                            <select value={form.categoryId ?? ''} onChange={e => f('categoryId', e.target.value ? Number(e.target.value) : undefined)} className={`${inp} flex-1`}>
-                                <option value="">Select category…</option>
-                                {renderCatOptions(catRoots)}
-                            </select>
-                            <button type="button" onClick={() => setQuickAddCat(true)} title="Add category"
-                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-200 dark:border-purple-700">
-                                <Plus size={14} />
-                            </button>
+                    <div className={`flex-1 ${grid12} content-start`}>
+                        <div className={cellHalf}>
+                            <label className={lbl}>Product Name *</label>
+                            <input value={form.name} onChange={e => f('name', e.target.value)} className={inp} placeholder="Enter product name" />
                         </div>
-                    </div>
-                    <div>
-                        <label className={lbl}>Brand</label>
-                        <div className="flex gap-1.5 items-center">
-                            <select value={form.brandId ?? ''} onChange={e => f('brandId', e.target.value ? Number(e.target.value) : undefined)} className={`${inp} flex-1`}>
-                                <option value="">None</option>
-                                {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                            </select>
-                            <button type="button" onClick={() => setQuickAddBrand(true)} title="Add brand"
-                                className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-700">
-                                <Plus size={14} />
-                            </button>
+                        <div className={cellHalf}>
+                            <label className={lbl}>Barcode *</label>
+                            <input value={baseUnit.barcode} onChange={e => setBaseUnit(p => ({ ...p, barcode: e.target.value }))} className={inp} placeholder="Unique barcode" />
+                        </div>
+                        <div className={cellHalf}>
+                            <label className={lbl}>Category *</label>
+                            <div className="flex gap-1.5 items-center">
+                                <select value={form.categoryId ?? ''} onChange={e => f('categoryId', e.target.value ? Number(e.target.value) : undefined)} className={`${inp} flex-1`}>
+                                    <option value="">Select category...</option>
+                                    {renderCatOptions(catRoots)}
+                                </select>
+                                <button type="button" onClick={() => setQuickAddCat(true)} title="Add category" className={quickAddBtn}>
+                                    <Plus size={14} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className={cellHalf}>
+                            <label className={lbl}>Brand</label>
+                            <div className="flex gap-1.5 items-center">
+                                <select value={form.brandId ?? ''} onChange={e => f('brandId', e.target.value ? Number(e.target.value) : undefined)} className={`${inp} flex-1`}>
+                                    <option value="">None</option>
+                                    {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                </select>
+                                <button type="button" onClick={() => setQuickAddBrand(true)} title="Add brand" className={quickAddBtn}>
+                                    <Plus size={14} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-             {/* Pricing */}
+            {/* Pricing - two rows of four, sharing the same column edges */}
             <div className={card}>
-                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Pricing</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-4">
-                    <div>
-                        <label className={lbl}>Barcode *</label>
-                        <input value={baseUnit.barcode} onChange={e => setBaseUnit(p => ({ ...p, barcode: e.target.value }))} className={inp} placeholder="Unique barcode" />
-                    </div>
-                    <div>
+                <h2 className={sectionTitle}>Pricing</h2>
+                <div className={grid12}>
+                    <div className={cellQuarter}>
                         <label className={lbl}>Cost Price *</label>
                         <input type="number" min={0} step="0.01" value={form.costPrice}
-                            onChange={e => f('costPrice', Number(e.target.value))}
+                            onChange={e => f('costPrice', round2(e.target.value === '' ? 0 : Number(e.target.value)))}
                             onBlur={stripLeadingZeros} className={inp} />
                     </div>
-                    <div>
+                    <div className={cellQuarter}>
                         <label className={lbl}>Sale Price *</label>
                         <input type="number" min={0} step="0.01" value={baseUnit.price}
                             onChange={e => setBaseUnit(p => ({ ...p, price: Number(e.target.value) }))}
                             onBlur={stripLeadingZeros} className={inp} />
                     </div>
-                    <div>
+                    <div className={cellQuarter}>
                         <label className={lbl}>Wholesale Price</label>
                         <input type="number" min={0} step="0.01"
                             value={baseUnit.wholesale === '' ? '' : baseUnit.wholesale}
@@ -464,9 +488,10 @@ export function ProductForm() {
                             onBlur={stripLeadingZeros}
                             className={`${inp} ${wholesaleErr ? 'border-red-400 ring-1 ring-red-400' : ''}`}
                             placeholder="Optional" />
-                        {wholesaleErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
+                        {/* Space is reserved so a validation message never shifts the row */}
+                        <p className={`text-[10px] mt-0.5 h-3.5 ${wholesaleErr ? 'text-red-500' : 'invisible'}`}>Must be at or below sale price</p>
                     </div>
-                    <div>
+                    <div className={cellQuarter}>
                         <label className={lbl}>Retail Price</label>
                         <input type="number" min={0} step="0.01"
                             value={baseUnit.retail === '' ? '' : baseUnit.retail}
@@ -474,14 +499,14 @@ export function ProductForm() {
                             onBlur={stripLeadingZeros}
                             className={`${inp} ${retailErr ? 'border-red-400 ring-1 ring-red-400' : ''}`}
                             placeholder="Optional" />
-                        {retailErr && <p className="text-[10px] text-red-500 mt-0.5">Must be ≤ sale price</p>}
+                        <p className={`text-[10px] mt-0.5 h-3.5 ${retailErr ? 'text-red-500' : 'invisible'}`}>Must be at or below sale price</p>
                     </div>
                 </div>
 
-                <hr className="my-3 border-gray-200 dark:border-gray-700" />
+                <hr className="my-4 border-gray-200 dark:border-gray-700" />
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div>
+                <div className={grid12}>
+                    <div className={cellQuarter}>
                         <label className={lbl}>Tax Schedule</label>
                         <select value={form.taxSchduleId ?? ''} onChange={e => {
                             const schedId = e.target.value ? Number(e.target.value) : undefined;
@@ -494,15 +519,15 @@ export function ProductForm() {
                             {taxSchedules.map(s => <option key={s.id} value={s.id}>{s.name} ({s.rate}%)</option>)}
                         </select>
                     </div>
-                    <div>
+                    <div className={cellQuarter}>
                         <label className={lbl}>HS Code</label>
                         <input value={form.hsCode} maxLength={10} onChange={e => f('hsCode', e.target.value)} className={inp} placeholder="e.g. 0901.11" />
                     </div>
-                    <div>
+                    <div className={cellQuarter}>
                         <label className={lbl}>Tax Rate %</label>
                         <input type="number" value={form.taxRate} min={0} max={100} step="0.01" onChange={e => f('taxRate', Number(e.target.value))} className={inp} />
                     </div>
-                    <div>
+                    <div className={cellQuarter}>
                         <label className={lbl}>Tax Method</label>
                         <select value={form.taxMethod} onChange={e => f('taxMethod', e.target.value)} className={inp}>
                             <option value="INCLUSIVE">Inclusive</option>
@@ -512,26 +537,33 @@ export function ProductForm() {
                 </div>
             </div>
 
-             {/* Inventory & Options */}
+            {/* Inventory and Options - two equal halves, not a half-empty row */}
             <div className={card}>
-                <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-4">Inventory &amp; Options</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-                    <div>
-                        <label className={lbl}>Stock</label>
-                        <input type="number" value={form.stock} onChange={e => f('stock', Number(e.target.value))} className={inp} />
+                <div className={grid12}>
+                    <div className={cellHalf}>
+                        <h2 className={sectionTitle}>Inventory</h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className={lbl}>Stock</label>
+                                <input type="number" value={form.stock} onChange={e => f('stock', Number(e.target.value))} className={inp} />
+                            </div>
+                            <div>
+                                <label className={lbl}>Reorder Level</label>
+                                <input type="number" value={form.reorderLevel} min={0} onChange={e => f('reorderLevel', Number(e.target.value))} className={inp} />
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label className={lbl}>Reorder Level</label>
-                        <input type="number" value={form.reorderLevel} min={0} onChange={e => f('reorderLevel', Number(e.target.value))} className={inp} />
+                    <div className={cellHalf}>
+                        <h2 className={sectionTitle}>Options</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
+                            <Toggle checked={form.active} onChange={v => f('active', v)} label="Active" />
+                            <Toggle checked={form.allowNegative} onChange={v => f('allowNegative', v)} label="Allow Negative Stock" />
+                            <Toggle checked={form.isService} onChange={v => f('isService', v)} label="Is Service" />
+                            <Toggle checked={form.showBarcodePrice} onChange={v => f('showBarcodePrice', v)} label="Show Barcode Price" />
+                            <Toggle checked={form.isFavorite} onChange={v => f('isFavorite', v)} label="Favorite" />
+                            <Toggle checked={form.saleBelowCost} onChange={v => f('saleBelowCost', v)} label="Allow Sale Below Cost" />
+                        </div>
                     </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
-                    <Toggle checked={form.active} onChange={v => f('active', v)} label="Active" />
-                    <Toggle checked={form.allowNegative} onChange={v => f('allowNegative', v)} label="Allow Negative Stock" />
-                    <Toggle checked={form.isService} onChange={v => f('isService', v)} label="Is Service" />
-                    <Toggle checked={form.showBarcodePrice} onChange={v => f('showBarcodePrice', v)} label="Show Barcode Price" />
-                    <Toggle checked={form.isFavorite} onChange={v => f('isFavorite', v)} label="Favorite" />
-                    <Toggle checked={form.saleBelowCost} onChange={v => f('saleBelowCost', v)} label="Allow Sale Below Cost" />
                 </div>
             </div>
 
@@ -650,7 +682,7 @@ export function ProductVariantsPage() {
     if (!product) return null;
 
     return (
-        <div className="space-y-4 max-w-4xl mx-auto pb-8">
+        <div className="space-y-4 pb-8">
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">

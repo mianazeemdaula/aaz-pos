@@ -19,14 +19,14 @@ interface StorePerformanceChartProps {
 }
 
 const COLORS = [
-    '#0d9488', // primary-600
-    '#3b82f6', // blue-500
-    '#8b5cf6', // purple-500
-    '#ec4899', // pink-500
-    '#f59e0b', // amber-500
-    '#10b981', // green-500
-    '#ef4444', // red-500
-    '#6366f1', // indigo-500
+    '#2f5bea', // primary-600
+    '#6f8ef2', // blue-500
+    '#5d7288', // purple-500
+    '#a3b5c7', // pink-500
+    '#b7710a', // amber-500
+    '#0b7a52', // green-500
+    '#d13b33', // red-500
+    '#4a6fee', // indigo-500
 ];
 
 export function StorePerformanceChart({
@@ -112,7 +112,7 @@ export function StorePerformanceChart({
                     label={renderCustomLabel}
                     outerRadius={variant === 'donut' ? 100 : 120}
                     innerRadius={variant === 'donut' ? 60 : 0}
-                    fill="#8884d8"
+                    fill="#7b90a6"
                     dataKey="value"
                     paddingAngle={2}
                 >

@@ -1,33 +1,302 @@
 @import "tailwindcss";
 
-@theme {
-  --color-primary-50: #f0fdfa;
-  --color-primary-100: #ccfbf1;
-  --color-primary-200: #99f6e4;
-  --color-primary-300: #5eead4;
-  --color-primary-400: #14b8a6;
-  --color-primary-500: #0d9488;
-  --color-primary-600: #0f766e;
-  --color-primary-700: #115e59;
-  --color-primary-800: #134e4a;
-  --color-primary-900: #0c3c38;
+/* Dark mode follows a `.dark` class on <html> (set by ThemeContext) rather than
+   the OS preference, so the in-app toggle is authoritative. */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  --color-secondary-50: #f5f3fc;
-  --color-secondary-100: #eae5f8;
-  --color-secondary-200: #d5ccf1;
-  --color-secondary-300: #b8a7e5;
-  --color-secondary-400: #9679d6;
-  --color-secondary-500: #7050c2;
-  --color-secondary-600: #5438a0;
-  --color-secondary-700: #3f2a7c;
-  --color-secondary-800: #281c59;
-  --color-secondary-900: #1a1040;
-  
-  --color-brand-teal: #0f766e;
-  --color-brand-light-teal: #0d9488;
-  --color-brand-green: #10b981;
-  
+/* ─────────────────────────────────────────────────────────────────────────────
+   CONSOLE THEME
+   A desktop-application palette: blue-biased slate neutrals under an indigo
+   accent. Redefining `gray` and `primary` here re-skins every existing utility
+   in the app, which is what keeps all 35 pages on one system.
+   ───────────────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Neutrals — slate, biased toward the accent. Never a dead mid-grey.
+     The 150 / 250 / 750 steps exist because page code already references them. */
+  --color-gray-50:  #f7f9fb;
+  --color-gray-100: #eceff3;
+  --color-gray-150: #e3e8ee;
+  --color-gray-200: #d3dae1;
+  --color-gray-250: #c4cdd6;
+  --color-gray-300: #aeb9c5;
+  --color-gray-400: #8391a0;
+  --color-gray-500: #667585;
+  --color-gray-600: #55636f;
+  --color-gray-700: #3d4854;
+  --color-gray-750: #2c3745;
+  --color-gray-800: #232d3a;
+  --color-gray-900: #1b2430;
+  --color-gray-950: #141c26;
+
+  /* Slate is aliased onto the same ramp so stray `slate-*` classes stay on-system. */
+  --color-slate-50:  #f7f9fb;
+  --color-slate-100: #eceff3;
+  --color-slate-200: #d3dae1;
+  --color-slate-300: #aeb9c5;
+  --color-slate-400: #8391a0;
+  --color-slate-500: #667585;
+  --color-slate-600: #55636f;
+  --color-slate-700: #3d4854;
+  --color-slate-800: #232d3a;
+  --color-slate-900: #1b2430;
+  --color-slate-950: #141c26;
+
+  /* Accent — indigo. 600 is the action colour; 400 carries it on dark chrome. */
+  --color-primary-50:  #eef2fe;
+  --color-primary-100: #e0e8fd;
+  --color-primary-200: #c6d4fb;
+  --color-primary-300: #9fb5f7;
+  --color-primary-400: #6f8ef2;
+  --color-primary-500: #4a6fee;
+  --color-primary-600: #2f5bea;
+  --color-primary-700: #1f45c8;
+  --color-primary-800: #1c39a0;
+  --color-primary-900: #1c337f;
+
+  /* Secondary — a muted steel, for the rare second-tier accent. */
+  --color-secondary-50:  #f1f5f9;
+  --color-secondary-100: #e2e9f0;
+  --color-secondary-200: #c8d4e0;
+  --color-secondary-300: #a3b5c7;
+  --color-secondary-400: #7b90a6;
+  --color-secondary-500: #5d7288;
+  --color-secondary-600: #4a5b6e;
+  --color-secondary-700: #3b4959;
+  --color-secondary-800: #2c3745;
+  --color-secondary-900: #1f2833;
+
+  --color-brand-chrome: #1b2430;
+  --color-brand-accent: #2f5bea;
+
+  /* Semantic — desaturated to sit calmly on a slate ground. Separate from the
+     accent: these carry meaning, the accent carries action. */
+  --color-green-50: #e9f6f0;
+  --color-green-100: #d3ecdf;
+  --color-green-200: #a9d9c1;
+  --color-green-300: #75c1a0;
+  --color-green-400: #3ea87d;
+  --color-green-500: #12905f;
+  --color-green-600: #0b7a52;
+  --color-green-700: #0a6344;
+  --color-green-800: #0a5038;
+  --color-green-900: #09422f;
+  --color-emerald-50: #e9f6f0;
+  --color-emerald-100: #d3ecdf;
+  --color-emerald-200: #a9d9c1;
+  --color-emerald-300: #75c1a0;
+  --color-emerald-400: #3ea87d;
+  --color-emerald-500: #12905f;
+  --color-emerald-600: #0b7a52;
+  --color-emerald-700: #0a6344;
+  --color-emerald-800: #0a5038;
+  --color-emerald-900: #09422f;
+
+  --color-amber-50: #fdf3e2;
+  --color-amber-100: #fbe8c8;
+  --color-amber-200: #f6d59b;
+  --color-amber-300: #eab861;
+  --color-amber-400: #d3922c;
+  --color-amber-500: #b7710a;
+  --color-amber-600: #9a5b06;
+  --color-amber-700: #7d4905;
+  --color-amber-800: #653b06;
+  --color-amber-900: #523008;
+
+  --color-red-50: #fdecea;
+  --color-red-100: #fbd9d6;
+  --color-red-200: #f5b5af;
+  --color-red-300: #ec8a82;
+  --color-red-400: #e05f56;
+  --color-red-500: #d13b33;
+  --color-red-600: #b4322b;
+  --color-red-700: #942823;
+  --color-red-800: #78211d;
+  --color-red-900: #621c19;
+
+  /* Square-ish corners. Every rounded-* utility in the app narrows through
+     these, which is what gives the build its desktop-software edge. */
+  --radius-xs:   2px;
+  --radius-sm:   3px;
+  --radius-md:   4px;
+  --radius-lg:   5px;
+  --radius-xl:   6px;
+  --radius-2xl:  8px;
+  --radius-3xl:  10px;
+
+
+  /* ── Hue aliases ────────────────────────────────────────────────────────
+     The app accumulated blue, teal, indigo, cyan, purple, violet, orange,
+     rose and yellow accents across 35 pages. Rather than a colour being
+     decided page by page, each family is aliased onto one of the four the
+     system actually has: accent, steel, warning, danger. Existing utility
+     classes keep working and land on-palette.
+     ──────────────────────────────────────────────────────────────────── */
+  /* accent family -> indigo */
+  --color-blue-50: #eef2fe;
+  --color-blue-100: #e0e8fd;
+  --color-blue-200: #c6d4fb;
+  --color-blue-300: #9fb5f7;
+  --color-blue-400: #6f8ef2;
+  --color-blue-500: #4a6fee;
+  --color-blue-600: #2f5bea;
+  --color-blue-700: #1f45c8;
+  --color-blue-800: #1c39a0;
+  --color-blue-900: #1c337f;
+  --color-indigo-50: #eef2fe;
+  --color-indigo-100: #e0e8fd;
+  --color-indigo-200: #c6d4fb;
+  --color-indigo-300: #9fb5f7;
+  --color-indigo-400: #6f8ef2;
+  --color-indigo-500: #4a6fee;
+  --color-indigo-600: #2f5bea;
+  --color-indigo-700: #1f45c8;
+  --color-indigo-800: #1c39a0;
+  --color-indigo-900: #1c337f;
+  --color-teal-50: #eef2fe;
+  --color-teal-100: #e0e8fd;
+  --color-teal-200: #c6d4fb;
+  --color-teal-300: #9fb5f7;
+  --color-teal-400: #6f8ef2;
+  --color-teal-500: #4a6fee;
+  --color-teal-600: #2f5bea;
+  --color-teal-700: #1f45c8;
+  --color-teal-800: #1c39a0;
+  --color-teal-900: #1c337f;
+  --color-cyan-50: #eef2fe;
+  --color-cyan-100: #e0e8fd;
+  --color-cyan-200: #c6d4fb;
+  --color-cyan-300: #9fb5f7;
+  --color-cyan-400: #6f8ef2;
+  --color-cyan-500: #4a6fee;
+  --color-cyan-600: #2f5bea;
+  --color-cyan-700: #1f45c8;
+  --color-cyan-800: #1c39a0;
+  --color-cyan-900: #1c337f;
+  --color-sky-50: #eef2fe;
+  --color-sky-100: #e0e8fd;
+  --color-sky-200: #c6d4fb;
+  --color-sky-300: #9fb5f7;
+  --color-sky-400: #6f8ef2;
+  --color-sky-500: #4a6fee;
+  --color-sky-600: #2f5bea;
+  --color-sky-700: #1f45c8;
+  --color-sky-800: #1c39a0;
+  --color-sky-900: #1c337f;
+  /* second tier -> muted steel */
+  --color-purple-50: #f1f5f9;
+  --color-purple-100: #e2e9f0;
+  --color-purple-200: #c8d4e0;
+  --color-purple-300: #a3b5c7;
+  --color-purple-400: #7b90a6;
+  --color-purple-500: #5d7288;
+  --color-purple-600: #4a5b6e;
+  --color-purple-700: #3b4959;
+  --color-purple-800: #2c3745;
+  --color-purple-900: #1f2833;
+  --color-violet-50: #f1f5f9;
+  --color-violet-100: #e2e9f0;
+  --color-violet-200: #c8d4e0;
+  --color-violet-300: #a3b5c7;
+  --color-violet-400: #7b90a6;
+  --color-violet-500: #5d7288;
+  --color-violet-600: #4a5b6e;
+  --color-violet-700: #3b4959;
+  --color-violet-800: #2c3745;
+  --color-violet-900: #1f2833;
+  --color-fuchsia-50: #f1f5f9;
+  --color-fuchsia-100: #e2e9f0;
+  --color-fuchsia-200: #c8d4e0;
+  --color-fuchsia-300: #a3b5c7;
+  --color-fuchsia-400: #7b90a6;
+  --color-fuchsia-500: #5d7288;
+  --color-fuchsia-600: #4a5b6e;
+  --color-fuchsia-700: #3b4959;
+  --color-fuchsia-800: #2c3745;
+  --color-fuchsia-900: #1f2833;
+  /* caution -> amber */
+  --color-orange-50: #fdf3e2;
+  --color-orange-100: #fbe8c8;
+  --color-orange-200: #f6d59b;
+  --color-orange-300: #eab861;
+  --color-orange-400: #d3922c;
+  --color-orange-500: #b7710a;
+  --color-orange-600: #9a5b06;
+  --color-orange-700: #7d4905;
+  --color-orange-800: #653b06;
+  --color-orange-900: #523008;
+  --color-yellow-50: #fdf3e2;
+  --color-yellow-100: #fbe8c8;
+  --color-yellow-200: #f6d59b;
+  --color-yellow-300: #eab861;
+  --color-yellow-400: #d3922c;
+  --color-yellow-500: #b7710a;
+  --color-yellow-600: #9a5b06;
+  --color-yellow-700: #7d4905;
+  --color-yellow-800: #653b06;
+  --color-yellow-900: #523008;
+  /* negative -> red */
+  --color-rose-50: #fdecea;
+  --color-rose-100: #fbd9d6;
+  --color-rose-200: #f5b5af;
+  --color-rose-300: #ec8a82;
+  --color-rose-400: #e05f56;
+  --color-rose-500: #d13b33;
+  --color-rose-600: #b4322b;
+  --color-rose-700: #942823;
+  --color-rose-800: #78211d;
+  --color-rose-900: #621c19;
+  --color-pink-50: #fdecea;
+  --color-pink-100: #fbd9d6;
+  --color-pink-200: #f5b5af;
+  --color-pink-300: #ec8a82;
+  --color-pink-400: #e05f56;
+  --color-pink-500: #d13b33;
+  --color-pink-600: #b4322b;
+  --color-pink-700: #942823;
+  --color-pink-800: #78211d;
+  --color-pink-900: #621c19;
+
   --font-family-sans: Inter, system-ui, sans-serif;
+}
+
+/* Workspace ground. Kept here rather than on a wrapper so modals, popovers and
+   print surfaces all sit on the same base. */
+html, body, #root { height: 100%; }
+body {
+  background: var(--color-gray-100);
+  color: var(--color-gray-900);
+  font-feature-settings: "cv05" 1;
+}
+.dark body {
+  background: var(--color-gray-950);
+  color: var(--color-gray-100);
+}
+
+/* Money and quantities line up in columns throughout the app. */
+table td, table th, input[type="number"] { font-variant-numeric: tabular-nums; }
+
+/* One visible focus treatment, so keyboard users get the same signal everywhere. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-primary-600);
+  outline-offset: 1px;
+}
+
+/* Slim, themed scrollbars — a small thing that reads as "installed software". */
+* { scrollbar-width: thin; scrollbar-color: var(--color-gray-300) transparent; }
+.dark * { scrollbar-color: var(--color-gray-700) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-gray-300); border-radius: 5px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-gray-400); background-clip: content-box; }
+.dark ::-webkit-scrollbar-thumb { background: var(--color-gray-700); background-clip: content-box; }
+.dark ::-webkit-scrollbar-thumb:hover { background: var(--color-gray-600); background-clip: content-box; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }
 
 /* Landing page animations */

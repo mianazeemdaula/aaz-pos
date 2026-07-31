@@ -80,7 +80,7 @@ export function Purchase() {
   } = usePurchaseLogic();
 
   return (
-    <div className="flex flex-col lg:flex-row gap-3 h-[calc(100vh-2rem)] lg:h-[calc(100vh-2.5rem)]">
+    <div className="flex flex-col lg:flex-row gap-3 h-[calc(100vh-5rem)]">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -99,11 +99,9 @@ export function Purchase() {
       {/* Product Search Modal (F5) */}
       {showProductModal && (
         <ProductSearchModal
-          onSelect={v => {
-            addProduct(v);
-            setShowProductModal(false);
-            setTimeout(() => barcodeRef.current?.focus(), 30);
-          }}
+          // Closing is the modal's call, not ours — with Hold on it stays open
+          // across several adds and only closes on Esc or the close button.
+          onSelect={v => addProduct(v)}
           onClose={() => {
             setShowProductModal(false);
             setTimeout(() => barcodeRef.current?.focus(), 30);

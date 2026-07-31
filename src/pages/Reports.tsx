@@ -1,79 +1,25 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { ElementType } from 'react';
-import { BarChart2, ShoppingCart, Package, Users, DollarSign, Loader2, FileText, TrendingDown, BookOpen, Wallet, ArrowLeft, AlertTriangle, Sun, Briefcase, Scale } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { Loader2, FileText, ArrowLeft } from 'lucide-react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '../services/api';
 import { CustomerSearch } from '../components/ui/CustomerSearch';
 import { SupplierSearch } from '../components/ui/SupplierSearch';
 import { AccountSelect } from '../components/ui/AccountSelect';
 import { userService, categoryService, brandService } from '../services/pos.service';
 import type { Customer, Supplier, User, Category, Brand } from '../types/pos';
-
-type ReportId = 'overall-business' | 'payables-receivables' | 'sales' | 'cashier-sales' | 'detailed-sales' | 'purchases' | 'detailed-purchases' | 'inventory' | 'customers' | 'suppliers' | 'expenses' | 'customer-ledger' | 'supplier-ledger' | 'account-statement' | 'stock-alert' | 'stock-negative' | 'stock-low' | 'daily' | 'purchase-recommendation';
-
-interface ReportDef {
-  id: ReportId;
-  label: string;
-  description: string;
-  icon: ElementType;
-  color: string;
-  params: ('dates' | 'customer' | 'supplier' | 'account' | 'date' | 'stockFilter' | 'user' | 'category' | 'brand')[];
-  endpoint: string | ((id: number) => string);
-  extraParams?: Record<string, string>;
-}
-
-const REPORTS: ReportDef[] = [
-  { id: 'overall-business', label: 'Overall Business Summary', description: 'Executive summary: P&L, receivables, payables, cash/bank & net assets', icon: Briefcase, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800', params: ['dates'], endpoint: '/reports/overall-business' },
-  { id: 'payables-receivables', label: 'Payables & Receivables', description: 'Combined overview of all customer receivables & supplier payables', icon: Scale, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800', params: [], endpoint: '/reports/payables-receivables' },
-  { id: 'daily', label: 'Daily Report', description: 'Comprehensive daily P&L: sales, purchases, expenses, salaries, payments', icon: Sun, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800', params: ['date'], endpoint: '/reports/daily' },
-  { id: 'sales', label: 'Sales Report', description: 'Revenue, COGS, gross profit & all invoices', icon: ShoppingCart, color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-800', params: ['dates', 'user'], endpoint: '/reports/sales' },
-  { id: 'detailed-sales', label: 'Customer Sales Report', description: 'Detailed sales transactions showing item details', icon: ShoppingCart, color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800', params: ['dates', 'customer'], endpoint: '/reports/detailed-sales' },
-  { id: 'cashier-sales', label: 'Cashier Sales Summary', description: 'Sales transactions & gross profit filtered by Cashier/Admin', icon: Users, color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800', params: ['dates', 'user'], endpoint: '/reports/cashier-sales' },
-  { id: 'purchases', label: 'Purchases Report', description: 'Purchase orders, total costs & due amounts', icon: Package, color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border-purple-100 dark:border-purple-800', params: ['dates'], endpoint: '/reports/purchases' },
-  { id: 'detailed-purchases', label: 'Supplier Purchases Report', description: 'Detailed purchase orders showing item details', icon: Package, color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 border-teal-100 dark:border-teal-800', params: ['dates', 'supplier'], endpoint: '/reports/detailed-purchases' },
-  { id: 'inventory', label: 'Inventory Report', description: 'Stock levels, inventory value & reorder alerts', icon: BarChart2, color: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border-green-100 dark:border-green-800', params: ['category', 'brand'], endpoint: '/reports/inventory' },
-  { id: 'stock-alert', label: 'Stock Alert Report', description: 'All products with negative or low stock levels', icon: AlertTriangle, color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800', params: ['stockFilter', 'category', 'brand'], endpoint: '/reports/stock', extraParams: { filter: 'alert' } },
-  { id: 'stock-negative', label: 'Negative Stock', description: 'Products with stock below zero (data integrity issue)', icon: AlertTriangle, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-800', params: ['stockFilter', 'category', 'brand'], endpoint: '/reports/stock', extraParams: { filter: 'negative' } },
-  { id: 'stock-low', label: 'Low Stock Report', description: 'Products at or below their reorder level', icon: AlertTriangle, color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800', params: ['stockFilter', 'category', 'brand'], endpoint: '/reports/stock', extraParams: { filter: 'low' } },
-  { id: 'customers', label: 'Customer Balances', description: 'Outstanding receivables per customer', icon: Users, color: 'bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 border-cyan-100 dark:border-cyan-800', params: [], endpoint: '/reports/customer-balances' },
-  { id: 'suppliers', label: 'Supplier Balances', description: 'Outstanding payables per supplier', icon: TrendingDown, color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800', params: [], endpoint: '/reports/supplier-balances' },
-  { id: 'expenses', label: 'Expenses Report', description: 'All expenses by category & account', icon: DollarSign, color: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border-red-100 dark:border-red-800', params: ['dates'], endpoint: '/reports/expenses' },
-  { id: 'customer-ledger', label: 'Customer Ledger', description: 'Full transaction ledger for a customer', icon: BookOpen, color: 'bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 border-teal-100 dark:border-teal-800', params: ['customer', 'dates'], endpoint: (id: number) => `/reports/customer-ledger/${id}` },
-  { id: 'supplier-ledger', label: 'Supplier Ledger', description: 'Full transaction ledger for a supplier', icon: BookOpen, color: 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-800', params: ['supplier', 'dates'], endpoint: (id: number) => `/reports/supplier-ledger/${id}` },
-  { id: 'account-statement', label: 'Account Statement', description: 'Transaction statement for an account', icon: Wallet, color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-800', params: ['account', 'dates'], endpoint: (id: number) => `/reports/account-statement/${id}` },
-  { id: 'purchase-recommendation', label: 'PO Recommendation', description: 'Recommended quantities and suppliers based on sales velocity & low stock', icon: Package, color: 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-800', params: ['dates', 'category', 'brand'], endpoint: '/reports/purchase-order-recommendation' },
-];
+import { REPORTS, REPORT_GROUPS, findReport, reportPath, type ReportId } from '../config/reports';
+import { buildCategoryTree, renderCategorySelectOptions } from '../utils/categories';
 
 const today = new Date().toISOString().slice(0, 10);
 const monthStart = today.slice(0, 8) + '01';
 const inputCls = 'px-2.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500';
 
-function extractCats(r: unknown): Category[] {
-  if (Array.isArray(r)) return r;
-  if (r && typeof r === 'object' && Array.isArray((r as { data?: unknown }).data))
-    return (r as { data: Category[] }).data;
-  return [];
-}
-
-function renderCatOptions(cats: Category[], depth = 0): React.ReactNode[] {
-  return cats.flatMap(c => {
-    const subs = c.subcategories ?? [];
-    if (subs.length > 0) {
-      return [
-        <optgroup key={`g-${c.id}`} label={'\u00A0'.repeat(depth * 2) + c.name}>
-          <option key={c.id} value={c.id}>{'\u00A0'.repeat(depth * 2) + c.name}</option>
-          {...renderCatOptions(subs, depth + 1)}
-        </optgroup>,
-      ];
-    }
-    return [<option key={c.id} value={c.id}>{'\u00A0'.repeat(depth * 2) + c.name}</option>];
-  });
-}
-
 export function Reports() {
   const location = useLocation();
-  const [activeId, setActiveId] = useState<ReportId | null>(null);
-  const active = REPORTS.find(r => r.id === activeId) ?? null;
+  const navigate = useNavigate();
+  const { reportId } = useParams<{ reportId: string }>();
+  // The open report is whatever the URL names — /reports is the index.
+  const active = findReport(reportId);
   const [from, setFrom] = useState(monthStart);
   const [to, setTo] = useState(today);
   const [date, setDate] = useState(today);
@@ -101,27 +47,31 @@ export function Reports() {
   // Fetch categories and brands list for inventory reports filters
   useEffect(() => {
     if (active?.params.includes('category') && categoriesList.length === 0) {
-      categoryService.list({}).then(r => setCategoriesList(extractCats(r).filter(c => !c.parentId))).catch(() => {});
+      categoryService.listAll({}).then(cats => setCategoriesList(buildCategoryTree(cats))).catch(() => {});
     }
     if (active?.params.includes('brand') && brandsList.length === 0) {
-      brandService.list({ pageSize: 500 }).then(r => setBrandsList(Array.isArray(r?.data) ? r.data : [])).catch(() => {});
+      brandService.listAll({}).then(b => setBrandsList(b)).catch(() => {});
     }
   }, [active, categoriesList.length, brandsList.length]);
 
-  // Handle navigation with state (e.g. opening Account Statement from Accounts page)
+  // The Accounts page hands off an account id when it links to the statement.
   useEffect(() => {
-    const st = location.state as { reportId?: ReportId; accountId?: number } | null;
-    if (st?.reportId) {
-      setActiveId(st.reportId);
-      if (st.accountId) setAccountId(st.accountId);
-    } else {
-      setActiveId(null);
-    }
+    const st = location.state as { accountId?: number } | null;
+    if (st?.accountId) setAccountId(st.accountId);
+  }, [location.key, location.state]);
+
+  // Reset filters and any generated PDF whenever the report changes.
+  useEffect(() => {
     if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     setPdfUrl(null);
     setError('');
+    setCustomer(null);
+    setSupplier(null);
+    setUserId('');
+    setCategoryId('');
+    setBrandId('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.key]);
+  }, [reportId]);
 
   const generate = useCallback(async () => {
     if (!active) return;
@@ -163,80 +113,58 @@ export function Reports() {
     }
   }, [active, from, to, date, customer, supplier, accountId, userId, categoryId, brandId, pdfUrl]);
 
-  const openReport = (id: ReportId) => {
-    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-    setPdfUrl(null);
-    setError('');
-    setActiveId(id);
-    setCustomer(null);
-    setSupplier(null);
-    setAccountId(null);
-    setUserId('');
-    setCategoryId('');
-    setBrandId('');
-  };
+  const openReport = (id: ReportId) => navigate(reportPath(id));
 
-  const backToDashboard = () => {
-    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
-    setPdfUrl(null);
-    setError('');
-    setActiveId(null);
-    setCategoryId('');
-    setBrandId('');
-  };
+  const backToDashboard = () => navigate('/reports');
 
   const canGenerate = active &&
     (!active.params.includes('customer') || !!customer) &&
     (!active.params.includes('supplier') || !!supplier) &&
     (!active.params.includes('account') || !!accountId);
 
-  // ── Dashboard view ──────────────────────────────────────────────────────
+  // ── Index view ──────────────────────────────────────────────────────────
+  // Grouped exactly like the Reports menu in the top bar, so the two teach the
+  // same map of the system.
   if (!active) {
-    const sections: { title: string; ids: ReportId[] }[] = [
-      { title: 'Executive & Financial', ids: ['overall-business', 'daily', 'sales', 'detailed-sales', 'cashier-sales', 'purchases', 'detailed-purchases', 'expenses'] },
-      { title: 'Inventory', ids: ['inventory', 'stock-alert', 'stock-negative', 'stock-low', 'purchase-recommendation'] },
-      { title: 'Party Balances & Working Capital', ids: ['payables-receivables', 'customers', 'suppliers'] },
-      { title: 'Ledgers & Statements', ids: ['customer-ledger', 'supplier-ledger', 'account-statement'] },
-    ];
-
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         <div>
           <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Reports</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Select a report to generate</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+            {REPORTS.length} reports — also reachable directly from the Reports menu above.
+          </p>
         </div>
-        {sections.map(section => {
-          const items = section.ids.map(id => REPORTS.find(r => r.id === id)!).filter(Boolean);
-          return (
-            <div key={section.title}>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">{section.title}</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                {items.map(r => (
-                  <button
-                    key={r.id}
-                    onClick={() => openReport(r.id)}
-                    className="group flex items-center gap-3 p-3 rounded-lg border text-left transition-all hover:shadow-sm bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-primary-300 dark:hover:border-primary-700"
-                  >
-                    <div className={`p-2 rounded-lg border ${r.color} shrink-0`}>
-                      <r.icon size={16} />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 dark:text-gray-100 text-sm group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">{r.label}</p>
-                      <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{r.description}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
+        {REPORT_GROUPS.map(group => (
+          <div key={group.heading}>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-2">
+              {group.heading}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+              {group.reports.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => openReport(r.id)}
+                  className="group flex items-center gap-3 p-3 rounded-lg border text-left transition-colors bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-750 hover:border-primary-400 dark:hover:border-primary-700"
+                >
+                  <div className={`p-2 rounded-md border ${r.color} shrink-0`}>
+                    <r.icon size={16} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-gray-900 dark:text-gray-100 text-[13px] group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors truncate">{r.label}</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-500 truncate">{r.description}</p>
+                  </div>
+                </button>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     );
   }
 
   // ── Report detail view ──────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] -m-4">
+    <div className="flex flex-col h-[calc(100vh-3rem)] -m-4">
       {/* Header bar */}
       <div className="shrink-0 flex items-center gap-3 px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 flex-wrap">
         <button
@@ -285,7 +213,7 @@ export function Reports() {
             className={inputCls}
           >
             <option value="">All Categories</option>
-            {renderCatOptions(categoriesList)}
+            {renderCategorySelectOptions(categoriesList)}
           </select>
         )}
 

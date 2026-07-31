@@ -11,30 +11,29 @@ interface CardProps {
 }
 
 /**
- * Card component - base container for content sections
- * @param padding - Card padding size (default: 'md')
- * @param children - Card content
- * @param className - Additional CSS classes
- * @param onClick - Optional click handler (makes card interactive)
+ * Card — a flat panel on the workspace.
+ *
+ * Console draws separation with a border rather than a shadow; elevation is
+ * reserved for things that genuinely float (menus, modals, toasts).
  */
 export function Card({
     children,
     className,
     padding = 'md',
-    onClick
+    onClick,
 }: CardProps) {
     return (
         <div
             className={clsx(
-                'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700',
+                'rounded-lg border border-gray-200 bg-white dark:border-gray-750 dark:bg-gray-900',
                 {
                     'p-0': padding === 'none',
-                    'p-4': padding === 'sm',
-                    'p-6': padding === 'md',
-                    'p-8': padding === 'lg',
-                    'cursor-pointer hover:shadow-lg transition-shadow': onClick,
+                    'p-3': padding === 'sm',
+                    'p-4': padding === 'md',
+                    'p-6': padding === 'lg',
+                    'cursor-pointer transition-colors hover:border-gray-300 dark:hover:border-gray-700': onClick,
                 },
-                className
+                className,
             )}
             onClick={onClick}
         >

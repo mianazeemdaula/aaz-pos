@@ -26,10 +26,10 @@ export function StorageUtilizationChart({
 }: StorageUtilizationChartProps) {
     // Color based on utilization rate
     const getColor = (rate: number) => {
-        if (rate >= 90) return '#ef4444'; // red-500 - Critical
-        if (rate >= 75) return '#f59e0b'; // amber-500 - Warning
-        if (rate >= 50) return '#0d9488'; // primary-600 - Good
-        return '#10b981'; // green-500 - Excellent
+        if (rate >= 90) return '#d13b33'; // red-500 - Critical
+        if (rate >= 75) return '#b7710a'; // amber-500 - Warning
+        if (rate >= 50) return '#2f5bea'; // primary-600 - Good
+        return '#0b7a52'; // green-500 - Excellent
     };
 
     const CustomTooltip = ({ active, payload }: any) => {
@@ -80,24 +80,24 @@ export function StorageUtilizationChart({
             <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke="#e5e7eb"
+                    stroke="#e3e8ee"
                     className="dark:stroke-gray-700"
                 />
                 <XAxis
                     dataKey="name"
-                    stroke="#6b7280"
+                    stroke="#667585"
                     className="dark:stroke-gray-400"
                     tick={{ fontSize: 12 }}
                 />
                 <YAxis
-                    stroke="#6b7280"
+                    stroke="#667585"
                     className="dark:stroke-gray-400"
                     tick={{ fontSize: 12 }}
                     label={{
                         value: 'Utilization %',
                         angle: -90,
                         position: 'insideLeft',
-                        style: { fontSize: 12, fill: '#6b7280' },
+                        style: { fontSize: 12, fill: '#667585' },
                     }}
                 />
                 <Tooltip content={<CustomTooltip />} />
@@ -132,10 +132,10 @@ export function UtilizationGauge({
     const strokeDashoffset = circumference - (value / 100) * circumference;
 
     const getColor = () => {
-        if (value >= 90) return '#ef4444'; // red-500
-        if (value >= 75) return '#f59e0b'; // amber-500
-        if (value >= 50) return '#0d9488'; // primary-600
-        return '#10b981'; // green-500
+        if (value >= 90) return '#d13b33'; // red-500
+        if (value >= 75) return '#b7710a'; // amber-500
+        if (value >= 50) return '#2f5bea'; // primary-600
+        return '#0b7a52'; // green-500
     };
 
     const getStatus = () => {

@@ -74,17 +74,17 @@ export function ItemsStatsChart({
             <BarChart data={data}>
                 <CartesianGrid
                     strokeDasharray="3 3"
-                    stroke="#e5e7eb"
+                    stroke="#e3e8ee"
                     className="dark:stroke-gray-700"
                 />
                 <XAxis
                     dataKey="month"
-                    stroke="#6b7280"
+                    stroke="#667585"
                     className="dark:stroke-gray-400"
                     tick={{ fontSize: 12 }}
                 />
                 <YAxis
-                    stroke="#6b7280"
+                    stroke="#667585"
                     className="dark:stroke-gray-400"
                     tick={{ fontSize: 12 }}
                     tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
@@ -97,13 +97,13 @@ export function ItemsStatsChart({
                 <Bar
                     dataKey="stockIn"
                     name="Stock In"
-                    fill="#22c55e"
+                    fill="#12905f"
                     radius={[8, 8, 0, 0]}
                 />
                 <Bar
                     dataKey="stockOut"
                     name="Stock Out"
-                    fill="#ef4444"
+                    fill="#d13b33"
                     radius={[8, 8, 0, 0]}
                 />
             </BarChart>

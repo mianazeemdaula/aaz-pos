@@ -1,4 +1,6 @@
 export { AuthProvider, useAuth } from './AuthContext';
+export { ThemeProvider, useTheme } from './ThemeContext';
+export type { ThemeMode } from './ThemeContext';
 export { ApiStatusProvider, useApiStatus } from './ApiStatusContext';
 export type { ApiStatus } from './ApiStatusContext';
 export { SettingsProvider, useGlobalSettings } from './SettingsContext';

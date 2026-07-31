@@ -106,6 +106,7 @@ function App() {
                 <Route path="accounts" element={<ErrorBoundary><Accounts /></ErrorBoundary>} />
                 <Route path="users" element={<ErrorBoundary><Users /></ErrorBoundary>} />
                 <Route path="reports" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
+                <Route path="reports/:reportId" element={<ErrorBoundary><Reports /></ErrorBoundary>} />
                 <Route path="held" element={<ErrorBoundary><HeldTransactions /></ErrorBoundary>} />
                 <Route path="promotions" element={<ErrorBoundary><Promotions /></ErrorBoundary>} />
                 <Route path="promotions/new" element={<ErrorBoundary><PromotionForm /></ErrorBoundary>} />

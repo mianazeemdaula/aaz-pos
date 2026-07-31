@@ -9,6 +9,7 @@ import { HeldSalesModal } from '../components/sale/HeldSalesModal';
 import { CartProfitModal } from '../components/sale/CartProfitModal';
 import { SaleHeader } from '../components/sale/SaleHeader';
 import { SaleCartTable } from '../components/sale/SaleCartTable';
+import { SaleCartSummary } from '../components/sale/SaleCartSummary';
 import { SaleCustomerSection } from '../components/sale/SaleCustomerSection';
 import { SalePaymentSection } from '../components/sale/SalePaymentSection';
 import { SaleActionsSection } from '../components/sale/SaleActionsSection';
@@ -59,6 +60,7 @@ export function Sale() {
     customerInputRef,
     firstAccountRef,
     lastQtyRef,
+    subtotal,
     itemDiscountTotal,
     taxTotal,
     grandTotal,
@@ -76,7 +78,7 @@ export function Sale() {
   } = useSaleLogic();
 
   return (
-    <div className="flex flex-col lg:flex-row gap-3 h-[calc(100vh-2rem)] lg:h-[calc(100vh-2.5rem)]">
+    <div className="flex flex-col lg:flex-row gap-3 h-[calc(100vh-5rem)]">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -95,12 +97,12 @@ export function Sale() {
       {/* Product Search Modal */}
       {showProductModal && (
         <ProductSearchModal
+          // Add the variant the user actually picked. The modal lists every
+          // variant as its own button, so substituting the default one here
+          // ignored the choice they just made.
           onSelect={variant => {
             const prod = variant.product;
-            if (prod) {
-              const defaultVariant = prod.variants?.find(v => v.isDefault) ?? variant;
-              addToCart(prod, defaultVariant);
-            }
+            if (prod) addToCart(prod, variant);
           }}
           onClose={() => {
             setShowProductModal(false);
@@ -187,6 +189,16 @@ export function Sale() {
           changeVariant={changeVariant}
           changePriceType={changePriceType}
           onToggleDiscountType={toggleDiscountType}
+        />
+
+        <SaleCartSummary
+          cart={cart}
+          subtotal={subtotal}
+          itemDiscountTotal={itemDiscountTotal}
+          invoiceDiscount={invoiceDiscount}
+          taxTotal={taxTotal}
+          grandTotal={grandTotal}
+          isReturnCart={isReturnCart}
         />
       </div>
 

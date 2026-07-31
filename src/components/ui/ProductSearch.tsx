@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, X, Loader2 } from 'lucide-react';
+import { Search, X, Loader2, Check } from 'lucide-react';
 import { productService, categoryService, brandService } from '../../services/pos.service';
 import type { Product, ProductVariant, Category, Brand } from '../../types/pos';
 
@@ -140,8 +140,13 @@ interface ProductSearchModalProps {
   onClose: () => void;
 }
 
+const HOLD_KEY = 'pos_product_search_hold';
+
 export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProps) {
   const [query, setQuery] = useState('');
+  /** Hold keeps the modal open after adding, for building a basket in one visit. */
+  const [hold, setHold] = useState(() => localStorage.getItem(HOLD_KEY) === 'true');
+  const [added, setAdded] = useState<{ count: number; last: string }>({ count: 0, last: '' });
   const [categoryId, setCategoryId] = useState<number | ''>('');
   const [brandId, setBrandId] = useState<number | ''>('');
   const [categories, setCategories] = useState<Category[]>([]);
@@ -188,24 +193,46 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
     el?.scrollIntoView({ block: 'nearest' });
   }, [selectedIdx]);
 
+  useEffect(() => { localStorage.setItem(HOLD_KEY, String(hold)); }, [hold]);
+
+  /**
+   * Every add goes through here — keyboard, row click and variant click alike.
+   * With hold on, the results stay put and the search text is selected, so the
+   * next product can be typed straight over it (or Enter pressed again to add
+   * the same one twice).
+   */
+  const commit = useCallback((variant: ProductVariant, product: Product) => {
+    onSelect({ ...variant, product });
+    if (!hold) { onClose(); return; }
+    setAdded(a => ({ count: a.count + 1, last: `${product.name}${variant.name ? ` (${variant.name})` : ''}` }));
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  }, [hold, onSelect, onClose]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
       if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIdx(i => Math.min(i + 1, results.length - 1)); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIdx(i => Math.max(i - 1, 0)); return; }
+      // Ctrl+H toggles hold. preventDefault matters: the browser binds it to history.
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'h' || e.key === 'H')) {
+        e.preventDefault();
+        setHold(h => !h);
+        return;
+      }
       if (e.key === 'Enter') {
         if ((e.target as HTMLElement).tagName === 'SELECT') return;
         e.preventDefault();
         const product = results[selectedIdx];
         if (product) {
           const variant = product.variants?.find(v => v.isDefault) ?? product.variants?.[0];
-          if (variant) { onSelect({ ...variant, product }); onClose(); }
+          if (variant) commit(variant, product);
         }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [results, selectedIdx, onSelect, onClose]);
+  }, [results, selectedIdx, commit, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -214,10 +241,27 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             <Search size={16} /> Product Search
           </h3>
-          <div className="flex items-center gap-1 text-xs text-gray-400">
-            <span className='bg-primary-500 px-2 py-1 text-white rounded-full'>↑↓ Navigate</span>
-            <span className='bg-primary-500 px-2 py-1 text-white rounded-full'>Enter Add</span>
-            <span className='bg-primary-500 px-2 py-1 text-white rounded-full'>ESC Close</span>
+          <div className="flex items-center gap-2 text-xs">
+            <label
+              title="Keep this window open after adding a product (Ctrl+H)"
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md border cursor-pointer select-none transition-colors ${hold
+                ? 'bg-primary-50 dark:bg-primary-900/30 border-primary-400 text-primary-700 dark:text-primary-300'
+                : 'border-gray-300 dark:border-gray-600 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+            >
+              <input
+                type="checkbox"
+                checked={hold}
+                onChange={e => setHold(e.target.checked)}
+                className="w-3 h-3 rounded-xs text-primary-600 focus:ring-primary-500"
+              />
+              <span className="font-semibold">Hold</span>
+              <kbd className="font-mono text-[10px] opacity-70">Ctrl+H</kbd>
+            </label>
+            <span className="hidden sm:flex items-center gap-1 text-gray-400">
+              <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-1 rounded-sm">↑↓ Navigate</span>
+              <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-1 rounded-sm">Enter Add</span>
+              <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-1 rounded-sm">Esc Close</span>
+            </span>
             <button onClick={onClose} className="ml-1 text-gray-400 hover:text-gray-600"><X size={16} /></button>
           </div>
         </div>
@@ -283,7 +327,7 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
                       data-selected={isSelected}
                       onClick={() => {
                         const variant = p.variants?.find(v => v.isDefault) ?? p.variants?.[0];
-                        if (variant) { onSelect({ ...variant, product: p }); onClose(); }
+                        if (variant) commit(variant, p);
                       }}
                       className={`border-b border-gray-100 dark:border-gray-700 last:border-0 transition-colors cursor-pointer ${isSelected
                         ? 'bg-primary-50 dark:bg-primary-900/30'
@@ -313,7 +357,7 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
                           {(p.variants ?? []).map(v => (
                             <button
                               key={v.id}
-                              onClick={e => { e.stopPropagation(); onSelect({ ...v, product: p }); onClose(); }}
+                              onClick={e => { e.stopPropagation(); commit(v, p); }}
                               className="text-left text-xs group w-fit"
                             >
                               <span className="text-gray-600 dark:text-gray-400 group-hover:text-primary-500 transition-colors">
@@ -341,8 +385,15 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
             </table>
           )}
         </div>
-        <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 text-center shrink-0">
-          {results.length} product{results.length !== 1 ? 's' : ''} found
+        <div className="flex items-center justify-between gap-3 px-4 py-2 border-t border-gray-100 dark:border-gray-700 text-xs text-gray-400 shrink-0">
+          <span>{results.length} product{results.length !== 1 ? 's' : ''} found</span>
+          {added.count > 0 && (
+            <span className="flex items-center gap-1.5 text-primary-600 dark:text-primary-400 min-w-0">
+              <Check size={12} className="shrink-0" />
+              <span className="font-semibold">{added.count} added</span>
+              <span className="truncate text-gray-400">· last: {added.last}</span>
+            </span>
+          )}
         </div>
       </div>
     </div>

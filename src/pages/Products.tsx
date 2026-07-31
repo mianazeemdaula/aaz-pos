@@ -1,29 +1,16 @@
-import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, Pencil, Trash2, Loader2, Package, Upload, Eye, X, History, Boxes, Download } from 'lucide-react';
 import { Pagination } from '../components/ui/Pagination';
 import { productService, categoryService, dataService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import type { Product, Category } from '../types/pos';
+import { buildCategoryTree, renderCategorySelectOptions } from '../utils/categories';
 
 const fmt = (n: number | null | undefined) =>
   n != null ? `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—';
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' }) + " " + new Date(d).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' });
-
-// ─── Category helpers ────────────────────────────────────────────────────────
-function extractCats(r: unknown): Category[] {
-  if (Array.isArray(r)) return r;
-  if (r && typeof r === 'object' && Array.isArray((r as { data?: unknown }).data))
-    return (r as { data: Category[] }).data;
-  return [];
-}
-function renderCatOptions(cats: Category[], depth = 0): ReactNode[] {
-  return cats.flatMap(c => [
-    <option key={c.id} value={c.id}>{'\u00A0'.repeat(depth * 4)}{depth > 0 ? '└ ' : ''}{c.name}</option>,
-    ...renderCatOptions(c.subcategories ?? [], depth + 1),
-  ]);
-}
 
 // ─── Product Detail Modal ────────────────────────────────────────────────────
 function ProductDetailModal({ product, onClose }: { product: Product; onClose: () => void }) {
@@ -241,9 +228,8 @@ export function Products() {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    categoryService.list({}).then(r => {
-      const cats = extractCats(r);
-      setCatRoots(cats.filter(c => !c.parentId));
+    categoryService.listAll({}).then(cats => {
+      setCatRoots(buildCategoryTree(cats));
     }).catch(() => { });
   }, []);
 
@@ -334,7 +320,7 @@ export function Products() {
           <select value={filterCatId} onChange={e => { setFilterCatId(e.target.value); setPage(1); }}
             className="px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none">
             <option value="">All Categories</option>
-            {renderCatOptions(catRoots)}
+            {renderCategorySelectOptions(catRoots)}
           </select>
         </div>
 
