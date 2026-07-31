@@ -7,8 +7,10 @@
  */
 
 import { listPrinters, type PrinterInfo } from '../thermalPrinter';
+import { isTauri } from '../tauri';
 
 export type { PrinterInfo };
+export { isTauri };
 
 export type ZplTarget =
     | { kind: 'system'; name: string }
@@ -16,11 +18,6 @@ export type ZplTarget =
     | { kind: 'serial'; port: string; baud?: number };
 
 const ZPL_SETTINGS_KEY = 'zpl_label_settings';
-
-/** Running inside the Tauri shell (as opposed to a plain browser dev server). */
-export function isTauri(): boolean {
-    return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
-}
 
 /** Printers whose name suggests they speak ZPL. */
 export function isLikelyZplPrinter(name: string): boolean {

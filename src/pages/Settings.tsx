@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Loader2, Database, Download, Upload, CheckCircle2,
   AlertCircle, ShieldCheck, ShoppingCart, Building2, Trash2,
-  Printer, ShieldAlert, RefreshCw, KeyRound, Check, Users, Save
+  Printer, ShieldAlert, RefreshCw, KeyRound, Check, Users, Save,
+  FolderOpen, FolderClock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useGlobalSettings } from '../contexts/SettingsContext';
@@ -15,6 +16,11 @@ import { saveThermalConfig, listPrinters, type ThermalPrinterConfig, type Printe
 import { invalidateLogoCache } from '../utils/invoices/saleInvoice';
 import type { User } from '../types/pos';
 import { fbrService } from '../services/fbr.service';
+import {
+  backupService, readAutoBackupSettings, formatBytes, DEFAULT_AUTO_BACKUP,
+  type BackupStatus, type AutoBackupSettings,
+} from '../services/backup.service';
+import { FolderPicker } from '../components/ui/FolderPicker';
 
 const LS_FBR = 'pos_fbr_settings';
 type Module = 'company' | 'thermal' | 'fbr' | 'sales' | 'database' | 'user-permissions';
@@ -45,6 +51,9 @@ export function Settings() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [dbBusy, setDbBusy] = useState(false);
+  const [pgStatus, setPgStatus] = useState<BackupStatus | null>(null);
+  const [autoBackup, setAutoBackup] = useState<AutoBackupSettings>(DEFAULT_AUTO_BACKUP);
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
 
   // Users & Permissions state
   const [users, setUsers] = useState<User[]>([]);
@@ -202,17 +211,74 @@ export function Settings() {
     }
   };
 
-  const handleBackup = async () => {
+  // Probe the server for the Postgres client tools when the tab is opened.
+  useEffect(() => {
+    if (activeTab !== 'database' || pgStatus) return;
+    backupService.status()
+      .then(setPgStatus)
+      .catch(() => setPgStatus({ available: false, error: 'Could not reach the server.' }));
+  }, [activeTab, pgStatus]);
+
+  // Keep the local auto-backup form in step with the saved app settings.
+  useEffect(() => {
+    setAutoBackup(readAutoBackupSettings(globalSettings.app));
+  }, [globalSettings.app]);
+
+  const saveAutoBackup = async (patch: Partial<AutoBackupSettings>) => {
+    const next = { ...autoBackup, ...patch };
+    setAutoBackup(next);
     setDbBusy(true);
     try {
-      const blob = await apiClient.getBlob(API_ENDPOINTS.settings.backup);
+      // Validate the folder before it becomes the backup target, so a typo is
+      // caught now rather than at closing time.
+      if (patch.backupDir) {
+        const check = await backupService.validateDir(patch.backupDir);
+        next.backupDir = check.path;
+        setAutoBackup({ ...next });
+      }
+      await updateAppSettings({ ...next });
+      setStatusMsg({ ok: true, text: 'Automatic backup settings saved.' });
+      setPgStatus(await backupService.status());
+    } catch (e: unknown) {
+      setAutoBackup(readAutoBackupSettings(globalSettings.app)); // roll the form back
+      setStatusMsg({ ok: false, text: e instanceof Error ? e.message : 'Could not save backup settings.' });
+    } finally {
+      setDbBusy(false);
+    }
+  };
+
+  const runFolderBackup = async () => {
+    setDbBusy(true);
+    try {
+      const result = await backupService.run();
+      const pruned = result.removed.length ? ` · removed ${result.removed.length} old backup(s)` : '';
+      setStatusMsg({ ok: true, text: `Saved ${result.filename} (${formatBytes(result.bytes)})${pruned}` });
+      setPgStatus(await backupService.status());
+    } catch (e: unknown) {
+      setStatusMsg({ ok: false, text: e instanceof Error ? e.message : 'Backup failed.' });
+    } finally {
+      setDbBusy(false);
+    }
+  };
+
+  const handleBackup = async (format: 'custom' | 'plain') => {
+    setDbBusy(true);
+    try {
+      const { blob, filename } = await apiClient.downloadFile(API_ENDPOINTS.settings.backup, {
+        params: { format },
+        timeout: 15 * 60 * 1000, // pg_dump on a large database is not quick
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `pos-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = filename ?? `pos-backup.${format === 'custom' ? 'dump' : 'sql'}`;
       a.click();
       URL.revokeObjectURL(url);
-      setStatusMsg({ ok: true, text: 'Database backup downloaded successfully.' });
+      setStatusMsg({
+        ok: true,
+        text: `Backup downloaded (${(blob.size / 1024 / 1024).toFixed(2)} MB). ` +
+          (format === 'custom' ? 'Restore with pg_restore.' : 'Restore with psql.'),
+      });
     } catch (e: unknown) {
       setStatusMsg({ ok: false, text: e instanceof Error ? e.message : 'Backup failed.' });
     } finally {
@@ -221,12 +287,19 @@ export function Settings() {
   };
 
   const handleRestore = async (file: File) => {
-    if (!window.confirm("WARNING: Restoring database will overwrite current system records. Continue?")) return;
+    if (!window.confirm(
+      `Restore from "${file.name}"?\n\n` +
+      'This DROPS every existing table and replaces it with the contents of the backup. ' +
+      'Current records cannot be recovered afterwards.',
+    )) return;
+
     setDbBusy(true);
     try {
-      const text = await file.text();
-      await apiClient.post(API_ENDPOINTS.settings.restore, JSON.parse(text));
-      setStatusMsg({ ok: true, text: 'Database restored successfully. Please refresh the page.' });
+      const result = await apiClient.uploadFile<{ message: string; warnings?: string }>(
+        API_ENDPOINTS.settings.restore, file, 'backup',
+      );
+      if (result.warnings) console.warn('Restore warnings:', result.warnings);
+      setStatusMsg({ ok: true, text: `${result.message}. Please refresh the page.` });
     } catch (e: unknown) {
       setStatusMsg({ ok: false, text: e instanceof Error ? e.message : 'Restore failed.' });
     } finally {
@@ -614,79 +687,146 @@ export function Settings() {
 
         {/* TAB 4: SALES & INVENTORY RULES */}
         {activeTab === 'sales' && (
-          <div className="space-y-6">
-            <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
-              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                <ShoppingCart className="text-primary-600" size={18} /> Sales & Inventory Operational Rules
+          <div className="space-y-4">
+            <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
+              <h2 className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <ShoppingCart className="text-primary-600" size={16} /> Sales & Inventory Operational Rules
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Set cashier checkout permissions, negative inventory policies, and maximum discount limits.
+                Set cashier checkout permissions, negative inventory policies, and discount limits.
               </p>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Allow Sale Below Cost Price</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Permit cashiers to sell products below their weighted average cost price</p>
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700 text-xs">
+              <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <div className="pr-4">
+                  <label htmlFor="rule-below-cost" className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer block">
+                    Allow Sale Below Cost Price
+                  </label>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">
+                    Permit cashiers to sell products below weighted average cost price
+                  </span>
                 </div>
                 <input
                   type="checkbox"
+                  id="rule-below-cost"
                   checked={!!appSettings.allowSaleBelowCost}
                   onChange={e => setAppSettings(a => ({ ...a, allowSaleBelowCost: e.target.checked }))}
-                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 cursor-pointer shrink-0"
                 />
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Allow Negative Inventory Checkout</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Allow sale completed even if item quantity is zero or out of stock</p>
+              <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <div className="pr-4">
+                  <label htmlFor="rule-negative-stock" className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer block">
+                    Allow Negative Inventory Checkout
+                  </label>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">
+                    Allow sale checkout even if item stock quantity is zero or negative
+                  </span>
                 </div>
                 <input
                   type="checkbox"
+                  id="rule-negative-stock"
                   checked={!!appSettings.allowNegativeStock}
                   onChange={e => setAppSettings(a => ({ ...a, allowNegativeStock: e.target.checked }))}
-                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 cursor-pointer shrink-0"
                 />
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Show Retail Price on Barcode Stickers</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Include item retail price when generating and printing barcode labels</p>
+              <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <div className="pr-4">
+                  <label htmlFor="rule-barcode-price" className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer block">
+                    Show Retail Price on Barcode Stickers
+                  </label>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">
+                    Include item retail price when generating and printing barcode labels
+                  </span>
                 </div>
                 <input
                   type="checkbox"
+                  id="rule-barcode-price"
                   checked={appSettings.showBarcodePrice !== false}
                   onChange={e => setAppSettings(a => ({ ...a, showBarcodePrice: e.target.checked }))}
-                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 cursor-pointer shrink-0"
                 />
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Allow Cashiers to View Cart Profit</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Permit non-admin cashiers to see estimated profit and margin for items in active cart</p>
+              <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <div className="pr-4">
+                  <label htmlFor="rule-cart-profit" className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer block">
+                    Allow Cashiers to View Cart Profit
+                  </label>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">
+                    Permit non-admin cashiers to see estimated profit and margin icon/modal for items in active cart
+                  </span>
                 </div>
                 <input
                   type="checkbox"
+                  id="rule-cart-profit"
                   checked={!!appSettings['sale.allowCartProfitView']}
                   onChange={e => setAppSettings(a => ({ ...a, 'sale.allowCartProfitView': e.target.checked }))}
-                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 cursor-pointer shrink-0"
                 />
               </div>
 
-              <div className="max-w-xs pt-2">
-                <label className={labelCls}>Max Cashier Discount Limit (%)</label>
+              <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <div className="pr-4">
+                  <label htmlFor="rule-price-change" className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer block">
+                    Allow Cashiers to Edit Unit Prices
+                  </label>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">
+                    Permit non-admin cashiers to override unit price in cart lines
+                  </span>
+                </div>
                 <input
-                  type="number"
-                  max={100}
-                  min={0}
-                  value={(appSettings.maxCashierDiscount as number) ?? 10}
-                  onChange={e => setAppSettings(a => ({ ...a, maxCashierDiscount: Number(e.target.value) }))}
-                  className={inputCls}
+                  type="checkbox"
+                  id="rule-price-change"
+                  checked={appSettings['sale.allowPriceChange'] !== false}
+                  onChange={e => setAppSettings(a => ({ ...a, 'sale.allowPriceChange': e.target.checked }))}
+                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 cursor-pointer shrink-0"
                 />
+              </div>
+
+              <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <div className="pr-4">
+                  <label htmlFor="rule-discount-switch" className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer block">
+                    Allow Cashiers to Switch Discount Type (% / Rs)
+                  </label>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">
+                    Permit non-admin cashiers to toggle between percentage and fixed rupee discounts
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  id="rule-discount-switch"
+                  checked={appSettings['sale.allowDiscountTypeSwitch'] !== false}
+                  onChange={e => setAppSettings(a => ({ ...a, 'sale.allowDiscountTypeSwitch': e.target.checked }))}
+                  className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500 cursor-pointer shrink-0"
+                />
+              </div>
+
+              <div className="flex items-center justify-between px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+                <div className="pr-4">
+                  <label htmlFor="rule-max-discount" className="font-semibold text-gray-900 dark:text-gray-100 cursor-pointer block">
+                    Max Cashier Discount Limit (%)
+                  </label>
+                  <span className="text-[11px] text-gray-500 dark:text-gray-400 block">
+                    Maximum percentage discount allowed for non-admin cashiers
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <input
+                    type="number"
+                    id="rule-max-discount"
+                    max={100}
+                    min={0}
+                    value={(appSettings.maxCashierDiscount as number) ?? 10}
+                    onChange={e => setAppSettings(a => ({ ...a, maxCashierDiscount: Number(e.target.value) }))}
+                    className="w-20 text-right px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-1 focus:ring-primary-500 outline-none font-semibold"
+                  />
+                  <span className="text-xs text-gray-500 font-semibold">%</span>
+                </div>
               </div>
             </div>
           </div>
@@ -700,45 +840,211 @@ export function Settings() {
                 <Database className="text-primary-600" size={18} /> Database Backup & Maintenance
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                Export JSON database backups or restore records from file snapshots.
+                Native PostgreSQL backups created with pg_dump — restorable with standard Postgres tools.
               </p>
+            </div>
+
+            {/* Server-side tool availability */}
+            {pgStatus && (
+              pgStatus.available ? (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-xs text-green-800 dark:text-green-300">
+                  <span className="flex items-center gap-1.5 font-semibold"><CheckCircle2 size={13} /> Postgres tools ready</span>
+                  <span className="font-mono">{pgStatus.database} @ {pgStatus.host}</span>
+                  <span className="text-green-600/70 dark:text-green-400/70">{pgStatus.pgDump}</span>
+                </div>
+              ) : (
+                <div className="px-4 py-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300">
+                  <span className="flex items-center gap-1.5 font-semibold"><AlertCircle size={13} /> Native backups unavailable</span>
+                  <p className="mt-1 leading-relaxed">{pgStatus.error}</p>
+                  <p className="mt-1 text-amber-700/80 dark:text-amber-400/80">
+                    Install the PostgreSQL client tools on the server machine, or set <code className="font-mono">PG_BIN_DIR</code> in
+                    the server <code className="font-mono">.env</code> to the folder containing <code className="font-mono">pg_dump</code>.
+                  </p>
+                </div>
+              )
+            )}
+
+            {/* Automatic backups to a folder */}
+            <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-4">
+              <div>
+                <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <FolderClock size={15} className="text-primary-600" /> Automatic Backups
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  Pick a folder on the server machine and the database is backed up there automatically every time
+                  the app is closed.
+                </p>
+              </div>
+
+              <div>
+                <label className={labelCls}>Backup folder</label>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    value={autoBackup.backupDir}
+                    onChange={e => setAutoBackup(a => ({ ...a, backupDir: e.target.value }))}
+                    onBlur={e => {
+                      const value = e.target.value.trim();
+                      if (value && value !== readAutoBackupSettings(globalSettings.app).backupDir) {
+                        saveAutoBackup({ backupDir: value });
+                      }
+                    }}
+                    placeholder="No folder selected — automatic backups are off"
+                    className={`${inputCls} flex-1 min-w-[240px] font-mono text-xs`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setFolderPickerOpen(true)}
+                    disabled={dbBusy}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold rounded-lg text-xs flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <FolderOpen size={14} /> Browse…
+                  </button>
+                  {autoBackup.backupDir && (
+                    <button
+                      type="button"
+                      onClick={() => saveAutoBackup({ backupDir: '' })}
+                      disabled={dbBusy}
+                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-500 hover:text-red-600 rounded-lg text-xs disabled:opacity-50"
+                      title="Clear folder and disable automatic backups"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {autoBackup.backupDir && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <label className="flex items-start gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoBackup.backupOnClose}
+                        onChange={e => saveAutoBackup({ backupOnClose: e.target.checked })}
+                        disabled={dbBusy}
+                        className="mt-0.5 rounded text-primary-600 focus:ring-primary-500"
+                      />
+                      <span>
+                        <span className="block text-xs font-semibold text-gray-800 dark:text-gray-200">Back up on app close</span>
+                        <span className="block text-[11px] text-gray-500 dark:text-gray-400">Runs before the window closes</span>
+                      </span>
+                    </label>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-300 mb-1">Format</label>
+                      <select
+                        value={autoBackup.backupFormat}
+                        onChange={e => saveAutoBackup({ backupFormat: e.target.value as 'custom' | 'plain' })}
+                        disabled={dbBusy}
+                        className={`${inputCls} text-xs py-1.5`}
+                      >
+                        <option value="custom">Compressed archive (.dump)</option>
+                        <option value="plain">SQL script (.sql)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-300 mb-1">Keep last</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={999}
+                        value={autoBackup.backupKeep}
+                        onChange={e => setAutoBackup(a => ({ ...a, backupKeep: Math.max(1, parseInt(e.target.value) || 1) }))}
+                        onBlur={() => saveAutoBackup({ backupKeep: autoBackup.backupKeep })}
+                        disabled={dbBusy}
+                        className={`${inputCls} text-xs py-1.5`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                      {pgStatus?.lastBackup
+                        ? <>Last backup: <span className="font-mono">{pgStatus.lastBackup.filename}</span>{' '}
+                          ({formatBytes(pgStatus.lastBackup.bytes)}) · {new Date(pgStatus.lastBackup.at).toLocaleString()}</>
+                        : 'No backups in this folder yet.'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={runFolderBackup}
+                      disabled={dbBusy || pgStatus?.available === false}
+                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-sm"
+                    >
+                      {dbBusy ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />} Back up now
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-gray-400">
+                    Older backups beyond the retention count are deleted automatically. Only files named
+                    <code className="font-mono"> pos-backup-*.dump/.sql </code> are ever removed.
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
                 <div>
-                  <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100">Export System Database Backup</h3>
+                  <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100">Download Database Backup</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Download complete snapshot of products, sales, customers, suppliers, accounts, and settings into a JSON backup file.
+                    A complete <code className="font-mono">pg_dump</code> of the live database — schema, data, indexes and
+                    constraints. Restorable on any PostgreSQL server, with or without this application.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleBackup}
-                  disabled={dbBusy}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-sm transition-colors"
-                >
-                  {dbBusy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Download Backup
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleBackup('custom')}
+                    disabled={dbBusy || pgStatus?.available === false}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-sm transition-colors"
+                  >
+                    {dbBusy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Backup (.dump)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleBackup('plain')}
+                    disabled={dbBusy || pgStatus?.available === false}
+                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-200 font-semibold rounded-lg text-xs flex items-center gap-2 transition-colors"
+                  >
+                    <Download size={14} /> SQL script (.sql)
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  <code className="font-mono">.dump</code> is compressed — restore with{' '}
+                  <code className="font-mono">pg_restore --clean --if-exists -d dbname file.dump</code>.<br />
+                  <code className="font-mono">.sql</code> is plain text — restore with{' '}
+                  <code className="font-mono">psql -d dbname -f file.sql</code>.
+                </p>
               </div>
 
               <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
                 <div>
-                  <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100">Restore System Database</h3>
+                  <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100">Restore Database</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Import a previously saved JSON backup file. <span className="text-red-500 font-medium">Warning: This will overwrite existing records.</span>
+                    Upload a <code className="font-mono">.dump</code> or <code className="font-mono">.sql</code> backup — the format
+                    is detected automatically. <span className="text-red-500 font-medium">Every existing table is dropped and
+                    replaced.</span>
                   </p>
                 </div>
-                <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-xs shadow-sm transition-colors">
-                  <Upload size={14} /> Restore from File
+                <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-xs shadow-sm transition-colors ${dbBusy ? 'opacity-50 pointer-events-none' : ''}`}>
+                  {dbBusy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Restore from File
                   <input
                     type="file"
-                    accept=".json"
+                    accept=".dump,.sql,.backup,.json"
                     className="hidden"
-                    onChange={e => e.target.files?.[0] && handleRestore(e.target.files[0])}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      e.target.value = ''; // allow re-selecting the same file
+                      if (file) handleRestore(file);
+                    }}
                     disabled={dbBusy}
                   />
                 </label>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  The restore runs in a single transaction — if it fails partway, the current database is left untouched.
+                  Legacy <code className="font-mono">.json</code> backups are still accepted.
+                </p>
               </div>
             </div>
           </div>
@@ -909,6 +1215,16 @@ export function Settings() {
 
       </div>
 
+      {folderPickerOpen && (
+        <FolderPicker
+          initialPath={autoBackup.backupDir || undefined}
+          onClose={() => setFolderPickerOpen(false)}
+          onSelect={path => {
+            setFolderPickerOpen(false);
+            if (path) saveAutoBackup({ backupDir: path });
+          }}
+        />
+      )}
     </div>
   );
 }

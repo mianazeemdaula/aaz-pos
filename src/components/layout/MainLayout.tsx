@@ -12,6 +12,7 @@ import { useAuth, useGlobalSettings } from '../../contexts';
 import type { PermissionModule } from '../../contexts';
 import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
+import { AutoBackupOnClose } from './AutoBackupOnClose';
 
 type MenuItem = { label: string; icon: React.FC<{ size?: number; className?: string }>; path: string; perm?: PermissionModule };  
 type MenuGroup = { heading: string; items: MenuItem[] };
@@ -298,6 +299,8 @@ export function MainLayout() {
       </div>
 
       <ChangePasswordModal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
+      {/* Lives inside the authenticated shell — the backup API needs a session. */}
+      <AutoBackupOnClose />
     </div>
   );
 }

@@ -246,6 +246,46 @@ class ApiClient {
     }
 
     /**
+     * Download a file, keeping the server-supplied filename.
+     * Unlike getBlob this surfaces JSON error payloads, so failures explain
+     * themselves instead of showing a bare status code.
+     */
+    async downloadFile(
+        endpoint: string,
+        config?: RequestConfig,
+    ): Promise<{ blob: Blob; filename?: string }> {
+        const url = this.buildURL(endpoint, config?.params);
+        const headers = this.buildHeaders(config?.headers);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), config?.timeout || this.timeout);
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers,
+                signal: config?.signal || controller.signal,
+            });
+
+            if (!response.ok) {
+                const contentType = response.headers.get('content-type');
+                if (contentType?.includes('application/json')) {
+                    const result = await response.json();
+                    throw new Error(result.error?.message || result.error || response.statusText);
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const disposition = response.headers.get('content-disposition');
+            const filename = disposition?.match(/filename="?([^"]+)"?/)?.[1];
+
+            return { blob: await response.blob(), filename };
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    /**
      * Upload a file via FormData (multipart/form-data)
      */
     async uploadFile<T>(endpoint: string, file: File, fieldName = 'image'): Promise<T> {
