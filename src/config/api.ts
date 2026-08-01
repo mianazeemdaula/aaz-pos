@@ -96,7 +96,7 @@ export const API_ENDPOINTS = {
         createVariant: (id: number) => `/products/${id}/variants`,
         updateVariant: (id: number, variantId: number) => `/products/${id}/variants/${variantId}`,
         deleteVariant: (id: number, variantId: number) => `/products/${id}/variants/${variantId}`,
-        variantByBarcode: (barcode: string) => `/products/variants/barcode/${barcode}`,
+        variantByBarcode: (barcode: string) => `/products/variants/barcode/${encodeURIComponent(barcode)}`,
         importFile: '/products/import/file',
         history: (id: number) => `/products/${id}/history`,
     },

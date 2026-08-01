@@ -105,18 +105,19 @@ export function useSaleLogic() {
 
   const handleBarcodeEnter = useCallback(
     async (bc: string) => {
-      if (!bc.trim()) return;
+      const cleanBc = bc.trim();
+      if (!cleanBc) return;
       setBarcodeLoading(true);
       setBarcodeError('');
       try {
-        const variant = await productService.getVariantByBarcode(bc.toUpperCase().trim());
+        const variant = await productService.getVariantByBarcode(cleanBc);
         if (variant && variant.product) {
           const fullProduct = variant.product as Product;
-          const matchedVariant = fullProduct.variants?.find(v => v.barcode === variant.barcode) ?? variant;
+          const matchedVariant = fullProduct.variants?.find(v => v.id === variant.id || v.barcode === variant.barcode) ?? variant;
           addToCart(fullProduct, matchedVariant);
         }
       } catch {
-        setBarcodeError(`"${bc.trim()}" not found`);
+        setBarcodeError(`"${cleanBc}" not found`);
         setTimeout(() => setBarcodeError(''), 2500);
       } finally {
         setBarcodeLoading(false);
