@@ -51,7 +51,12 @@ const Expenses = lazy(() => import('./pages/Expenses').then(m => ({ default: m.E
 const Accounts = lazy(() => import('./pages/Accounts').then(m => ({ default: m.Accounts })));
 const Users = lazy(() => import('./pages/Users').then(m => ({ default: m.Users })));
 const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
-const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const CompanySettings = lazy(() => import('./pages/settings/CompanySettings').then(m => ({ default: m.CompanySettings })));
+const ThermalSettings = lazy(() => import('./pages/settings/ThermalSettings').then(m => ({ default: m.ThermalSettings })));
+const FbrSettings = lazy(() => import('./pages/settings/FbrSettings').then(m => ({ default: m.FbrSettings })));
+const SalesSettings = lazy(() => import('./pages/settings/SalesSettings').then(m => ({ default: m.SalesSettings })));
+const DatabaseSettings = lazy(() => import('./pages/settings/DatabaseSettings').then(m => ({ default: m.DatabaseSettings })));
+const UserPermissionsSettings = lazy(() => import('./pages/settings/UserPermissionsSettings').then(m => ({ default: m.UserPermissionsSettings })));
 // const Admin = lazy(() => import('./pages/Admin').then(m => ({ default: m.Admin })));
 const HeldTransactions = lazy(() => import('./pages/HeldTransactions').then(m => ({ default: m.HeldTransactions })));
 const Promotions = lazy(() => import('./pages/Promotions').then(m => ({ default: m.Promotions })));
@@ -118,8 +123,14 @@ function App() {
                 <Route path="payments" element={<ErrorBoundary><Payments /></ErrorBoundary>} />
                 <Route path="print-labels" element={<ErrorBoundary><PrintLabels /></ErrorBoundary>} />
 
-                <Route path="settings" element={<ErrorBoundary><Settings /></ErrorBoundary>} />
-                <Route path="admin" element={<Navigate to="/settings" replace />} />
+                <Route path="settings" element={<Navigate to="/settings/company" replace />} />
+                <Route path="settings/company" element={<ErrorBoundary><CompanySettings /></ErrorBoundary>} />
+                <Route path="settings/thermal" element={<ErrorBoundary><ThermalSettings /></ErrorBoundary>} />
+                <Route path="settings/fbr" element={<ErrorBoundary><FbrSettings /></ErrorBoundary>} />
+                <Route path="settings/sales" element={<ErrorBoundary><SalesSettings /></ErrorBoundary>} />
+                <Route path="settings/database" element={<ErrorBoundary><DatabaseSettings /></ErrorBoundary>} />
+                <Route path="settings/user-permissions" element={<ErrorBoundary><UserPermissionsSettings /></ErrorBoundary>} />
+                <Route path="admin" element={<Navigate to="/settings/company" replace />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Route>

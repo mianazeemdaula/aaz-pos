@@ -1,16 +1,32 @@
 /**
  * Payment Invoice Generator for Thermal Printer
- * Handles both Customer and Supplier payments
+ * Handles both Customer payments (receipt) and Supplier payments (voucher).
+ *
+ * Primary path renders a styled HTML slip to a PNG (same design system as the
+ * sale invoice); the original ESC/POS text mode is kept as the fallback and is
+ * used directly when the printer is configured for `native` invoice mode.
  */
 import type { Customer, Supplier, CustomerPayment, SupplierPayment } from '../../types/pos';
 import {
     title, textLeft, textCenter, line, feed, table, cell,
     buildPrintJob, printDocument,
+    loadThermalConfig,
     type PrintSection, type PrintJobRequest,
 } from '../thermalPrinter';
-import { loadThermalConfig } from '../thermalPrinter';
+import { buildPaymentSlipHtml, type PaymentSlipConfig, type PaymentSlipData } from './paymentSlipHtmlBuilder';
+import { renderHtmlToBase64Png } from './htmlInvoiceRenderer';
+import { fetchLogoBase64 } from './saleInvoice';
+import { showReceiptPreview } from './receiptExport';
+import { apiClient } from '../../services/api';
+import { API_ENDPOINTS } from '../../config/api';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// Paper width in pixels for each supported paper size
+const PAPER_WIDTH_PX: Record<string, number> = {
+    Mm80: 576,
+    Mm58: 384,
+};
 
 export interface CustomerPaymentInvoiceData {
     payment: CustomerPayment;
@@ -20,6 +36,158 @@ export interface CustomerPaymentInvoiceData {
 export interface SupplierPaymentInvoiceData {
     payment: SupplierPayment;
     supplier: Supplier;
+}
+
+// ─── Balance resolution ───────────────────────────────────────────────────────
+
+/**
+ * A payment reduces what is owed, so when the API did not return the balances
+ * alongside the payment we reconstruct them from the party's current balance.
+ */
+function resolveBalances(
+    payment: { amount: number; previousBalance?: number; newBalance?: number },
+    currentBalance: number,
+): { previousBalance: number; newBalance: number } {
+    const newBalance = payment.newBalance ?? currentBalance;
+    const previousBalance = payment.previousBalance ?? newBalance + payment.amount;
+    return { previousBalance, newBalance };
+}
+
+// ─── HTML image pipeline ──────────────────────────────────────────────────────
+
+async function buildSlipConfig(): Promise<PaymentSlipConfig> {
+    const config = loadThermalConfig();
+    const defaultWidth = PAPER_WIDTH_PX[config.paperSize] ?? 576;
+    const widthPx = config.imageWidth || defaultWidth;
+
+    let dbCompany: Record<string, any> = {};
+    try {
+        dbCompany = await apiClient.get<Record<string, any>>(API_ENDPOINTS.settings.get);
+    } catch (e) {
+        console.warn('[PaymentSlip] Failed to fetch company settings from DB', e);
+    }
+
+    return {
+        businessName: dbCompany.businessName || config.businessName,
+        businessAddress: dbCompany.address || config.businessAddress,
+        businessPhone: dbCompany.phone || config.businessPhone,
+        businessNTN: dbCompany.ntn || config.businessNTN,
+        printWidthPx: widthPx,
+        logoBase64: await fetchLogoBase64(),
+    };
+}
+
+/** Renders the slip to the exact PNG that would be sent to the printer. */
+async function renderSlipPng(data: PaymentSlipData): Promise<{ base64: string; widthPx: number }> {
+    const slipConfig = await buildSlipConfig();
+    const html = buildPaymentSlipHtml(data, slipConfig);
+    const base64 = await renderHtmlToBase64Png(html, { widthPx: slipConfig.printWidthPx });
+    return { base64, widthPx: slipConfig.printWidthPx };
+}
+
+async function buildSlipImageSection(data: PaymentSlipData): Promise<PrintSection> {
+    const { base64, widthPx } = await renderSlipPng(data);
+
+    return {
+        Image: {
+            data: base64,
+            max_width: widthPx,
+            align: 'center',
+            dithering: false,
+            size: 'normal',
+        },
+    };
+}
+
+/** Renders the slip and opens it on screen for inspection / download. */
+async function exportSlipImage(data: PaymentSlipData): Promise<boolean> {
+    const { base64, widthPx } = await renderSlipPng(data);
+    const label = `${data.docTitle.toLowerCase().replace(/\s+/g, '-')}-${data.docNo}`;
+    await showReceiptPreview(base64, {
+        title: `${data.docTitle} — ${data.docNoLabel}${data.docNo}`,
+        fileLabel: label,
+        widthPx,
+    });
+    return true;
+}
+
+export async function exportCustomerPaymentImage(data: CustomerPaymentInvoiceData): Promise<boolean> {
+    return exportSlipImage(customerSlipData(data));
+}
+
+export async function exportSupplierPaymentImage(data: SupplierPaymentInvoiceData): Promise<boolean> {
+    return exportSlipImage(supplierSlipData(data));
+}
+
+function customerSlipData(data: CustomerPaymentInvoiceData): PaymentSlipData {
+    const { payment, customer } = data;
+    const { previousBalance, newBalance } = resolveBalances(payment, customer.balance);
+
+    return {
+        docTitle: 'PAYMENT RECEIPT',
+        docNoLabel: 'Receipt #',
+        docNo: String(payment.id),
+        date: payment.date,
+        partyLabel: 'Customer',
+        partyName: customer.name,
+        partyPhone: customer.phone,
+        partyAddress: customer.address,
+        amountLabel: 'Amount Received',
+        amount: payment.amount,
+        accountName: payment.account?.name,
+        paymentType: payment.type,
+        note: payment.note,
+        previousBalance,
+        newBalance,
+        signLeft: 'Received By',
+        signRight: 'Customer Signature',
+        footerLine: 'Thank you for your payment!',
+    };
+}
+
+function supplierSlipData(data: SupplierPaymentInvoiceData): PaymentSlipData {
+    const { payment, supplier } = data;
+    const { previousBalance, newBalance } = resolveBalances(payment, supplier.balance);
+
+    return {
+        docTitle: 'PAYMENT VOUCHER',
+        docNoLabel: 'Voucher #',
+        docNo: String(payment.id),
+        date: payment.date,
+        partyLabel: 'Supplier',
+        partyName: supplier.name,
+        partyPhone: supplier.phone,
+        partyAddress: supplier.address,
+        amountLabel: 'Amount Paid',
+        amount: payment.amount,
+        accountName: payment.account?.name,
+        paymentType: payment.type,
+        note: payment.note,
+        previousBalance,
+        newBalance,
+        signLeft: 'Paid By',
+        signRight: 'Supplier Signature',
+        footerLine: 'Payment Record',
+    };
+}
+
+// ─── Native ESC/POS fallback ──────────────────────────────────────────────────
+
+/** Column widths for the two-column native table, scaled to the configured width. */
+function nativeColWidths(): number[] {
+    const config = loadThermalConfig();
+    const is80mm = config.paperSize === 'Mm80';
+    const defaultWidth = is80mm ? 48 : 32;
+    const width = config.nativeColumns || defaultWidth;
+
+    let colWidths = is80mm ? [32, 16] : [20, 12];
+    if (config.nativeColumns) {
+        const ratio = width / defaultWidth;
+        colWidths = colWidths.map(w => Math.max(1, Math.floor(w * ratio)));
+        const diff = width - colWidths.reduce((a, b) => a + b, 0);
+        if (diff !== 0) colWidths[0] += diff; // Adjust label column
+    }
+    return colWidths;
 }
 
 export function buildCustomerPaymentSections(data: CustomerPaymentInvoiceData): PrintSection[] {
@@ -45,38 +213,22 @@ export function buildCustomerPaymentSections(data: CustomerPaymentInvoiceData): 
     sections.push(line('-'));
 
     // Payment details
-    const is80mm = config.paperSize === 'Mm80';
-    const defaultWidth = is80mm ? 48 : 32;
-    const width = config.nativeColumns || defaultWidth;
-    const ratio = width / defaultWidth;
-
-    let colWidths = is80mm ? [32, 16] : [20, 12];
-    if (config.nativeColumns) {
-        colWidths = colWidths.map(w => Math.max(1, Math.floor(w * ratio)));
-        const sum = colWidths.reduce((a, b) => a + b, 0);
-        const diff = width - sum;
-        if (diff !== 0) {
-            colWidths[0] += diff; // Adjust label column
-        }
-    }
-
     const body = [
         [cell('Amount Received:'), cell(fmt(payment.amount), 'right')],
     ];
     if (payment.account) {
         body.push([cell('Account:'), cell(payment.account.name)]);
     }
-    sections.push(table(2, body, colWidths));
+    sections.push(table(2, body, nativeColWidths()));
 
     sections.push(line('='));
     sections.push(textCenter(`AMOUNT: ${fmt(payment.amount)}`, true));
     sections.push(line('='));
 
     // Balance
-    const pBalance = payment.previousBalance !== undefined ? payment.previousBalance : (customer.balance + payment.amount);
-    const cBalance = payment.newBalance !== undefined ? payment.newBalance : customer.balance;
-    sections.push(textLeft(`Previous Balance: ${fmt(pBalance)}`));
-    sections.push(textLeft(`Current Balance: ${fmt(cBalance)}`));
+    const { previousBalance, newBalance } = resolveBalances(payment, customer.balance);
+    sections.push(textLeft(`Previous Balance: ${fmt(previousBalance)}`));
+    sections.push(textLeft(`${newBalance < 0 ? 'Advance Balance' : 'Balance Due'}: ${fmt(Math.abs(newBalance))}`, true));
 
     if (payment.note) {
         sections.push(textLeft(`Note: ${payment.note}`));
@@ -113,36 +265,22 @@ export function buildSupplierPaymentSections(data: SupplierPaymentInvoiceData): 
     sections.push(line('-'));
 
     // Payment details
-    const is80mm = config.paperSize === 'Mm80';
-    const defaultWidth = is80mm ? 48 : 32;
-    const width = config.nativeColumns || defaultWidth;
-    const ratio = width / defaultWidth;
-
-    let colWidths = is80mm ? [32, 16] : [20, 12];
-    if (config.nativeColumns) {
-        colWidths = colWidths.map(w => Math.max(1, Math.floor(w * ratio)));
-        const sum = colWidths.reduce((a, b) => a + b, 0);
-        const diff = width - sum;
-        if (diff !== 0) {
-            colWidths[0] += diff; // Adjust label column
-        }
-    }
-
     const body = [
         [cell('Amount Paid:'), cell(fmt(payment.amount), 'right')],
     ];
     if (payment.account) {
         body.push([cell('Account:'), cell(payment.account.name)]);
     }
-    sections.push(table(2, body, colWidths));
+    sections.push(table(2, body, nativeColWidths()));
 
     sections.push(line('='));
     sections.push(textCenter(`AMOUNT: ${fmt(payment.amount)}`, true));
     sections.push(line('='));
 
     // Balance
-    sections.push(textLeft(`Previous Balance: ${fmt(supplier.balance + payment.amount)}`));
-    sections.push(textLeft(`Current Balance: ${fmt(supplier.balance)}`));
+    const { previousBalance, newBalance } = resolveBalances(payment, supplier.balance);
+    sections.push(textLeft(`Previous Balance: ${fmt(previousBalance)}`));
+    sections.push(textLeft(`${newBalance < 0 ? 'Advance Balance' : 'Balance Due'}: ${fmt(Math.abs(newBalance))}`, true));
 
     if (payment.note) {
         sections.push(textLeft(`Note: ${payment.note}`));
@@ -156,6 +294,8 @@ export function buildSupplierPaymentSections(data: SupplierPaymentInvoiceData): 
     return sections;
 }
 
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 export function buildCustomerPaymentJob(data: CustomerPaymentInvoiceData): PrintJobRequest {
     return buildPrintJob(buildCustomerPaymentSections(data));
 }
@@ -165,9 +305,35 @@ export function buildSupplierPaymentJob(data: SupplierPaymentInvoiceData): Print
 }
 
 export async function printCustomerPayment(data: CustomerPaymentInvoiceData): Promise<boolean> {
-    return printDocument(buildCustomerPaymentJob(data));
+    const config = loadThermalConfig();
+    if (config.exportInsteadOfPrint) {
+        return exportCustomerPaymentImage(data);
+    }
+    if (config.invoiceMode === 'native') {
+        return printDocument(buildCustomerPaymentJob(data));
+    }
+    try {
+        const section = await buildSlipImageSection(customerSlipData(data));
+        return await printDocument(buildPrintJob([section, feed(3)]));
+    } catch (err) {
+        console.warn('[PaymentSlip] HTML render failed, falling back to text mode:', err);
+        return printDocument(buildCustomerPaymentJob(data));
+    }
 }
 
 export async function printSupplierPayment(data: SupplierPaymentInvoiceData): Promise<boolean> {
-    return printDocument(buildSupplierPaymentJob(data));
+    const config = loadThermalConfig();
+    if (config.exportInsteadOfPrint) {
+        return exportSupplierPaymentImage(data);
+    }
+    if (config.invoiceMode === 'native') {
+        return printDocument(buildSupplierPaymentJob(data));
+    }
+    try {
+        const section = await buildSlipImageSection(supplierSlipData(data));
+        return await printDocument(buildPrintJob([section, feed(3)]));
+    } catch (err) {
+        console.warn('[PaymentSlip] HTML render failed, falling back to text mode:', err);
+        return printDocument(buildSupplierPaymentJob(data));
+    }
 }

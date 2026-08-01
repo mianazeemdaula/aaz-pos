@@ -15,6 +15,7 @@ import type {
 // ---- Accounts ----
 export const accountService = {
   list: (params?: object) => apiClient.get<PaginatedResponse<Account>>(API_ENDPOINTS.accounts.list, { params }),
+  getNextCode: (type: string) => apiClient.get<{ code: string }>(API_ENDPOINTS.accounts.nextCode, { params: { type } }),
   create: (data: Partial<Account>) => apiClient.post<Account>(API_ENDPOINTS.accounts.create, data),
   update: (id: number, data: Partial<Account>) => apiClient.put<Account>(API_ENDPOINTS.accounts.update(id), data),
   delete: (id: number) => apiClient.delete(API_ENDPOINTS.accounts.delete(id)),

@@ -13,28 +13,38 @@ type Tab = 'expenses' | 'recurring';
 
 export function Expenses() {
   const [tab, setTab] = useState<Tab>('expenses');
+  const [addTrigger, setAddTrigger] = useState(0);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Expenses</h1>
-        <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
-          <button onClick={() => setTab('expenses')}
-            className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium ${tab === 'expenses' ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
-            Expenses
-          </button>
-          <button onClick={() => setTab('recurring')}
-            className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium ${tab === 'recurring' ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
-            Recurring
+        <div className="flex items-center gap-3">
+          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+            <button onClick={() => setTab('expenses')}
+              className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium ${tab === 'expenses' ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
+              Expenses
+            </button>
+            <button onClick={() => setTab('recurring')}
+              className={`px-4 py-1.5 text-sm rounded-md transition-all font-medium ${tab === 'recurring' ? 'bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
+              Recurring
+            </button>
+          </div>
+          <button
+            onClick={() => setAddTrigger(p => p + 1)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg"
+          >
+            <Plus size={14} /> {tab === 'expenses' ? 'Add Expense' : 'Add Recurring'}
           </button>
         </div>
       </div>
-      {tab === 'expenses' ? <ExpensesList /> : <RecurringList />}
+      {tab === 'expenses' ? <ExpensesList addTrigger={addTrigger} /> : <RecurringList addTrigger={addTrigger} />}
     </div>
   );
 }
 
 // ═══ Regular Expenses ═══
-function ExpensesList() {
+function ExpensesList({ addTrigger }: { addTrigger: number }) {
   const [items, setItems] = useState<Expense[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -53,6 +63,13 @@ function ExpensesList() {
   }, [q, page]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (addTrigger > 0) {
+      setForm({ amount: 0, date: new Date().toISOString().slice(0, 10) });
+      setModal({ mode: 'add' });
+    }
+  }, [addTrigger]);
 
   const save = async () => {
     setSaving(true);
@@ -75,11 +92,6 @@ function ExpensesList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Expenses</h1>
-        <button onClick={() => { setForm({ amount: 0, date: new Date().toISOString().slice(0, 10) }); setModal({ mode: 'add' }); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg"><Plus size={14} /> Add Expense</button>
-      </div>
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
           <div className="relative">
@@ -159,7 +171,7 @@ const FREQ_BADGE: Record<string, string> = { DAILY: 'bg-purple-100 text-purple-7
 type RecFormState = { name: string; description: string; category: string; amount: number; frequency: RecurringExpense['frequency']; startDate: string; endDate: string; active: boolean; accountId: number | undefined; };
 const defaultRecForm = (): RecFormState => ({ name: '', description: '', category: '', amount: 0, frequency: 'MONTHLY', startDate: new Date().toISOString().slice(0, 10), endDate: '', active: true, accountId: undefined });
 
-function RecurringList() {
+function RecurringList({ addTrigger }: { addTrigger: number }) {
   const [items, setItems] = useState<RecurringExpense[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -186,7 +198,13 @@ function RecurringList() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { accountService.list({ pageSize: 200 }).then(r => setAccounts(r.data)).catch(() => { }); }, []);
 
-  const openAdd = () => { setForm(defaultRecForm()); setModal({ mode: 'add' }); };
+  const openAdd = useCallback(() => { setForm(defaultRecForm()); setModal({ mode: 'add' }); }, []);
+
+  useEffect(() => {
+    if (addTrigger > 0) {
+      openAdd();
+    }
+  }, [addTrigger, openAdd]);
   const openEdit = (item: RecurringExpense) => {
     setForm({ name: item.name, description: item.description ?? '', category: item.category, amount: item.amount, frequency: item.frequency, startDate: item.startDate?.toString().slice(0, 10) ?? '', endDate: item.endDate?.toString().slice(0, 10) ?? '', active: item.active, accountId: item.accountId ?? undefined });
     setModal({ mode: 'edit', item });
@@ -211,9 +229,6 @@ function RecurringList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        <button onClick={openAdd} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg"><Plus size={14} /> Add</button>
-      </div>
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
         <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex gap-2 flex-wrap">
           <div className="relative flex-1 min-w-45">

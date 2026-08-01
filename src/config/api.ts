@@ -43,6 +43,7 @@ export const API_ENDPOINTS = {
     accounts: {
         list: '/accounts',
         create: '/accounts',
+        nextCode: '/accounts/next-code',
         detail: (id: number) => `/accounts/${id}`,
         update: (id: number) => `/accounts/${id}`,
         delete: (id: number) => `/accounts/${id}`,

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { customerService, dataService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { formatPhone, handleCNICInput, handlePhoneInput } from '../utils/formatters';
+import { formatPhone, handleCNICInput, handlePhoneInput, formatCNIC } from '../utils/formatters';
 import type { Customer } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -102,34 +102,52 @@ export function Customers() {
         {loading ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
           : items.length === 0 ? <p className="text-center text-gray-400 py-12 text-sm">No customers found</p>
             : (
-              <table className="w-full text-sm">
-                <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
-                  <th className="px-4 py-2">Name</th><th className="px-4 py-2">Phone</th><th className="px-4 py-2">City</th>
-                  <th className="px-4 py-2">NTN</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2">Actions</th>
-                </tr></thead>
-                <tbody>
-                  {items.map(item => (
-                    <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                      <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{formatPhone(item.phone)}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{item.city ?? '—'}</td>
-                      <td className="px-4 py-2.5 text-gray-500">{item.ntn ?? '—'}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        <span className={`text-xs font-medium ${item.balance > 0 ? 'text-red-600' : item.balance < 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                          {item.balance !== 0 ? fmt(Math.abs(item.balance)) : 'Clear'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <div className="flex gap-1">
-                          <button onClick={() => navigate(`/customers/${item.id}`)} className="p-1.5 rounded-lg text-violet-500 bg-violet-50 hover:bg-violet-100 dark:text-violet-400 dark:bg-violet-500/10 dark:hover:bg-violet-500/20 transition-colors"><Eye size={14} /></button>
-                          <button onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
-                          <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
+                      <th className="px-4 py-2">Name</th>
+                      <th className="px-4 py-2">Phone</th>
+                      <th className="px-4 py-2">Email</th>
+                      <th className="px-4 py-2">CNIC</th>
+                      <th className="px-4 py-2">NTN</th>
+                      <th className="px-4 py-2">City</th>
+                      <th className="px-4 py-2">Address</th>
+                      <th className="px-4 py-2 text-right">Credit Limit</th>
+                      <th className="px-4 py-2 text-right">Balance</th>
+                      <th className="px-4 py-2">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {items.map(item => (
+                      <tr key={item.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <td className="px-4 py-2.5 font-medium text-gray-900 dark:text-gray-100">{item.name}</td>
+                        <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{formatPhone(item.phone)}</td>
+                        <td className="px-4 py-2.5 text-gray-500">{item.email ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-500 font-mono text-xs whitespace-nowrap">{formatCNIC(item.cnic)}</td>
+                        <td className="px-4 py-2.5 text-gray-500">{item.ntn ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-500">{item.city ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{item.address ?? '—'}</td>
+                        <td className="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap">
+                          {item.creditLimit ? fmt(item.creditLimit) : '—'}
+                        </td>
+                        <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                          <span className={`text-xs font-medium ${item.balance > 0 ? 'text-red-600' : item.balance < 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                            {item.balance !== 0 ? fmt(Math.abs(item.balance)) : 'Clear'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex gap-1">
+                            <button onClick={() => navigate(`/customers/${item.id}`)} className="p-1.5 rounded-lg text-violet-500 bg-violet-50 hover:bg-violet-100 dark:text-violet-400 dark:bg-violet-500/10 dark:hover:bg-violet-500/20 transition-colors"><Eye size={14} /></button>
+                            <button onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
+                            <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
         {totalPages > 1 && (
           <Pagination currentPage={page} totalPages={totalPages} totalItems={total} itemsPerPage={PAGE_SIZE} onPageChange={setPage} />

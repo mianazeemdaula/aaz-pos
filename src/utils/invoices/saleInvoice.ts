@@ -17,6 +17,7 @@ import { buildSaleInvoiceSections as buildLegacySections } from './saleInvoiceLe
 import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
 import { buildFbrCompositeBase64 } from './fbrComposite';
+import { showReceiptPreview } from './receiptExport';
 
 // Paper width in pixels for each supported paper size
 const PAPER_WIDTH_PX: Record<string, number> = {
@@ -57,9 +58,52 @@ export interface SaleInvoiceData {
     fbrQrUrl?: string | null;
 }
 
+// ─── Customer credit resolution ───────────────────────────────────────────────
+
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/**
+ * Fills in `previousBalance` / `newBalance` on the invoice's customer so the
+ * receipt can always print the credit summary.
+ *
+ * The server balance is authoritative and already reflects this sale, so it is
+ * taken as the closing balance and the opening balance is derived from the
+ * amount left unpaid on this bill. Falls back to the customer snapshot held in
+ * memory (which is pre-sale) if the lookup fails.
+ */
+async function resolveCustomerBalances(data: SaleInvoiceData): Promise<SaleInvoiceData> {
+    const c = data.customer;
+    if (!c) return data;
+    if (c.previousBalance !== undefined && c.newBalance !== undefined) return data;
+
+    const dueOnThisBill = round2(data.grandTotal - data.paidAmount);
+
+    let newBalance = c.newBalance;
+    if (newBalance === undefined) {
+        try {
+            const fresh = await apiClient.get<Customer>(API_ENDPOINTS.customers.detail(c.id));
+            newBalance = fresh.balance;
+        } catch (e) {
+            console.warn('[SaleInvoice] Could not fetch customer balance, using snapshot', e);
+            newBalance = round2((c.balance ?? 0) + dueOnThisBill);
+        }
+    }
+
+    const previousBalance = c.previousBalance ?? round2(newBalance - dueOnThisBill);
+
+    return { ...data, customer: { ...c, previousBalance, newBalance } };
+}
+
 // ─── HTML image pipeline ──────────────────────────────────────────────────────
 
-async function buildSaleInvoiceImageSection(data: SaleInvoiceData): Promise<PrintSection> {
+/**
+ * Renders the invoice to the exact PNG that would be sent to the printer.
+ * Shared by the print path and the image-export / preview path.
+ */
+export async function renderSaleInvoicePng(
+    input: SaleInvoiceData,
+): Promise<{ base64: string; widthPx: number }> {
+    const data = await resolveCustomerBalances(input);
     const config = loadThermalConfig();
     const defaultWidth = PAPER_WIDTH_PX[config.paperSize] ?? 560;
     const widthPx = config.imageWidth || defaultWidth;
@@ -90,14 +134,19 @@ async function buildSaleInvoiceImageSection(data: SaleInvoiceData): Promise<Prin
         businessPhone: dbCompany.phone || config.businessPhone,
         businessNTN: dbCompany.ntn || config.businessNTN,
         printWidthPx: widthPx,
-        language: 'both',
         logoBase64,
         fbrCompositeBase64,
         invoiceNote: dbCompany.invoiceNote,
     };
 
     const html = buildInvoiceHtml(data, htmlConfig);
-    const base64 = await renderHtmlToBase64Png(html, { widthPx, scale: 1 });
+    const base64 = await renderHtmlToBase64Png(html, { widthPx });
+
+    return { base64, widthPx };
+}
+
+async function buildSaleInvoiceImageSection(input: SaleInvoiceData): Promise<PrintSection> {
+    const { base64, widthPx } = await renderSaleInvoicePng(input);
 
     return {
         Image: {
@@ -108,6 +157,22 @@ async function buildSaleInvoiceImageSection(data: SaleInvoiceData): Promise<Prin
             size: 'normal',
         },
     };
+}
+
+/**
+ * Renders the invoice and opens it on screen for inspection / download instead
+ * of printing it. Used by the "export image" test mode and by explicit
+ * "preview" actions in the UI.
+ */
+export async function exportSaleInvoiceImage(input: SaleInvoiceData): Promise<boolean> {
+    const { base64, widthPx } = await renderSaleInvoicePng(input);
+    const label = input.sale.invoiceNumber ?? `sale-invoice-${input.sale.id}`;
+    await showReceiptPreview(base64, {
+        title: `Sale Invoice — ${label}`,
+        fileLabel: label,
+        widthPx,
+    });
+    return true;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -127,7 +192,8 @@ export async function buildSaleInvoiceJob(data: SaleInvoiceData): Promise<PrintJ
  * Falls back to the legacy ESC/POS text mode if image rendering fails,
  * or immediately uses native mode if configured.
  */
-export async function printSaleInvoice(data: SaleInvoiceData): Promise<boolean> {
+export async function printSaleInvoice(input: SaleInvoiceData): Promise<boolean> {
+    const data = await resolveCustomerBalances(input);
     const config = loadThermalConfig();
 
     // Fetch fresh company settings from DB to get STRN, NTN and invoiceNote
@@ -139,6 +205,11 @@ export async function printSaleInvoice(data: SaleInvoiceData): Promise<boolean> 
     }
 
     const invoiceNote = dbCompany.invoiceNote;
+
+    // Test mode — show the rendered image instead of sending it to the printer.
+    if (config.exportInsteadOfPrint) {
+        return exportSaleInvoiceImage(data);
+    }
 
     if (config.invoiceMode === 'native') {
         const sections = await buildLegacySections(data, invoiceNote);

@@ -160,6 +160,7 @@ export interface Sale {
     taxAmount: number;
     taxInvoiceId?: string | null;
     invoiceNumber?: string | null;
+    note?: string | null;
     grandTotal?: number;
     parentSaleId?: number | null;
     parentSale?: Sale | null;
@@ -203,6 +204,7 @@ export interface Purchase {
     discount: number;
     taxAmount: number;
     expenses: number;
+    note?: string | null;
     grandTotal?: number;
     parentPurchaseId?: number | null;
     parentPurchase?: Purchase | null;

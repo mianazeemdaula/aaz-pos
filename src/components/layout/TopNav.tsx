@@ -5,6 +5,7 @@ import {
     UserCheck, Receipt, TrendingDown, Wallet, BarChart3, Settings as SettingsIcon,
     ChevronDown, LogOut, User, Tag, Bookmark, RefreshCw, Gift, Pause,
     Sliders, CalendarCheck, Printer, KeyRound, Menu, X, Sun, Moon, Monitor,
+    Building2, ShieldCheck, Database,
 } from 'lucide-react';
 
 import { useAuth, useGlobalSettings, useTheme } from '../../contexts';
@@ -86,8 +87,13 @@ export const NAV: NavEntry[] = [
     },
     {
         kind: 'menu', label: 'Setup', icon: SettingsIcon, items: [
+            { label: 'Business Profile', icon: Building2, path: '/settings/company', perm: 'settings' },
+            { label: 'Thermal Printer', icon: Printer, path: '/settings/thermal' },
+            { label: 'FBR Fiscal Gateway', icon: ShieldCheck, path: '/settings/fbr' },
+            { label: 'Sales & Inventory Rules', icon: ShoppingCart, path: '/settings/sales', perm: 'settings' },
+            { label: 'Database Backup', icon: Database, path: '/settings/database', perm: 'settings' },
+            { label: 'User Permissions', icon: Users, path: '/settings/user-permissions', perm: 'settings' },
             { label: 'Users', icon: User, path: '/users', perm: 'users' },
-            { label: 'Settings', icon: SettingsIcon, path: '/settings', perm: 'settings' },
         ],
     },
 ];

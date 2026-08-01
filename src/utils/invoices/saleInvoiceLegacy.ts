@@ -170,26 +170,31 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
         }
     }
 
-    // Customer Ledger Section
-    const showLedger = data.customer &&
-        (data.customer.previousBalance !== undefined || data.customer.newBalance !== undefined) &&
-        (data.customer.previousBalance !== 0 || data.customer.newBalance !== 0 || data.paidAmount < data.grandTotal);
+    // Customer credit section — always printed when a customer is on the bill
+    if (data.customer) {
+        const prev = data.customer.previousBalance ?? 0;
+        const closing = data.customer.newBalance ?? prev + (data.grandTotal - data.paidAmount);
 
-    if (showLedger) {
         sections.push(printLine('-'));
-        sections.push(textCenter('LEDGER SUMMARY', true));
+        sections.push(textCenter('CUSTOMER ACCOUNT', true));
         sections.push(textLeft(
-            'Prev Balance:'.padStart(labelWidth) + fmt(data.customer?.previousBalance ?? 0).padStart(valWidth)
+            'Previous Balance:'.padStart(labelWidth) + fmt(prev).padStart(valWidth)
         ));
         sections.push(textLeft(
-            'This Bill:'.padStart(labelWidth) + fmt(data.grandTotal).padStart(valWidth)
+            'This Invoice:'.padStart(labelWidth) + fmt(data.grandTotal).padStart(valWidth)
         ));
         sections.push(textLeft(
-            'Paid Amount:'.padStart(labelWidth) + fmt(data.paidAmount).padStart(valWidth)
+            'Paid Now:'.padStart(labelWidth) + fmt(data.paidAmount).padStart(valWidth)
         ));
+        if ((data.customer.creditLimit ?? 0) > 0) {
+            sections.push(textLeft(
+                'Credit Limit:'.padStart(labelWidth) + fmt(data.customer.creditLimit!).padStart(valWidth)
+            ));
+        }
         sections.push(printLine('-'));
         sections.push(textLeft(
-            'New Balance:'.padStart(labelWidth) + fmt(data.customer?.newBalance ?? 0).padStart(valWidth),
+            (closing < 0 ? 'Advance Balance:' : 'Balance Due:').padStart(labelWidth) +
+            fmt(Math.abs(closing)).padStart(valWidth),
             true
         ));
         sections.push(printLine('-'));
@@ -204,6 +209,11 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
         });
         sections.push(feed(1));
         sections.push(textCenter(`FBR #: ${fbrId}`, true));
+    }
+
+    if (data.sale.note) {
+        sections.push(printLine('-'));
+        sections.push(textLeft(`Note: ${data.sale.note}`));
     }
 
     // Footer

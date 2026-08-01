@@ -53,6 +53,11 @@ const ROUTE_PERMISSION_MAP: Record<string, PermissionModule> = {
  * progressively strips trailing segments.
  */
 function resolvePermission(pathname: string): PermissionModule | undefined {
+  // Printer & FBR settings are accessible to all authenticated user roles
+  if (pathname === '/settings/thermal' || pathname === '/settings/fbr') {
+    return undefined;
+  }
+
   // 1. Exact match
   if (ROUTE_PERMISSION_MAP[pathname]) return ROUTE_PERMISSION_MAP[pathname];
 

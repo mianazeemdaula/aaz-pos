@@ -27,6 +27,12 @@ export { HeldTransactions } from './HeldTransactions';
 export { Promotions } from './Promotions';
 export { StockAdjustments } from './StockAdjustments';
 export { Settings } from './Settings';
+export { CompanySettings } from './settings/CompanySettings';
+export { ThermalSettings } from './settings/ThermalSettings';
+export { FbrSettings } from './settings/FbrSettings';
+export { SalesSettings } from './settings/SalesSettings';
+export { DatabaseSettings } from './settings/DatabaseSettings';
+export { UserPermissionsSettings } from './settings/UserPermissionsSettings';
 export { AdvanceBookings } from './AdvanceBookings';
 export { PrintLabels } from './PrintLabels';
 

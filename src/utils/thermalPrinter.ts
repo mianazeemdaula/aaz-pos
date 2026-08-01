@@ -69,6 +69,11 @@ export interface ThermalPrinterConfig {
     invoiceMode: 'html' | 'native'; // HTML image pipeline vs ESC/POS text
     imageWidth?: number; // Custom print width in pixels (e.g. 512 or 504 for Bixolon 180dpi)
     nativeColumns?: number; // Custom native characters per line (e.g. 42 for Bixolon Font A)
+    /**
+     * Test mode: render the receipt image and show it on screen for download
+     * instead of sending it to the printer. HTML pipeline only.
+     */
+    exportInsteadOfPrint?: boolean;
 }
 
 const THERMAL_CONFIG_KEY = 'thermal_printer_config';

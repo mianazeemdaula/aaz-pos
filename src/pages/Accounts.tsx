@@ -135,6 +135,31 @@ export function Accounts() {
     }
   };
 
+  const fetchAutoAccountCode = async (accountType: string) => {
+    try {
+      const res: any = await accountService.getNextCode(accountType);
+      const code = res?.code || res?.data?.code;
+      if (code) {
+        setForm(prev => ({ ...prev, code }));
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const openAddModal = (type: Account['type'] = 'ASSET') => {
+    setForm({ type, balance: 0, code: '' });
+    setModal({ mode: 'add' });
+    fetchAutoAccountCode(type);
+  };
+
+  const handleTypeChange = (type: Account['type']) => {
+    setForm(prev => ({ ...prev, type }));
+    if (modal?.mode === 'add') {
+      fetchAutoAccountCode(type);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -144,7 +169,7 @@ export function Accounts() {
             className="flex items-center gap-1.5 px-3 py-1.5 border border-primary-300 dark:border-primary-700 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-sm rounded-lg">
             <ArrowRightLeft size={14} /> Transfer
           </button>
-          <button onClick={() => { setForm({ type: 'ASSET', balance: 0 }); setModal({ mode: 'add' }); }}
+          <button onClick={() => openAddModal('ASSET')}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
             <Plus size={14} /> Add Account
           </button>
@@ -276,11 +301,19 @@ export function Accounts() {
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.mode === 'edit' ? 'Edit Account' : 'Add Account'} size="sm">
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Account Code *</label>
-              <input value={form.code ?? ''} onChange={e => setForm(p => ({ ...p, code: e.target.value }))} placeholder="e.g. 1001"
-                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
-            <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Type</label>
-              <select value={form.type ?? 'ASSET'} onChange={e => setForm(p => ({ ...p, type: e.target.value as Account['type'] }))}
+            <div>
+              <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">
+                Account Code <span className="text-gray-400 text-[10px] font-normal">(Auto)</span>
+              </label>
+              <input
+                value={form.code ?? ''}
+                readOnly
+                placeholder="Auto-generating..."
+                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-mono cursor-not-allowed outline-none select-none"
+              />
+            </div>
+            <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Type *</label>
+              <select value={form.type ?? 'ASSET'} onChange={e => handleTypeChange(e.target.value as Account['type'])}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none">
                 <option value="ASSET">Asset</option><option value="LIABILITY">Liability</option><option value="EQUITY">Equity</option><option value="INCOME">Income</option><option value="EXPENSE">Expense</option>
               </select>
@@ -288,6 +321,7 @@ export function Accounts() {
           </div>
           <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Account Name *</label>
             <input value={form.name ?? ''} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+              placeholder="e.g. Petty Cash, Office Supplies"
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
           {modal?.mode === 'add' && (
             <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Opening Balance</label>
@@ -296,7 +330,7 @@ export function Accounts() {
           )}
           <div className="flex justify-end gap-2 pt-2">
             <button onClick={() => setModal(null)} className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">Cancel</button>
-            <button onClick={save} disabled={saving || !form.name || !form.code} className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
+            <button onClick={save} disabled={saving || !form.name} className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5">
               {saving && <Loader2 size={13} className="animate-spin" />} Save
             </button>
           </div>

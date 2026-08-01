@@ -558,6 +558,7 @@ export function usePurchaseLogic() {
           discount: invoiceDiscount,
           taxAmount: invoiceTax,
           expenses: invoiceExpenses,
+          note: note || undefined,
           date: new Date().toISOString(),
           createdAt: new Date().toISOString(),
         },

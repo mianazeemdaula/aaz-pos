@@ -3,26 +3,29 @@
  * Builds a styled HTML string for the sale invoice.
  * Rendered off-screen and captured as an image via html2canvas.
  *
+ * Typography and layout primitives live in ./receiptTheme — everything is sized
+ * in `rem` off a width-derived root size, so 80mm and 58mm receipts stay
+ * proportional. Small, dense type; pure black on white for a crisp thermal burn.
+ *
+ * English only — the receipt was previously bilingual, but the interleaved
+ * Urdu made every label read as two competing phrases and the Nastaliq script
+ * is illegible at thermal resolutions.
+ *
  * Uses Windows system fonts — zero network requests, instant rendering:
- *  - "Segoe UI"               — UI labels      (Windows 7+ built-in)
- *  - "Consolas"               — numbers / IDs  (Windows 7+ built-in)
- *  - "Noto Nastaliq Urdu"     — Urdu text      (Windows 8.1+ built-in)
- *  - "Jameel Noori Nastaleeq" — Urdu fallback  (Windows 7+)
+ *  - Arial / Segoe UI          — labels
+ *  - Consolas                  — numbers / IDs
  */
 
 import type { SaleInvoiceData } from './saleInvoice';
+import {
+    receiptBaseCss,
+    escHtml,
+    fmtAmount,
+    fmtDateTime,
+    amountInWords,
+} from './receiptTheme';
 
-const fmt = (n: number) =>
-    n.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-
-const fmtDate = (d: string) => {
-    const dt = new Date(d);
-    return (
-        dt.toLocaleDateString('en-PK') +
-        '  ' +
-        dt.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit' })
-    );
-};
+const fmt = fmtAmount;
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -31,14 +34,12 @@ export interface HtmlInvoiceConfig {
     businessAddress?: string;
     businessPhone?: string;
     businessNTN?: string;
-    /** Width in px — 560 for 80mm, 384 for 58mm */
+    /** Width in px — 576 for 80mm, 384 for 58mm */
     printWidthPx: number;
     /** Optional base64 logo */
     logoBase64?: string;
     /** Optional base64 FBR composite logo + QR */
     fbrCompositeBase64?: string;
-    /** Language mode for the footer / labels */
-    language?: 'en' | 'ur' | 'both';
     /** Optional custom invoice note printed at footer */
     invoiceNote?: string;
 }
@@ -53,44 +54,18 @@ const EN = {
     customer: 'Customer',
     phone: 'Phone',
     qty: 'Qty',
-    item: 'Item / Description',
-    price: 'Unit Price',
+    item: 'Description',
+    price: 'Rate',
     total: 'Amount',
     subtotal: 'Subtotal',
     discount: 'Discount',
     tax: 'Tax',
-    grandTotal: 'GRAND TOTAL',
+    grandTotal: 'Total',
     paid: 'Paid',
     change: 'Change',
     fbrLabel: 'FBR Invoice #',
     footer: 'Thank you for your purchase!',
 };
-
-const UR = {
-    invoice: 'سیل انوائس',
-    invoiceNo: 'انوائس نمبر',
-    date: 'تاریخ',
-    cashier: 'کیشئر',
-    customer: 'گاہک',
-    phone: 'فون',
-    qty: 'مقدار',
-    item: 'اشیاء',
-    price: 'قیمت',
-    total: 'کل',
-    subtotal: 'ذیلی کل',
-    discount: 'رعایت',
-    tax: 'ٹیکس',
-    grandTotal: 'کل رقم',
-    paid: 'ادا کردہ',
-    change: 'واپسی',
-    fbrLabel: 'ایف بی آر',
-    footer: '!خریداری کا شکریہ',
-};
-
-function getLabels(lang: 'en' | 'ur' | 'both') {
-    if (lang === 'ur') return UR;
-    return EN; // both: EN primary
-}
 
 // ─── Main Builder ─────────────────────────────────────────────────────────────
 
@@ -98,73 +73,85 @@ export function buildInvoiceHtml(
     data: SaleInvoiceData,
     config: HtmlInvoiceConfig,
 ): string {
-    const lang = config.language ?? 'en';
-    const L = getLabels(lang);
-    const showUrdu = lang === 'ur' || lang === 'both';
+    const L = EN;
     const w = config.printWidthPx;
     const fbrId = data.fbrInvoiceId || data.sale.taxInvoiceId;
 
     // ── Discount column — only render if at least one item has a discount ──
     const hasDiscount = data.items.some(i => i.discount > 0);
-    const discColWidth = w < 450 ? 48 : 60;
-    const priceColWidth = w < 450 ? 60 : 72;
-    const totalColWidth = w < 450 ? 60 : 72;
+
+    // Percentage widths keep the grid identical at 80mm and 58mm.
+    const wQty = 8;
+    const wDisc = hasDiscount ? 15 : 0;
+    const wRate = 17;
+    const wAmt = 20;
+    const wName = 100 - wQty - wDisc - wRate - wAmt;
 
     // ── Items rows ──
     const itemRows = data.items
-        .map((item, idx) => {
-            const rowBg = idx % 2 === 0 ? '#ffffff' : '#f5f5f5';
+        .map(item => {
             const discCell = hasDiscount
-                ? `<td class="td-right mono">${item.discount > 0 ? fmt(item.discount) : ''}</td>`
+                ? `<td class="right mono">${item.discount > 0 ? fmt(item.discount) : '—'}</td>`
                 : '';
             return `
-        <tr style="background:${rowBg};">
-          <td class="td-center mono">${item.qty}</td>
-          <td class="td-left item-name">${escHtml(item.name)}</td>
+        <tr>
+          <td class="center mono">${fmt(item.qty)}</td>
+          <td class="iname">${escHtml(item.name)}</td>
           ${discCell}
-          <td class="td-right mono">${fmt(item.price)}</td>
-          <td class="td-right mono bold">${fmt(item.total)}</td>
+          <td class="right mono">${fmt(item.price)}</td>
+          <td class="right mono b">${fmt(item.total)}</td>
         </tr>`;
         })
         .join('');
 
+    const itemCount = data.items.length;
+    const totalQty = data.items.reduce((a, i) => a + (i.qty || 0), 0);
+
     // ── Totals rows ──
+    // With no discount and no tax the subtotal just restates the grand total,
+    // so the whole block is dropped rather than printed twice.
+    const hasAdjustments = data.discountAmount > 0 || data.taxAmount > 0;
     const totalsRows: string[] = [];
-    totalsRows.push(totalRow(L.subtotal, showUrdu ? UR.subtotal : '', fmt(data.subtotal)));
-    if (data.discountAmount > 0) {
-        totalsRows.push(totalRow(L.discount, showUrdu ? UR.discount : '', `-${fmt(data.discountAmount)}`, '#c0392b'));
-    }
-    if (data.taxAmount > 0) {
-        totalsRows.push(totalRow(L.tax, showUrdu ? UR.tax : '', fmt(data.taxAmount)));
+    if (hasAdjustments) {
+        totalsRows.push(totalRow(L.subtotal, fmt(data.subtotal)));
+        if (data.discountAmount > 0) {
+            totalsRows.push(totalRow(L.discount, `- ${fmt(data.discountAmount)}`));
+        }
+        if (data.taxAmount > 0) {
+            totalsRows.push(totalRow(L.tax, fmt(data.taxAmount)));
+        }
     }
 
     // ── Payment rows ──
+    // Only caption the group when payments are itemised by account; a single
+    // "Paid" line is self-describing and a header above it just reads as a
+    // duplicate.
+    const itemisedPayments = data.sale.payments ?? [];
     let paymentRows = '';
-    if (data.sale.payments && data.sale.payments.length > 0) {
-        paymentRows = data.sale.payments
-            .map(p => {
-                const label = p.account?.name ?? `Account #${p.accountId}`;
-                return payRow(label, fmt(p.amount));
-            })
+    let paymentHeader = '';
+    if (itemisedPayments.length > 0) {
+        paymentHeader = `<div class="group-h">Payment</div>`;
+        paymentRows = itemisedPayments
+            .map(p => payRow(p.account?.name ?? `Account #${p.accountId}`, fmt(p.amount)))
             .join('');
     } else {
-        paymentRows = payRow(showUrdu ? `${L.paid} / ${UR.paid}` : L.paid, fmt(data.paidAmount));
+        paymentRows = payRow(L.paid, fmt(data.paidAmount));
     }
     if (data.changeAmount > 0) {
-        paymentRows += payRow(showUrdu ? `${L.change} / ${UR.change}` : L.change, fmt(data.changeAmount), '#15803d');
+        paymentRows += payRow(L.change, fmt(data.changeAmount));
     }
 
     // ── Cashier ──
     const cashierLabel =
-        data.sale.user?.id ?? (data.sale.userId ? `#${data.sale.userId}` : null);
+        data.sale.user?.name ?? data.sale.user?.id ?? (data.sale.userId ? `#${data.sale.userId}` : null);
 
     // ── FBR section ──
     const fbrSection = fbrId
         ? `
-      <div class="fbr-section">
+      <div class="box fbr">
         ${config.fbrCompositeBase64 ? `
-        <div style="text-align: center; margin-bottom: 8px;">
-          <img src="data:image/png;base64,${config.fbrCompositeBase64}" style="max-width: 100%; height: auto;" alt="FBR Logo & QR"/>
+        <div class="center" style="margin-bottom:0.25rem;">
+          <img src="data:image/png;base64,${config.fbrCompositeBase64}" style="max-width:100%;height:auto;" alt="FBR Logo & QR"/>
         </div>` : ''}
         <div class="fbr-label">${L.fbrLabel}</div>
         <div class="fbr-id mono">${escHtml(fbrId.toString())}</div>
@@ -176,377 +163,137 @@ export function buildInvoiceHtml(
         ? `<img src="data:image/png;base64,${config.logoBase64}" class="logo" alt="logo"/>`
         : '';
 
-    // ── Urdu subtitle ──
-    const urduTitle = showUrdu
-        ? `<span class="urdu-title" dir="rtl">${UR.invoice}</span>`
-        : '';
+    // ── Meta rows ──
+    const metaRows: string[] = [
+        metaRow(`${L.invoiceNo}`, escHtml(data.sale.invoiceNumber ?? `#${data.sale.id}`), true),
+        metaRow(`${L.date}`, fmtDateTime(data.sale.createdAt), true),
+    ];
+    if (cashierLabel) {
+        metaRows.push(metaRow(`${L.cashier}`, escHtml(cashierLabel.toString())));
+    }
+    if (data.customer) {
+        metaRows.push(metaRow(`${L.customer}`, escHtml(data.customer.name)));
+        if (data.customer.phone) {
+            metaRows.push(metaRow(`${L.phone}`, escHtml(data.customer.phone), true));
+        }
+    }
 
-    // ── Customer block ──
-    const customerBlock =
-        data.customer
-            ? `
-        <tr>
-          <td class="meta-label">${L.customer}${showUrdu ? ` / ${UR.customer}` : ''}</td>
-          <td class="meta-value">${escHtml(data.customer.name)}</td>
-        </tr>
-        ${data.customer.phone
-                ? `<tr>
-                <td class="meta-label">${L.phone}${showUrdu ? ` / ${UR.phone}` : ''}</td>
-                <td class="meta-value mono">${escHtml(data.customer.phone)}</td>
-               </tr>`
-                : ''
-            }`
-            : '';
-
-    // ── Table header cells ──
-    const discTh = hasDiscount
-        ? `<th class="td-right" style="width:${discColWidth}px;">${L.discount}</th>`
-        : '';
-
-    // ── Ledger Balance Block ──
-    const showLedger = data.customer && 
-        (data.customer.previousBalance !== undefined || data.customer.newBalance !== undefined) &&
-        (data.customer.previousBalance !== 0 || data.customer.newBalance !== 0 || data.paidAmount < data.grandTotal);
-
-    const ledgerHtml = showLedger
-        ? `
-      <div class="ledger-block">
-        <div style="text-align: center; font-weight: bold; font-size: 11px; color: #475569; border-bottom: 1px dashed #cbd5e1; padding-bottom: 4px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">Customer Ledger Summary</div>
-        <div class="ledger-row">
-          <span class="ledger-label">Previous Balance:</span>
-          <span class="ledger-value">Rs ${fmt(data.customer?.previousBalance ?? 0)}</span>
-        </div>
-        <div class="ledger-row">
-          <span class="ledger-label">This Bill:</span>
-          <span class="ledger-value">Rs ${fmt(data.grandTotal)}</span>
-        </div>
-        <div class="ledger-row">
-          <span class="ledger-label">Paid Amount:</span>
-          <span class="ledger-value">Rs ${fmt(data.paidAmount)}</span>
-        </div>
-        <div class="ledger-row ledger-total-row">
-          <span class="ledger-label" style="font-weight: 700;">Remaining Balance:</span>
-          <span class="ledger-value" style="font-weight: 700; color: #0f172a;">Rs ${fmt(data.customer?.newBalance ?? 0)}</span>
-        </div>
-      </div>`
-        : '';
+    // ── Customer credit / ledger block — always shown when a customer is on the bill ──
+    const ledgerHtml = data.customer ? buildLedgerBlock(data) : '';
 
     return `<!DOCTYPE html>
-<html lang="${lang === 'ur' ? 'ur' : 'en'}" dir="${lang === 'ur' ? 'rtl' : 'ltr'}">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <style>
-    /* ── System font stacks — zero network, instant render ── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      width: ${w}px;
-      background: #ffffff;
-      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
-      font-size: 17px;
-      color: #000000;
-      -webkit-print-color-adjust: exact;
-      line-height: 1.35;
-      -webkit-font-smoothing: none;
-      -moz-osx-font-smoothing: none;
-      font-smoothing: none;
-      text-rendering: optimizeLegibility;
-    }
-
-    .page {
-      width: ${w}px;
-      padding: 10px 8px 30px;
-      background: #ffffff;
-    }
-
-    /* ── Font helpers ── */
-    .mono  { font-family: Consolas, "Courier New", monospace; }
-    .bold  { font-weight: 800; }
-    .urdu  { font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Traditional Arabic", serif; direction: rtl; }
-
-    /* ── Header — light background ── */
-    .header {
-      text-align: center;
-      padding: 12px 12px 10px;
-      border-bottom: 2.5px solid #000000;
-      margin-bottom: 12px;
-    }
-    .logo {
-      display: block;
-      margin: 0 auto 8px;
-      width: 110px;
-      height: 110px;
-      object-fit: contain;
-    }
-    .biz-name {
-      font-size: 23px;
-      font-weight: 800;
-      color: #000000;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    .biz-sub {
-      font-size: 15px;
-      font-weight: 600;
-      color: #000000;
-      margin-top: 4px;
-      line-height: 1.45;
-    }
-    .biz-ntn {
-      font-size: 15px;
-      color: #000000;
-      margin-top: 4px;
-      font-family: Consolas, monospace;
-      font-weight: 700;
-    }
-
-    /* ── Invoice title ── */
-    .title-row {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 0;
-      margin-bottom: 10px;
-      border-bottom: 1.5px solid #000000;
-    }
-    .en-title {
-      font-size: 19px;
-      font-weight: 800;
-      color: #000000;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-    }
-    .urdu-title {
-      font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
-      font-size: 20px;
-      font-weight: 700;
-      color: #000000;
-      direction: rtl;
-    }
-
-    /* ── Meta table ── */
-    .meta-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 12px;
-      border: 1.5px solid #000000;
-      border-radius: 4px;
-    }
-    .meta-table tr:not(:last-child) td {
-      border-bottom: 1.5px solid #000000;
-    }
-    .meta-label {
-      font-size: 15px;
-      color: #000000;
-      font-weight: 600;
-      padding: 6px 10px;
-      width: 45%;
-      white-space: nowrap;
-    }
-    .meta-value {
-      font-size: 16px;
-      color: #000000;
-      font-weight: 750;
-      padding: 6px 10px;
-      text-align: right;
-    }
-
-    /* ── Divider ── */
-    .divider {
-      border: none;
-      border-top: 1.5px dashed #000000;
-      margin: 10px 0;
-    }
+    ${receiptBaseCss(w)}
 
     /* ── Items table ── */
-    .items-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 2px solid #000000;
-    }
-    .items-table thead tr {
-      background: #f1f5f9;
-    }
-    .items-table thead th {
-      padding: 8px;
-      font-size: 15px;
+    .items { width: 100%; border-collapse: collapse; margin-top: 0.15rem; table-layout: fixed; }
+    .items thead th {
+      font-size: 0.8rem;
       font-weight: 800;
-      color: #000000;
-      border-bottom: 2px solid #000000;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 0.22rem 0.18rem;
+      border-top: 2px solid #000;
+      border-bottom: 2px solid #000;
     }
-    .items-table tbody td {
-      padding: 8px;
-      font-size: 16px;
+    .items tbody td {
+      font-size: 0.94rem;
       font-weight: 600;
-      border-bottom: 1.5px solid #000000;
-      vertical-align: middle;
-      color: #000000;
+      padding: 0.26rem 0.18rem;
+      border-bottom: 1px dotted #000;
+      vertical-align: top;
+      word-break: break-word;
     }
-    .items-table tbody tr:last-child td { border-bottom: none; }
-    .item-name { font-weight: 700; }
-    .td-left   { text-align: left; }
-    .td-right  { text-align: right; }
-    .td-center { text-align: center; }
+    .items tbody tr:last-child td { border-bottom: 2px solid #000; }
+    .iname { font-weight: 700; line-height: 1.22; }
+
+    .items-summary {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.18rem 0;
+    }
 
     /* ── Totals ── */
-    .totals-block {
-      margin-top: 10px;
-      border: 1.5px solid #000000;
-    }
-    .total-row {
+    .totals { margin-top: 0.3rem; }
+    .tot {
       display: flex;
       justify-content: space-between;
-      align-items: center;
-      padding: 7px 10px;
-      border-bottom: 1.5px solid #000000;
+      align-items: baseline;
+      font-size: 0.95rem;
+      padding: 0.13rem 0.18rem;
     }
-    .total-row:last-child { border-bottom: none; }
-    .total-label {
-      font-size: 16px;
-      font-weight: 600;
-      color: #000000;
-    }
-    .total-label .urdu-label {
-      font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
-      font-size: 15px;
-      color: #000000;
-      margin-right: 4px;
-    }
-    .total-value {
-      font-family: Consolas, "Courier New", monospace;
-      font-size: 16px;
-      font-weight: 800;
-      color: #000000;
-    }
-
-    /* ── Grand Total — no dark background ── */
-    .grand-total-box {
-      border: 2.5px solid #000000;
-      padding: 10px 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 12px;
-    }
-    .grand-total-label {
-      font-size: 19px;
-      font-weight: 800;
-      color: #000000;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    .urdu-gt {
-      font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
-      font-size: 17px;
-      margin-right: 6px;
-      direction: rtl;
-      color: #000000;
-      font-weight: 700;
-    }
-    .grand-total-amount {
-      font-family: Consolas, "Courier New", monospace;
-      font-size: 28px;
-      font-weight: 800;
-      color: #000000;
-      letter-spacing: 1px;
-    }
-    .currency-sym {
-      font-size: 18px;
-      color: #000000;
-      margin-right: 3px;
-      font-weight: 700;
-    }
+    .tot-l { font-weight: 600; }
+    .tot-v { font-family: Consolas, "Courier New", monospace; font-weight: 800; }
 
     /* ── Payments ── */
-    .payments-block {
-      margin-top: 10px;
-      border: 1.5px solid #000000;
-      padding: 4px 0;
+    .group-h {
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0 0.18rem 0.1rem;
     }
     .pay-row {
       display: flex;
       justify-content: space-between;
-      padding: 6px 10px;
-      font-size: 16px;
-      color: #000000;
+      align-items: baseline;
+      font-size: 0.92rem;
+      padding: 0.13rem 0.18rem;
     }
-    .pay-label { color: #000000; font-weight: 600; }
-    .pay-value { font-family: Consolas, "Courier New", monospace; font-weight: 800; }
+    .pay-l { font-weight: 600; }
+    .pay-v { font-family: Consolas, "Courier New", monospace; font-weight: 800; }
 
-    /* ── FBR ── */
-    .fbr-section {
-      margin-top: 12px;
-      border: 2px solid #000000;
-      padding: 8px 10px;
-      background: #ffffff;
-      text-align: center;
-    }
-    .fbr-label {
-      font-size: 14px;
-      font-weight: 800;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: #000000;
-    }
-    .fbr-id {
-      font-size: 16px;
-      font-weight: 750;
-      color: #000000;
-      margin-top: 4px;
-      word-break: break-all;
-      font-family: Consolas, monospace;
-    }
-
-    /* ── Footer ── */
-    .footer {
-      margin-top: 16px;
-      text-align: center;
-      padding-top: 12px;
-      border-top: 1.5px dashed #000000;
-    }
-    .footer-en {
-      font-size: 16px;
-      font-weight: 700;
-      color: #000000;
-    }
-    .footer-ur {
-      font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
-      font-size: 18px;
-      color: #000000;
-      font-weight: 700;
-      margin-top: 4px;
-      direction: rtl;
-    }
-    .powered {
-      font-size: 13px;
-      color: #000000;
-      font-weight: 600;
-      margin-top: 10px;
-    }
-    /* ── Ledger Balance ── */
-    .ledger-block {
-      margin-top: 10px;
-      border: 1.5px solid #000000;
-      padding: 6px 0;
-      background: #ffffff;
-    }
-    .ledger-row {
+    /* ── Ledger ── */
+    .led {
       display: flex;
       justify-content: space-between;
-      padding: 5px 10px;
-      font-size: 15px;
-      color: #000000;
+      align-items: baseline;
+      font-size: 0.92rem;
+      padding: 0.12rem 0;
     }
-    .ledger-label { color: #000000; font-weight: 600; }
-    .ledger-value { font-family: Consolas, "Courier New", monospace; font-weight: 800; color: #000000; }
-    .ledger-total-row {
-      border-top: 1.5px dashed #000000;
-      margin-top: 5px;
-      padding-top: 6px;
+    .led-l { font-weight: 600; }
+    .led-v { font-family: Consolas, "Courier New", monospace; font-weight: 800; }
+    .led-due {
+      border-top: 1px solid #000;
+      margin-top: 0.22rem;
+      padding-top: 0.24rem;
+      font-size: 1.02rem;
+    }
+    .led-due .led-l, .led-due .led-v { font-weight: 800; }
+    .led-sub { border-top: 1px dashed #000; margin-top: 0.22rem; padding-top: 0.22rem; }
+    .led-tag {
+      font-size: 0.78rem;
       font-weight: 800;
-      font-size: 16px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: center;
+      margin-top: 0.24rem;
+      border: 1px solid #000;
+      padding: 0.14rem;
+    }
+
+    /* ── FBR ── */
+    .fbr-label {
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-align: center;
+    }
+    .fbr-id {
+      font-size: 0.95rem;
+      font-weight: 800;
+      text-align: center;
+      margin-top: 0.12rem;
+      word-break: break-all;
     }
   </style>
 </head>
@@ -554,87 +301,71 @@ export function buildInvoiceHtml(
 <div class="page">
 
   <!-- HEADER -->
-  <div class="header">
-    ${logoHtml}
-    <div class="biz-name">${escHtml(config.businessName)}</div>
-    ${config.businessAddress ? `<div class="biz-sub">${escHtml(config.businessAddress)}</div>` : ''}
-    ${config.businessPhone ? `<div class="biz-sub">Tel: ${escHtml(config.businessPhone)}</div>` : ''}
-    ${config.businessNTN ? `<div class="biz-ntn">NTN: ${escHtml(config.businessNTN)}</div>` : ''}
-  </div>
+  ${logoHtml}
+  <div class="biz">${escHtml(config.businessName)}</div>
+  ${config.businessAddress ? `<div class="biz-sub">${escHtml(config.businessAddress)}</div>` : ''}
+  ${config.businessPhone ? `<div class="biz-sub">Tel: ${escHtml(config.businessPhone)}</div>` : ''}
+  ${config.businessNTN ? `<div class="biz-id">NTN: ${escHtml(config.businessNTN)}</div>` : ''}
 
   <!-- TITLE -->
-  <div class="title-row">
-    <span class="en-title">${L.invoice}</span>
-    ${urduTitle}
+  <div class="bar">
+    <span class="bar-en">${L.invoice}</span>
   </div>
 
-  <!-- META INFO -->
-  <table class="meta-table">
-    <tr>
-      <td class="meta-label">${L.invoiceNo}${showUrdu ? ` / ${UR.invoiceNo}` : ''}</td>
-      <td class="meta-value mono">${escHtml(data.sale.invoiceNumber ?? `#${data.sale.id}`)}</td>
-    </tr>
-    <tr>
-      <td class="meta-label">${L.date}${showUrdu ? ` / ${UR.date}` : ''}</td>
-      <td class="meta-value mono">${fmtDate(data.sale.createdAt)}</td>
-    </tr>
-    ${cashierLabel
-            ? `<tr>
-            <td class="meta-label">${L.cashier}${showUrdu ? ` / ${UR.cashier}` : ''}</td>
-            <td class="meta-value mono">[${escHtml(cashierLabel.toString())}]</td>
-           </tr>`
-            : ''
-        }
-    ${customerBlock}
-  </table>
+  <!-- META -->
+  ${metaRows.join('')}
 
-  <!-- ITEMS TABLE -->
-  <table class="items-table">
+  <!-- ITEMS -->
+  <table class="items">
     <thead>
       <tr>
-        <th class="td-center" style="width:30px;">${L.qty}</th>
-        <th class="td-left">${L.item}</th>
-        ${discTh}
-        <th class="td-right" style="width:${priceColWidth}px;">${L.price}</th>
-        <th class="td-right" style="width:${totalColWidth}px;">${L.total}</th>
+        <th class="center" style="width:${wQty}%;">${L.qty}</th>
+        <th style="width:${wName}%;text-align:left;">${L.item}</th>
+        ${hasDiscount ? `<th class="right" style="width:${wDisc}%;">${L.discount}</th>` : ''}
+        <th class="right" style="width:${wRate}%;">${L.price}</th>
+        <th class="right" style="width:${wAmt}%;">${L.total}</th>
       </tr>
     </thead>
     <tbody>
       ${itemRows}
     </tbody>
   </table>
+  <div class="items-summary">
+    <span>Items: ${itemCount}</span>
+    <span>Total Qty: ${fmt(totalQty)}</span>
+  </div>
 
   <!-- TOTALS -->
-  <div class="totals-block">
-    ${totalsRows.join('')}
-  </div>
+  ${totalsRows.length ? `<div class="totals">${totalsRows.join('')}</div>` : ''}
 
   <!-- GRAND TOTAL -->
-  <div class="grand-total-box">
-    <span class="grand-total-label">
-      ${showUrdu ? `<span class="urdu-gt">${UR.grandTotal}</span>` : ''}
+  <div class="gt">
+    <span class="gt-l">
       ${L.grandTotal}
     </span>
-    <span class="grand-total-amount">
-      <span class="currency-sym">Rs</span>${fmt(data.grandTotal)}
-    </span>
+    <span class="gt-v"><span class="gt-cur">Rs</span>${fmt(data.grandTotal)}</span>
   </div>
+
+  <div class="words">${escHtml(amountInWords(data.grandTotal))}</div>
 
   <!-- PAYMENTS -->
-  <div class="payments-block" style="margin-top:10px;">
-    ${paymentRows}
-  </div>
+  <div class="rule-dash"></div>
+  ${paymentHeader}
+  ${paymentRows}
 
+  <!-- CUSTOMER CREDIT -->
   ${ledgerHtml}
 
   <!-- FBR -->
   ${fbrSection}
 
+  <!-- TRANSACTION NOTE -->
+  ${data.sale.note ? `<div class="box" style="margin-top:0.25rem;"><div class="box-h">Note / Remarks</div><div style="font-size:0.85rem;font-weight:600;padding:0.1rem 0;">${escHtml(data.sale.note)}</div></div>` : ''}
+
   <!-- FOOTER -->
   <div class="footer">
-    ${config.invoiceNote ? `<div class="invoice-note" style="margin-bottom: 8px; font-size: 13px; font-weight: 500; color: #1e293b; border-bottom: 1px dashed #cbd5e1; padding-bottom: 8px; font-style: italic;">${escHtml(config.invoiceNote)}</div>` : ''}
+    ${config.invoiceNote ? `<div class="footer-note">${escHtml(config.invoiceNote)}</div>` : ''}
     <div class="footer-en">${L.footer}</div>
-    ${showUrdu ? `<div class="footer-ur">${UR.footer}</div>` : ''}
     <div class="powered">Powered by AAZify 03007395147</div>
   </div>
 
@@ -643,29 +374,64 @@ export function buildInvoiceHtml(
 </html>`;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Blocks ───────────────────────────────────────────────────────────────────
 
-function escHtml(str: string): string {
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+/**
+ * Customer credit summary. Printed whenever a customer is attached to the sale
+ * so the buyer always leaves with their running account position.
+ */
+function buildLedgerBlock(data: SaleInvoiceData): string {
+    const c = data.customer!;
+    const prev = c.previousBalance ?? 0;
+    const closing = c.newBalance ?? prev + (data.grandTotal - data.paidAmount);
+    const creditLimit = c.creditLimit ?? 0;
+
+    // Positive balance = customer owes us; negative = advance held on account.
+    const dueLabel = closing > 0 ? 'Balance Due' : closing < 0 ? 'Advance Balance' : 'Balance Due';
+
+    const limitRow =
+        creditLimit > 0
+            ? `<div class="led led-sub"><span class="led-l">Credit Limit</span><span class="led-v">${fmtAmount(creditLimit)}</span></div>
+               <div class="led"><span class="led-l">Available Credit</span><span class="led-v">${fmtAmount(Math.max(0, creditLimit - Math.max(0, closing)))}</span></div>`
+            : '';
+
+    const overLimit = creditLimit > 0 && closing > creditLimit
+        ? `<div class="led-tag">Credit limit exceeded</div>`
+        : '';
+
+    return `
+      <div class="box">
+        <div class="box-h">Customer Account</div>
+        <div class="led"><span class="led-l">Previous Balance</span><span class="led-v">${fmtAmount(prev)}</span></div>
+        <div class="led"><span class="led-l">This Invoice</span><span class="led-v">${fmtAmount(data.grandTotal)}</span></div>
+        <div class="led"><span class="led-l">Paid Now</span><span class="led-v">- ${fmtAmount(data.paidAmount)}</span></div>
+        <div class="led led-due">
+          <span class="led-l">${dueLabel}</span>
+          <span class="led-v">Rs ${fmtAmount(Math.abs(closing))}</span>
+        </div>
+        ${limitRow}
+        ${overLimit}
+      </div>`;
 }
 
-function totalRow(enLabel: string, urLabel: string, value: string, color?: string): string {
-    const urSpan = urLabel ? `<span class="urdu-label">${urLabel} /</span>` : '';
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function metaRow(label: string, value: string, mono = false): string {
+    return `<div class="kv"><span class="kv-k">${label}</span><span class="kv-v${mono ? ' mono' : ''}">${value}</span></div>`;
+}
+
+function totalRow(label: string, value: string): string {
     return `
-    <div class="total-row">
-      <span class="total-label">${urSpan}${enLabel}</span>
-      <span class="total-value mono" style="${color ? `color:${color};` : ''}">${value}</span>
+    <div class="tot">
+      <span class="tot-l">${label}</span>
+      <span class="tot-v">${value}</span>
     </div>`;
 }
 
-function payRow(label: string, value: string, color?: string): string {
+function payRow(label: string, value: string): string {
     return `
     <div class="pay-row">
-      <span class="pay-label">${label}</span>
-      <span class="pay-value" style="${color ? `color:${color};` : ''}">Rs ${value}</span>
+      <span class="pay-l">${label}</span>
+      <span class="pay-v">Rs ${value}</span>
     </div>`;
 }

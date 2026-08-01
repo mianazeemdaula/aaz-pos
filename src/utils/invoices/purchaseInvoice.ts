@@ -115,6 +115,10 @@ export function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): PrintSe
     if (balance > 0) {
         sections.push(textLeft(`Balance Due: ${fmt(balance)}`));
     }
+    if (data.purchase.note) {
+        sections.push(line('-'));
+        sections.push(textLeft(`Note: ${data.purchase.note}`));
+    }
 
     // Footer
     sections.push(line('-'));
