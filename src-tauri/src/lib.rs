@@ -1,4 +1,5 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod backup;
 mod printer;
 mod licensing;
 
@@ -30,6 +31,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_thermal_printer::init())
         .invoke_handler(tauri::generate_handler![
@@ -43,7 +45,11 @@ pub fn run() {
             printer::print_raw,
             printer::list_serial_ports,
             printer::test_printer_connection,
-            printer::open_cash_drawer
+            printer::open_cash_drawer,
+            backup::pick_backup_dir,
+            backup::validate_backup_dir,
+            backup::save_backup,
+            backup::latest_local_backup
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

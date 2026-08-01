@@ -18,6 +18,7 @@ import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
 import { buildFbrCompositeBase64 } from './fbrComposite';
 import { showReceiptPreview } from './receiptExport';
+import { invoiceNumberSlug } from './invoiceNumber';
 
 // Paper width in pixels for each supported paper size
 const PAPER_WIDTH_PX: Record<string, number> = {
@@ -166,7 +167,7 @@ async function buildSaleInvoiceImageSection(input: SaleInvoiceData): Promise<Pri
  */
 export async function exportSaleInvoiceImage(input: SaleInvoiceData): Promise<boolean> {
     const { base64, widthPx } = await renderSaleInvoicePng(input);
-    const label = input.sale.invoiceNumber ?? `sale-invoice-${input.sale.id}`;
+    const label = invoiceNumberSlug(input.sale);
     await showReceiptPreview(base64, {
         title: `Sale Invoice — ${label}`,
         fileLabel: label,

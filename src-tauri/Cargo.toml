@@ -27,6 +27,7 @@ serialport = "4.2"
 tokio = { version = "1", features = ["full"] }
 chrono = "0.4"
 tauri-plugin-process = "2"
+tauri-plugin-dialog = "2"
 # Vendored fork of tauri-plugin-thermal-printer 1.0.2. Upstream has no network
 # transport on desktop, so a `tcp://host` printer went to the Windows spooler as
 # a queue name and failed with os error 6. Patch adds a RAW/JetDirect socket:

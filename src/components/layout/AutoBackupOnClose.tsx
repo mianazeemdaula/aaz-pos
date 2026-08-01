@@ -53,7 +53,14 @@ export function AutoBackupOnClose() {
                 setPhase({ state: 'running' });
 
                 try {
-                    const result = await backupService.run();
+                    // The folder is on this PC, so it has to be passed
+                    // explicitly — there is no server-side setting to fall back
+                    // on now that the file is written locally.
+                    const result = await backupService.run({
+                        directory: config.backupDir,
+                        format: config.backupFormat,
+                        keep: config.backupKeep,
+                    });
                     setPhase({ state: 'done', filename: result.filename, bytes: result.bytes });
                     // Let the confirmation land on screen before the window goes.
                     // destroy() is a rejecting promise, not a fire-and-forget: if

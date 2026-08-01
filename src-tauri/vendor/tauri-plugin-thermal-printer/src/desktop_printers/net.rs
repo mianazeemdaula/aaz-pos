@@ -331,7 +331,7 @@ mod tests {
                 text("12 Mall Road, Lahore  |  Tel: 042-1234567", centered()),
                 rule("-"),
                 text("SALES INVOICE", bold_centered()),
-                text("Invoice: NATIVE-TEST-001", None),
+                text("Invoice: INV-20260801-0042", None),
                 text("Cashier: integration test", None),
                 rule("-"),
                 //    qty=4 item=29                   price=10   disc=9  total=12

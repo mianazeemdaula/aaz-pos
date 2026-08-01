@@ -17,6 +17,7 @@
  */
 
 import type { SaleInvoiceData } from './saleInvoice';
+import { formatInvoiceNumber } from './invoiceNumber';
 import {
     receiptBaseCss,
     escHtml,
@@ -165,7 +166,7 @@ export function buildInvoiceHtml(
 
     // ── Meta rows ──
     const metaRows: string[] = [
-        metaRow(`${L.invoiceNo}`, escHtml(data.sale.invoiceNumber ?? `#${data.sale.id}`), true),
+        metaRow(`${L.invoiceNo}`, escHtml(formatInvoiceNumber(data.sale)), true),
         metaRow(`${L.date}`, fmtDateTime(data.sale.createdAt), true),
     ];
     if (cashierLabel) {

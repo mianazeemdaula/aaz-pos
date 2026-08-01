@@ -11,6 +11,7 @@ import { loadThermalConfig } from '../thermalPrinter';
 import { buildFbrCompositeBase64 } from './fbrComposite';
 import { fetchLogoBase64 } from './saleInvoice';
 import { loadReceiptBusiness, businessHeaderSections } from './businessProfile';
+import { formatInvoiceNumber } from './invoiceNumber';
 
 const fmt = (n: number) => n.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtDate = (d: string) => {
@@ -61,7 +62,7 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
     // Invoice info
     const fbrId = data.fbrInvoiceId || data.sale.taxInvoiceId;
     sections.push(textCenter('SALES INVOICE', true));
-    sections.push(textLeft(`Invoice: ${data.sale.invoiceNumber ?? `#${data.sale.id}`}`));
+    sections.push(textLeft(`Invoice: ${formatInvoiceNumber(data.sale)}`));
     sections.push(textLeft(`Date: ${fmtDate(data.sale.createdAt)}`));
     if (data.sale.user) {
         sections.push(textLeft(`Cashier: ${data.sale.user.name}`));

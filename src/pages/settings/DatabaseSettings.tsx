@@ -11,7 +11,6 @@ import {
   backupService, readAutoBackupSettings, formatBytes, DEFAULT_AUTO_BACKUP,
   type BackupStatus, type AutoBackupSettings,
 } from '../../services/backup.service';
-import { FolderPicker } from '../../components/ui/FolderPicker';
 import { SettingsHeader } from './SettingsHeader';
 
 const inputCls = 'w-full px-3.5 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors disabled:opacity-50';
@@ -25,7 +24,6 @@ export function DatabaseSettings() {
   const [dbBusy, setDbBusy] = useState(false);
   const [pgStatus, setPgStatus] = useState<BackupStatus | null>(null);
   const [autoBackup, setAutoBackup] = useState<AutoBackupSettings>(DEFAULT_AUTO_BACKUP);
-  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
 
   useEffect(() => {
     setAutoBackup(readAutoBackupSettings(globalSettings.app));
@@ -34,11 +32,15 @@ export function DatabaseSettings() {
   const loadPgStatus = useCallback(async () => {
     try {
       const st = await backupService.status();
-      setPgStatus(st);
+      // `status.lastBackup` describes the server's folder. Backups now land on
+      // this PC, so the local folder is the one worth reporting.
+      const dir = readAutoBackupSettings(globalSettings.app).backupDir;
+      const lastBackup = dir ? await backupService.latestLocal(dir).catch(() => null) : null;
+      setPgStatus({ ...st, backupDir: dir, lastBackup });
     } catch {
       setPgStatus(null);
     }
-  }, []);
+  }, [globalSettings.app]);
 
   useEffect(() => {
     loadPgStatus();
@@ -72,13 +74,28 @@ export function DatabaseSettings() {
         backupOnClose: next.backupOnClose,
       });
       await refreshSettings();
+      // The folder lives on this PC, so it is Rust that checks it — the
+      // server-side validateDir would be inspecting the wrong machine.
       if (next.backupDir) {
-        await backupService.validateDir(next.backupDir);
+        await backupService.validateLocalDir(next.backupDir);
       }
       await loadPgStatus();
       setStatusMsg({ ok: true, text: 'Automatic backup configuration updated.' });
     } catch (err) {
       setStatusMsg({ ok: false, text: err instanceof Error ? err.message : 'Failed to save auto backup settings.' });
+    }
+  };
+
+  /** Native folder dialog on this PC, in place of browsing the server's disk. */
+  const chooseLocalFolder = async () => {
+    try {
+      const dir = await backupService.pickDirectory();
+      if (dir) await saveAutoBackup({ backupDir: dir });
+    } catch (err) {
+      setStatusMsg({
+        ok: false,
+        text: err instanceof Error ? err.message : 'Could not open the folder picker.',
+      });
     }
   };
 
@@ -182,8 +199,8 @@ export function DatabaseSettings() {
               <FolderClock size={15} className="text-primary-600" /> Automatic Backups
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              Pick a folder on the server machine and the database is backed up there automatically every time
-              the app is closed.
+              Pick a folder <strong>on this PC</strong> and the database is backed up there automatically every
+              time the app is closed. A USB stick or mapped network drive works too.
             </p>
           </div>
 
@@ -204,7 +221,7 @@ export function DatabaseSettings() {
               />
               <button
                 type="button"
-                onClick={() => setFolderPickerOpen(true)}
+                onClick={chooseLocalFolder}
                 disabled={dbBusy}
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold rounded-lg text-xs flex items-center gap-2 disabled:opacity-50"
               >
@@ -372,16 +389,6 @@ export function DatabaseSettings() {
         )}
       </div>
 
-      {folderPickerOpen && (
-        <FolderPicker
-          initialPath={autoBackup.backupDir || undefined}
-          onClose={() => setFolderPickerOpen(false)}
-          onSelect={dir => {
-            setFolderPickerOpen(false);
-            if (dir) saveAutoBackup({ backupDir: dir });
-          }}
-        />
-      )}
     </div>
   );
 }
