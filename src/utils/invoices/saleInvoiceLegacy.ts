@@ -3,13 +3,14 @@
  */
 import type { Sale, Customer } from '../../types/pos';
 import {
-    title, textLeft, textCenter, feed, image, imageFromFile,
+    textLeft, textCenter, textFontA, feed, image, imageFromFile,
     buildPrintJob, printDocument,
-    type PrintSection, type PrintJobRequest,
+    type PrintSection, type PrintJobRequest, nativeDefaultWidth, nativeWidthFor,
 } from '../thermalPrinter';
 import { loadThermalConfig } from '../thermalPrinter';
 import { buildFbrCompositeBase64 } from './fbrComposite';
 import { fetchLogoBase64 } from './saleInvoice';
+import { loadReceiptBusiness, businessHeaderSections } from './businessProfile';
 
 const fmt = (n: number) => n.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtDate = (d: string) => {
@@ -35,7 +36,7 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
     const config = loadThermalConfig();
     const sections: PrintSection[] = [];
     const is80mm = config.paperSize === 'Mm80';
-    const defaultWidth = is80mm ? 48 : 32;
+    const defaultWidth = nativeDefaultWidth(config);
     const width = config.nativeColumns || defaultWidth;
 
     const printLine = (ch: string) => textLeft(ch.repeat(width));
@@ -50,12 +51,12 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
         }
     }
 
-    // Header
-    sections.push(title(config.businessName));
-    if (config.businessAddress) sections.push(textCenter(config.businessAddress));
-    if (config.businessPhone) sections.push(textCenter(`Tel: ${config.businessPhone}`));
-    if (config.businessNTN) sections.push(textCenter(`NTN: ${config.businessNTN}`));
-    sections.push(printLine('='));
+    // Header — identity comes from the Business Profile in Settings, which the
+    // admin edits on the Business Info page and which lives in the database.
+    // The name prints large; everything else stays in the compact face.
+    const biz = await loadReceiptBusiness(config);
+    sections.push(...businessHeaderSections(biz, width));
+    sections.push(printLine('-'));
 
     // Invoice info
     const fbrId = data.fbrInvoiceId || data.sale.taxInvoiceId;
@@ -69,61 +70,61 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
         sections.push(textLeft(`Customer: ${data.customer.name}`));
         if (data.customer.phone) sections.push(textLeft(`Phone: ${data.customer.phone}`));
     }
-    sections.push(printLine('='));
-
-    // Calculate column widths dynamically based on custom width
-    const ratio = width / defaultWidth;
-    const qtyW = 4;
-    let discW = is80mm ? 10 : 7;
-    let totalW = is80mm ? 12 : 9;
-    if (config.nativeColumns) {
-        discW = Math.max(5, Math.floor(discW * ratio));
-        totalW = Math.max(6, Math.floor(totalW * ratio));
-    }
-    const itemW = width - qtyW - discW - totalW;
-
-    // Items table
-    const hasDiscount = data.items.some(i => i.discount > 0);
-    const headerRow = hasDiscount
-        ? formatTextRow([
-            { text: 'Qty', width: qtyW, align: 'left' },
-            { text: 'Item', width: itemW, align: 'left' },
-            { text: 'Disc', width: discW, align: 'right' },
-            { text: 'Total', width: totalW, align: 'right' }
-          ])
-        : formatTextRow([
-            { text: 'Qty', width: qtyW, align: 'left' },
-            { text: 'Item', width: itemW, align: 'left' },
-            { text: 'Price', width: discW, align: 'right' },
-            { text: 'Total', width: totalW, align: 'right' }
-          ]);
-    sections.push(textLeft(headerRow, true));
     sections.push(printLine('-'));
 
-    for (const item of data.items) {
+    // Items table: Qty | Item | Price | Disc | Total.
+    //
+    // Discount is its own column alongside price, and always present — the
+    // original layout swapped Price out for Disc whenever any line was
+    // discounted, so a discounted bill never showed unit prices at all.
+    // Undiscounted lines print "-" so the column reads as deliberate.
+    //
+    // Widths scale with the paper so a `nativeColumns` override and 58mm rolls
+    // both stay aligned.
+    const qtyW = width >= 48 ? 4 : 3;
+    const totalW = Math.max(8, Math.round(width * 0.19));
+    const priceW = Math.max(6, Math.round(width * 0.15));
+    const discW = Math.max(5, Math.round(width * 0.14));
+    const itemW = width - qtyW - priceW - discW - totalW;
+
+    const itemRow = (
+        qty: string, name: string, price: string, disc: string, total: string,
+    ) => formatTextRow([
+        { text: qty, width: qtyW, align: 'left' },
+        { text: name, width: itemW, align: 'left' },
+        { text: price, width: priceW, align: 'right' },
+        { text: disc, width: discW, align: 'right' },
+        { text: total, width: totalW, align: 'right' },
+    ]);
+
+    sections.push(textLeft(itemRow('Qty', 'Item', 'Price', 'Disc', 'Total'), true));
+    sections.push(printLine('-'));
+
+    data.items.forEach((item, itemIdx) => {
+        // A dotted rule separates one item from the next, so a wrapped name
+        // cannot be mistaken for a second item.
+        if (itemIdx > 0) sections.push(printLine('.'));
+
         const nameLines = wrapText(item.name, itemW);
+        // An item with an empty name still needs its figures printed.
+        if (nameLines.length === 0) nameLines.push('');
         for (let idx = 0; idx < nameLines.length; idx++) {
             const isFirst = idx === 0;
-            const itemRow = hasDiscount
-                ? formatTextRow([
-                    { text: isFirst ? String(item.qty) : '', width: qtyW, align: 'left' },
-                    { text: nameLines[idx], width: itemW, align: 'left' },
-                    { text: isFirst ? (item.discount > 0 ? fmt(item.discount) : '-') : '', width: discW, align: 'right' },
-                    { text: isFirst ? fmt(item.total) : '', width: totalW, align: 'right' }
-                  ])
-                : formatTextRow([
-                    { text: isFirst ? String(item.qty) : '', width: qtyW, align: 'left' },
-                    { text: nameLines[idx], width: itemW, align: 'left' },
-                    { text: isFirst ? fmt(item.price) : '', width: discW, align: 'right' },
-                    { text: isFirst ? fmt(item.total) : '', width: totalW, align: 'right' }
-                  ]);
-            sections.push(textLeft(itemRow));
+            sections.push(textLeft(itemRow(
+                isFirst ? String(item.qty) : '',
+                nameLines[idx],
+                isFirst ? fmt(item.price) : '',
+                isFirst ? (item.discount > 0 ? `-${fmt(item.discount)}` : '-') : '',
+                isFirst ? fmt(item.total) : '',
+            )));
         }
-    }
-    sections.push(printLine('='));
+    });
+    sections.push(printLine('-'));
 
     // Totals
-    const valWidth = is80mm ? 12 : 9;
+    // Same width as the items Total column so every figure on the slip lands in
+    // one right-hand gutter.
+    const valWidth = totalW;
     const labelWidth = width - valWidth;
     
     sections.push(textLeft(
@@ -139,12 +140,17 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
             'Tax:'.padStart(labelWidth) + fmt(data.taxAmount).padStart(valWidth)
         ));
     }
-    sections.push(printLine('='));
-    sections.push(textLeft(
-        'GRAND TOTAL:'.padStart(labelWidth) + fmt(data.grandTotal).padStart(valWidth),
-        true
+    sections.push(printLine('-'));
+
+    // Grand total is the one body line in the large face (Font A), so it must
+    // be laid out against Font A's narrower column count — padding it to the
+    // Font B width is what pushes it onto a second line.
+    const widthA = nativeWidthFor(config, 'A');
+    const valWidthA = Math.max(8, Math.round(widthA * 0.19));
+    sections.push(textFontA(
+        'GRAND TOTAL:'.padStart(widthA - valWidthA) + fmt(data.grandTotal).padStart(valWidthA),
     ));
-    sections.push(printLine('='));
+    sections.push(printLine('-'));
 
     // Payment info
     if (data.sale.payments && data.sale.payments.length > 0) {

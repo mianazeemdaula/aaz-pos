@@ -78,6 +78,60 @@ export interface ThermalPrinterConfig {
 
 const THERMAL_CONFIG_KEY = 'thermal_printer_config';
 
+/**
+ * Type face for native ESC/POS slips.
+ *
+ * Font A is 12 dots wide, Font B is 9 — B is the compact receipt face and fits
+ * 64 columns on 80mm paper against Font A's 48.
+ */
+const NATIVE_FONT: NonNullable<GlobalStyles['font']> = 'B';
+
+/** Character cell width in dots, per ESC/POS font. */
+const FONT_CELL_DOTS: Record<string, number> = { A: 12, B: 9, C: 9 };
+
+/** Printable dots across, per paper size. */
+const PAPER_DOTS: Record<string, number> = { Mm80: 576, Mm58: 384 };
+
+/**
+ * Columns available for a native slip at the current font and paper size.
+ *
+ * Shared by every native builder so the item rows, totals and rule lines all
+ * agree on one width. `nativeColumns` in settings still wins when set, for
+ * printers whose real column count differs from the nominal one.
+ */
+export function nativeWidth(config: ThermalPrinterConfig): number {
+    if (config.nativeColumns) return config.nativeColumns;
+    const dots = PAPER_DOTS[config.paperSize] ?? 576;
+    return Math.floor(dots / (FONT_CELL_DOTS[NATIVE_FONT] ?? 12));
+}
+
+/** The same width with no `nativeColumns` override, for proportional scaling. */
+export function nativeDefaultWidth(config: ThermalPrinterConfig): number {
+    const dots = PAPER_DOTS[config.paperSize] ?? 576;
+    return Math.floor(dots / (FONT_CELL_DOTS[NATIVE_FONT] ?? 12));
+}
+
+/**
+ * Columns available at an explicit font, for the few lines that opt out of the
+ * compact face.
+ *
+ * A line printed in Font A only fits 48 columns on 80mm where Font B fits 64 —
+ * padding it to the Font B width is exactly what makes a line wrap onto the
+ * next one. Any `nativeColumns` override is scaled to the requested font rather
+ * than ignored.
+ */
+export function nativeWidthFor(
+    config: ThermalPrinterConfig,
+    font: NonNullable<GlobalStyles['font']>,
+): number {
+    const dots = PAPER_DOTS[config.paperSize] ?? 576;
+    const columns = Math.floor(dots / (FONT_CELL_DOTS[font] ?? 12));
+    if (!config.nativeColumns) return columns;
+
+    const base = Math.floor(dots / (FONT_CELL_DOTS[NATIVE_FONT] ?? 12));
+    return Math.max(10, Math.round(config.nativeColumns * (columns / base)));
+}
+
 const DEFAULT_CONFIG: ThermalPrinterConfig = {
     connectionType: 'USB',
     ipAddress: '',
@@ -133,12 +187,14 @@ export async function printDocument(job: PrintJobRequest): Promise<boolean> {
 
 /**
  * Resolve the printer identifier string from config.
- * - IP: "tcp://IP" (plugin handles default port)
- * - USB / SHARED: use the printer name directly
+ * - IP: "tcp://HOST" or "tcp://HOST:PORT" — printed over a RAW/JetDirect
+ *   socket, port 9100 by default. No driver or Windows print queue involved.
+ * - USB / SHARED: use the printer name directly (goes via the OS spooler)
  */
 function resolvePrinter(config: ThermalPrinterConfig): string {
     if (config.connectionType === 'IP') {
-        const ip = config.ipAddress.trim();
+        // Tolerate a pasted "tcp://1.2.3.4" so it does not become "tcp://tcp://…".
+        const ip = config.ipAddress.trim().replace(/^(tcp|socket):\/\//i, '');
         return ip ? `tcp://${ip}` : '';
     }
     return config.printerName;
@@ -152,10 +208,12 @@ export function buildPrintJob(
     options?: PrinterOptions,
 ): PrintJobRequest {
     const config = loadThermalConfig();
-    
-    // Explicitly set default Font A and normal size at the beginning of the print job
+
+    // Font B at normal size for the whole job — the compact receipt face.
+    // Sections that set only `align`/`bold` inherit the rest from here, so this
+    // one line governs the type size of every native slip.
     const jobSections: PrintSection[] = [
-        { GlobalStyles: { font: 'A', size: 'normal' } },
+        { GlobalStyles: { font: NATIVE_FONT, size: 'normal' } },
         ...sections
     ];
 
@@ -167,16 +225,115 @@ export function buildPrintJob(
     };
 }
 
+/**
+ * Send a short native ESC/POS slip to the configured printer.
+ *
+ * Deliberately uses the same buildPrintJob + printDocument path as a real
+ * invoice, so a slip coming out of the printer proves the whole chain —
+ * identifier resolution, transport and the printer itself — not just
+ * reachability. Kept to text sections so it works before any logo, template or
+ * HTML rendering is set up.
+ */
+export async function printTestSlip(config?: ThermalPrinterConfig): Promise<boolean> {
+    const cfg = config ?? loadThermalConfig();
+    const target = resolvePrinter(cfg);
+    if (!target) {
+        throw new Error(
+            cfg.connectionType === 'IP'
+                ? 'No printer IP address configured.'
+                : 'No printer name configured.',
+        );
+    }
+
+    const width = nativeWidth(cfg);
+    const stamp = new Date().toLocaleString('en-PK');
+
+    // Dynamic import keeps this module free of a static dependency on the
+    // invoice helpers, which import back into it for types.
+    const { loadReceiptBusiness } = await import('./invoices/businessProfile');
+    const biz = await loadReceiptBusiness(cfg);
+
+    return printDocument({
+        printer: target,
+        paper_size: cfg.paperSize,
+        options: { cut_paper: true, beep: false, open_cash_drawer: false },
+        sections: [
+            { GlobalStyles: { font: NATIVE_FONT, size: 'normal' } },
+            headline(biz.name, width),
+            textCenter('PRINTER TEST SLIP', true),
+            line('='),
+            textLeft(`Connection : ${cfg.connectionType}`),
+            textLeft(`Target     : ${target}`),
+            textLeft(`Paper      : ${cfg.paperSize === 'Mm58' ? '58mm' : '80mm'}`),
+            textLeft(`Mode       : ${cfg.invoiceMode}`),
+            textLeft(`Time       : ${stamp}`),
+            line('='),
+            textLeft('0123456789'.repeat(Math.ceil(width / 10)).slice(0, width)),
+            textCenter('If this slip is complete and'),
+            textCenter('aligned, printing is working.'),
+            feed(3),
+        ],
+    });
+}
+
 // Helpers for building common section types
 
-export const title = (text: string): PrintSection => ({ Title: { text } });
-export const subtitle = (text: string): PrintSection => ({ Subtitle: { text } });
+// `title` / `subtitle` are intentionally gone: the plugin's Title section
+// hard-forces `size: "double"`, which no font setting can undo. Business names
+// go through `headline` (below), everything else through `textCenter`.
 export const textLeft = (text: string, bold = false): PrintSection =>
     ({ Text: { text, styles: { align: 'left', bold } } });
 export const textCenter = (text: string, bold = false): PrintSection =>
     ({ Text: { text, styles: { align: 'center', bold } } });
 export const textRight = (text: string, bold = false): PrintSection =>
     ({ Text: { text, styles: { align: 'right', bold } } });
+/**
+ * Centre text by padding it to a known column count.
+ *
+ * Not ESC/POS centre alignment: the printer computes that from its *current*
+ * font metrics, which drifts once a line is also double-width or double-height.
+ * Padding against a column count the caller already knows is predictable at any
+ * size. Over-long text is truncated rather than allowed to wrap, since a
+ * wrapped double-size heading eats half the slip.
+ */
+function centreOn(text: string, columns: number): string {
+    const t = text.length > columns ? text.slice(0, columns) : text;
+    return ' '.repeat(Math.max(0, Math.floor((columns - t.length) / 2))) + t;
+}
+
+/**
+ * Business name at the top of a slip: bold and double-height.
+ *
+ * Height only — double *width* would halve the usable columns, so the rest of
+ * the slip's column arithmetic keeps working against the width passed in.
+ */
+export const headline = (text: string, width: number): PrintSection =>
+    ({ Text: { text: centreOn(text, width), styles: { align: 'left', bold: true, size: 'height' } } });
+
+/**
+ * The single most important figure on a slip — the amount, total or net
+ * payable.
+ *
+ * Emphasised with weight, not size: the business name is the only thing on a
+ * slip that prints larger than the compact face. Kept at full width so long
+ * amounts never truncate.
+ */
+export const bigCenter = (text: string, width: number): PrintSection =>
+    ({ Text: { text: centreOn(text, width), styles: { align: 'left', bold: true } } });
+
+/**
+ * Text in the large face (Font A), for the one figure that should stand out
+ * from the body — the grand total.
+ *
+ * Callers must lay the text out against `nativeWidthFor(config, 'A')`, not the
+ * job width, or it will wrap.
+ */
+export const textFontA = (
+    text: string,
+    align: 'left' | 'center' | 'right' = 'left',
+    bold = true,
+): PrintSection => ({ Text: { text, styles: { align, bold, font: 'A' } } });
+
 export const line = (ch = '-'): PrintSection => ({ Line: { character: ch } });
 export const feed = (lines = 3): PrintSection => ({ Feed: { feed_type: 'lines', value: lines } });
 

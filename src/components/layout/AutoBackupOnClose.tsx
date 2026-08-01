@@ -56,7 +56,20 @@ export function AutoBackupOnClose() {
                     const result = await backupService.run();
                     setPhase({ state: 'done', filename: result.filename, bytes: result.bytes });
                     // Let the confirmation land on screen before the window goes.
-                    setTimeout(() => appWindow.destroy(), 900);
+                    // destroy() is a rejecting promise, not a fire-and-forget: if
+                    // it is ever denied the dialog would otherwise sit on "Backup
+                    // complete" forever with nothing in the UI to explain it.
+                    setTimeout(() => {
+                        appWindow.destroy().catch((e: unknown) => {
+                            runningRef.current = false;
+                            setPhase({
+                                state: 'failed',
+                                message: `Backup saved, but the window could not be closed: ${
+                                    e instanceof Error ? e.message : String(e)
+                                }`,
+                            });
+                        });
+                    }, 900);
                 } catch (e: unknown) {
                     runningRef.current = false;
                     setPhase({
@@ -75,7 +88,14 @@ export function AutoBackupOnClose() {
 
     const closeAnyway = async () => {
         const { getCurrentWindow } = await import('@tauri-apps/api/window');
-        getCurrentWindow().destroy();
+        try {
+            await getCurrentWindow().destroy();
+        } catch (e: unknown) {
+            setPhase({
+                state: 'failed',
+                message: `Could not close the window: ${e instanceof Error ? e.message : String(e)}`,
+            });
+        }
     };
 
     if (phase.state === 'idle') return null;

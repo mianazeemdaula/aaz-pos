@@ -3,11 +3,13 @@
  */
 import type { SalarySlip, Employee } from '../../types/pos';
 import {
-    title, textLeft, textCenter, line, feed, table, cell,
+    textLeft, textCenter, line, feed, table, cell,
+    bigCenter, nativeWidth,
     buildPrintJob, printDocument,
-    type PrintSection, type PrintJobRequest,
+    type PrintSection, type PrintJobRequest, nativeDefaultWidth,
 } from '../thermalPrinter';
 import { loadThermalConfig } from '../thermalPrinter';
+import { loadReceiptBusiness, businessHeaderSections } from './businessProfile';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const MONTHS = ['', 'January', 'February', 'March', 'April', 'May', 'June',
@@ -18,16 +20,16 @@ export interface SalaryInvoiceData {
     employee?: Employee | null;
 }
 
-export function buildSalaryInvoiceSections(data: SalaryInvoiceData): PrintSection[] {
+export async function buildSalaryInvoiceSections(data: SalaryInvoiceData): Promise<PrintSection[]> {
     const config = loadThermalConfig();
     const { slip } = data;
     const empName = data.employee?.user?.name ?? data.employee?.name ?? `Employee #${slip.employeeId}`;
     const sections: PrintSection[] = [];
 
-    // Header
-    sections.push(title(config.businessName));
-    if (config.businessAddress) sections.push(textCenter(config.businessAddress));
-    sections.push(line('='));
+    // Header — identity comes from the Business Profile in Settings.
+    const biz = await loadReceiptBusiness(config);
+    sections.push(...businessHeaderSections(biz, nativeWidth(config)));
+    sections.push(line('-'));
 
     // Title
     sections.push(textCenter('SALARY SLIP', true));
@@ -36,11 +38,11 @@ export function buildSalaryInvoiceSections(data: SalaryInvoiceData): PrintSectio
     sections.push(textLeft(`Period: ${MONTHS[slip.month]} ${slip.year}`));
     sections.push(textLeft(`Status: ${slip.status}`));
     if (slip.paidDate) sections.push(textLeft(`Paid Date: ${new Date(slip.paidDate).toLocaleDateString('en-PK')}`));
-    sections.push(line('='));
+    sections.push(line('-'));
 
     // Earnings & Deductions
     const is80mm = config.paperSize === 'Mm80';
-    const defaultWidth = is80mm ? 48 : 32;
+    const defaultWidth = nativeDefaultWidth(config);
     const width = config.nativeColumns || defaultWidth;
     const ratio = width / defaultWidth;
 
@@ -78,9 +80,9 @@ export function buildSalaryInvoiceSections(data: SalaryInvoiceData): PrintSectio
     }
 
     // Net Payable
-    sections.push(line('='));
-    sections.push(textCenter(`NET PAYABLE: ${fmt(slip.netPayable)}`, true));
-    sections.push(line('='));
+    sections.push(line('-'));
+    sections.push(bigCenter(`NET PAYABLE: ${fmt(slip.netPayable)}`, nativeWidth(config)));
+    sections.push(line('-'));
 
     if (slip.note) {
         sections.push(textLeft(`Note: ${slip.note}`));
@@ -97,11 +99,11 @@ export function buildSalaryInvoiceSections(data: SalaryInvoiceData): PrintSectio
     return sections;
 }
 
-export function buildSalaryInvoiceJob(data: SalaryInvoiceData): PrintJobRequest {
-    return buildPrintJob(buildSalaryInvoiceSections(data));
+export async function buildSalaryInvoiceJob(data: SalaryInvoiceData): Promise<PrintJobRequest> {
+    return buildPrintJob(await buildSalaryInvoiceSections(data));
 }
 
 export async function printSalaryInvoice(data: SalaryInvoiceData): Promise<boolean> {
-    const job = buildSalaryInvoiceJob(data);
+    const job = await buildSalaryInvoiceJob(data);
     return printDocument(job);
 }

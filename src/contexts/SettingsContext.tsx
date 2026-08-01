@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, Re
 import { useAuth } from './AuthContext';
 import { settingsService } from '../services/pos.service';
 import { loadThermalConfig, ThermalPrinterConfig } from '../utils/thermalPrinter';
+import { invalidateReceiptBusiness } from '../utils/invoices/businessProfile';
 import { FBR_CONFIG } from '../config/api';
 
 export interface CompanySettings {
@@ -283,6 +284,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const updateCompanySettings = async (data: Partial<CompanySettings>) => {
     await settingsService.update(data);
+    // Receipt headers cache the business profile for the session; drop it so
+    // the next slip prints the details that were just saved.
+    invalidateReceiptBusiness();
     await loadAllSettings();
   };
 

@@ -4185,8 +4185,6 @@ dependencies = [
 [[package]]
 name = "tauri-plugin-thermal-printer"
 version = "1.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acc82a0508a450c4c7e469b32ad6346aba20a5165565ef1e3cbf2e0ab05869ca"
 dependencies = [
  "base64 0.21.7",
  "chrono",

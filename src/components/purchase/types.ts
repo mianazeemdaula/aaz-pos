@@ -17,7 +17,7 @@ export interface CartItem {
 }
 
 export function getDiscountAmount(item: CartItem): number {
-  if (item.discountType === 'FIXED') return round2(item.discount);
+  if (item.discountType === 'FIXED') return round2(item.discount * item.qty);
   return round2((item.totalCost * item.discount) / 100);
 }
 

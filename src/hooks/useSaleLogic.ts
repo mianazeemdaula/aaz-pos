@@ -431,7 +431,7 @@ export function useSaleLogic() {
           name: i.variant.product?.name ?? i.variant.name,
           qty: i.qty,
           price: i.price,
-          discount: i.discount,
+          discount: computeLine(i).discAmt,
           total: computeLine(i).lineTotal,
         })),
         customer: snapshotCustomer ?? null,

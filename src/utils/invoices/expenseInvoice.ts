@@ -3,11 +3,13 @@
  */
 import type { Expense } from '../../types/pos';
 import {
-    title, textLeft, textCenter, line, feed, table, cell,
+    textLeft, textCenter, line, feed, table, cell,
+    bigCenter, nativeWidth,
     buildPrintJob, printDocument,
-    type PrintSection, type PrintJobRequest,
+    type PrintSection, type PrintJobRequest, nativeDefaultWidth,
 } from '../thermalPrinter';
 import { loadThermalConfig } from '../thermalPrinter';
+import { loadReceiptBusiness, businessHeaderSections } from './businessProfile';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -15,15 +17,15 @@ export interface ExpenseInvoiceData {
     expense: Expense;
 }
 
-export function buildExpenseInvoiceSections(data: ExpenseInvoiceData): PrintSection[] {
+export async function buildExpenseInvoiceSections(data: ExpenseInvoiceData): Promise<PrintSection[]> {
     const config = loadThermalConfig();
     const { expense } = data;
     const sections: PrintSection[] = [];
 
-    // Header
-    sections.push(title(config.businessName));
-    if (config.businessAddress) sections.push(textCenter(config.businessAddress));
-    sections.push(line('='));
+    // Header — identity comes from the Business Profile in Settings.
+    const biz = await loadReceiptBusiness(config);
+    sections.push(...businessHeaderSections(biz, nativeWidth(config)));
+    sections.push(line('-'));
 
     // Title
     sections.push(textCenter('EXPENSE VOUCHER', true));
@@ -33,7 +35,7 @@ export function buildExpenseInvoiceSections(data: ExpenseInvoiceData): PrintSect
 
     // Details
     const is80mm = config.paperSize === 'Mm80';
-    const defaultWidth = is80mm ? 48 : 32;
+    const defaultWidth = nativeDefaultWidth(config);
     const width = config.nativeColumns || defaultWidth;
     const ratio = width / defaultWidth;
 
@@ -61,9 +63,9 @@ export function buildExpenseInvoiceSections(data: ExpenseInvoiceData): PrintSect
     }
     sections.push(table(2, body, colWidths));
 
-    sections.push(line('='));
-    sections.push(textCenter(`AMOUNT: ${fmt(expense.amount)}`, true));
-    sections.push(line('='));
+    sections.push(line('-'));
+    sections.push(bigCenter(`AMOUNT: ${fmt(expense.amount)}`, nativeWidth(config)));
+    sections.push(line('-'));
 
     if (expense.note) {
         sections.push(textLeft(`Note: ${expense.note}`));
@@ -77,11 +79,11 @@ export function buildExpenseInvoiceSections(data: ExpenseInvoiceData): PrintSect
     return sections;
 }
 
-export function buildExpenseInvoiceJob(data: ExpenseInvoiceData): PrintJobRequest {
-    return buildPrintJob(buildExpenseInvoiceSections(data));
+export async function buildExpenseInvoiceJob(data: ExpenseInvoiceData): Promise<PrintJobRequest> {
+    return buildPrintJob(await buildExpenseInvoiceSections(data));
 }
 
 export async function printExpenseInvoice(data: ExpenseInvoiceData): Promise<boolean> {
-    const job = buildExpenseInvoiceJob(data);
+    const job = await buildExpenseInvoiceJob(data);
     return printDocument(job);
 }

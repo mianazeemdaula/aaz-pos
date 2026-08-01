@@ -91,7 +91,14 @@ export function HeldSalesModal({ onLoad, onClose }: HeldSalesModalProps) {
             heldSales.map((s, idx) => {
               const data = s.saleData as any;
               const items: any[] = data?.items ?? [];
-              const total = items.reduce((acc, i) => acc + (i.qty ?? 0) * (i.price ?? 0), 0);
+              const itemsTotal = items.reduce((acc: number, i: any) => {
+                const price = i.price ?? 0;
+                const qty = i.qty ?? 0;
+                const gross = price * qty;
+                const discAmt = i.discountType === 'FIXED' ? (i.discount ?? 0) * qty : (gross * (i.discount ?? 0)) / 100;
+                return acc + (gross - discAmt);
+              }, 0);
+              const total = Math.max(0, itemsTotal - (data?.discount ?? 0));
               const isSelected = idx === selectedIdx;
               const cust = data?.customerSnapshot;
               return (

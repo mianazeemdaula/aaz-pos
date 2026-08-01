@@ -8,15 +8,17 @@
  */
 import type { Customer, Supplier, CustomerPayment, SupplierPayment } from '../../types/pos';
 import {
-    title, textLeft, textCenter, line, feed, table, cell,
+    textLeft, textCenter, line, feed, table, cell,
+    bigCenter, nativeWidth,
     buildPrintJob, printDocument,
     loadThermalConfig,
-    type PrintSection, type PrintJobRequest,
+    type PrintSection, type PrintJobRequest, nativeDefaultWidth,
 } from '../thermalPrinter';
 import { buildPaymentSlipHtml, type PaymentSlipConfig, type PaymentSlipData } from './paymentSlipHtmlBuilder';
 import { renderHtmlToBase64Png } from './htmlInvoiceRenderer';
 import { fetchLogoBase64 } from './saleInvoice';
 import { showReceiptPreview } from './receiptExport';
+import { loadReceiptBusiness, businessHeaderSections } from './businessProfile';
 import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
 
@@ -177,7 +179,7 @@ function supplierSlipData(data: SupplierPaymentInvoiceData): PaymentSlipData {
 function nativeColWidths(): number[] {
     const config = loadThermalConfig();
     const is80mm = config.paperSize === 'Mm80';
-    const defaultWidth = is80mm ? 48 : 32;
+    const defaultWidth = nativeDefaultWidth(config);
     const width = config.nativeColumns || defaultWidth;
 
     let colWidths = is80mm ? [32, 16] : [20, 12];
@@ -190,16 +192,15 @@ function nativeColWidths(): number[] {
     return colWidths;
 }
 
-export function buildCustomerPaymentSections(data: CustomerPaymentInvoiceData): PrintSection[] {
+export async function buildCustomerPaymentSections(data: CustomerPaymentInvoiceData): Promise<PrintSection[]> {
     const config = loadThermalConfig();
     const { payment, customer } = data;
     const sections: PrintSection[] = [];
 
-    // Header
-    sections.push(title(config.businessName));
-    if (config.businessAddress) sections.push(textCenter(config.businessAddress));
-    if (config.businessPhone) sections.push(textCenter(`Tel: ${config.businessPhone}`));
-    sections.push(line('='));
+    // Header — identity comes from the Business Profile in Settings.
+    const biz = await loadReceiptBusiness(config);
+    sections.push(...businessHeaderSections(biz, nativeWidth(config)));
+    sections.push(line('-'));
 
     // Title
     sections.push(textCenter('PAYMENT RECEIPT', true));
@@ -221,9 +222,9 @@ export function buildCustomerPaymentSections(data: CustomerPaymentInvoiceData): 
     }
     sections.push(table(2, body, nativeColWidths()));
 
-    sections.push(line('='));
-    sections.push(textCenter(`AMOUNT: ${fmt(payment.amount)}`, true));
-    sections.push(line('='));
+    sections.push(line('-'));
+    sections.push(bigCenter(`AMOUNT: ${fmt(payment.amount)}`, nativeWidth(config)));
+    sections.push(line('-'));
 
     // Balance
     const { previousBalance, newBalance } = resolveBalances(payment, customer.balance);
@@ -242,16 +243,15 @@ export function buildCustomerPaymentSections(data: CustomerPaymentInvoiceData): 
     return sections;
 }
 
-export function buildSupplierPaymentSections(data: SupplierPaymentInvoiceData): PrintSection[] {
+export async function buildSupplierPaymentSections(data: SupplierPaymentInvoiceData): Promise<PrintSection[]> {
     const config = loadThermalConfig();
     const { payment, supplier } = data;
     const sections: PrintSection[] = [];
 
-    // Header
-    sections.push(title(config.businessName));
-    if (config.businessAddress) sections.push(textCenter(config.businessAddress));
-    if (config.businessPhone) sections.push(textCenter(`Tel: ${config.businessPhone}`));
-    sections.push(line('='));
+    // Header — identity comes from the Business Profile in Settings.
+    const biz = await loadReceiptBusiness(config);
+    sections.push(...businessHeaderSections(biz, nativeWidth(config)));
+    sections.push(line('-'));
 
     // Title
     sections.push(textCenter('PAYMENT VOUCHER', true));
@@ -273,9 +273,9 @@ export function buildSupplierPaymentSections(data: SupplierPaymentInvoiceData): 
     }
     sections.push(table(2, body, nativeColWidths()));
 
-    sections.push(line('='));
-    sections.push(textCenter(`AMOUNT: ${fmt(payment.amount)}`, true));
-    sections.push(line('='));
+    sections.push(line('-'));
+    sections.push(bigCenter(`AMOUNT: ${fmt(payment.amount)}`, nativeWidth(config)));
+    sections.push(line('-'));
 
     // Balance
     const { previousBalance, newBalance } = resolveBalances(payment, supplier.balance);
@@ -296,12 +296,12 @@ export function buildSupplierPaymentSections(data: SupplierPaymentInvoiceData): 
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export function buildCustomerPaymentJob(data: CustomerPaymentInvoiceData): PrintJobRequest {
-    return buildPrintJob(buildCustomerPaymentSections(data));
+export async function buildCustomerPaymentJob(data: CustomerPaymentInvoiceData): Promise<PrintJobRequest> {
+    return buildPrintJob(await buildCustomerPaymentSections(data));
 }
 
-export function buildSupplierPaymentJob(data: SupplierPaymentInvoiceData): PrintJobRequest {
-    return buildPrintJob(buildSupplierPaymentSections(data));
+export async function buildSupplierPaymentJob(data: SupplierPaymentInvoiceData): Promise<PrintJobRequest> {
+    return buildPrintJob(await buildSupplierPaymentSections(data));
 }
 
 export async function printCustomerPayment(data: CustomerPaymentInvoiceData): Promise<boolean> {
@@ -310,14 +310,14 @@ export async function printCustomerPayment(data: CustomerPaymentInvoiceData): Pr
         return exportCustomerPaymentImage(data);
     }
     if (config.invoiceMode === 'native') {
-        return printDocument(buildCustomerPaymentJob(data));
+        return printDocument(await buildCustomerPaymentJob(data));
     }
     try {
         const section = await buildSlipImageSection(customerSlipData(data));
         return await printDocument(buildPrintJob([section, feed(3)]));
     } catch (err) {
         console.warn('[PaymentSlip] HTML render failed, falling back to text mode:', err);
-        return printDocument(buildCustomerPaymentJob(data));
+        return printDocument(await buildCustomerPaymentJob(data));
     }
 }
 
@@ -327,13 +327,13 @@ export async function printSupplierPayment(data: SupplierPaymentInvoiceData): Pr
         return exportSupplierPaymentImage(data);
     }
     if (config.invoiceMode === 'native') {
-        return printDocument(buildSupplierPaymentJob(data));
+        return printDocument(await buildSupplierPaymentJob(data));
     }
     try {
         const section = await buildSlipImageSection(supplierSlipData(data));
         return await printDocument(buildPrintJob([section, feed(3)]));
     } catch (err) {
         console.warn('[PaymentSlip] HTML render failed, falling back to text mode:', err);
-        return printDocument(buildSupplierPaymentJob(data));
+        return printDocument(await buildSupplierPaymentJob(data));
     }
 }

@@ -18,7 +18,7 @@ async function printSaleReceipt(saleId: number) {
             name: i.variant?.product?.name ?? `#${i.variant?.barcode ?? i.variantId}`,
             qty: i.quantity,
             price: i.unitPrice,
-            discount: i.discount,
+            discount: Math.round(((i.discount * Math.abs(i.quantity)) + Number.EPSILON) * 100) / 100,
             total: i.totalPrice ?? i.quantity * i.unitPrice,
         }));
         const subtotal = items.reduce((sum, i) => sum + i.total, 0);

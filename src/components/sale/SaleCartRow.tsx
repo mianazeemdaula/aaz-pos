@@ -117,39 +117,46 @@ export function SaleCartRow({
         )}
       </td>
       <td className="px-2 py-1.5 align-middle">
-        <div className="flex items-center justify-center gap-0.5">
-          <input
-            type="number"
-            value={item.discount}
-            min={0}
-            max={item.discountType === 'PERCENTAGE' ? 100 : undefined}
-            step="0.01"
-            onChange={e =>
-              updateField(
-                idx,
-                'discount',
+        <div className="flex flex-col items-center justify-center">
+          <div className="flex items-center justify-center gap-0.5">
+            <input
+              type="number"
+              value={item.discount}
+              min={0}
+              max={item.discountType === 'PERCENTAGE' ? 100 : undefined}
+              step="0.01"
+              onChange={e =>
+                updateField(
+                  idx,
+                  'discount',
+                  item.discountType === 'PERCENTAGE'
+                    ? Math.min(100, Math.max(0, Number(e.target.value)))
+                    : Math.max(0, Number(e.target.value))
+                )
+              }
+              className="w-14 text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs"
+            />
+            <button
+              onClick={() => allowDiscountTypeSwitch && onToggleDiscountType(idx)}
+              disabled={!allowDiscountTypeSwitch}
+              className={`text-[10px] font-medium px-1 py-0.5 rounded border shrink-0 ${
+                !allowDiscountTypeSwitch
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600'
+              } ${
                 item.discountType === 'PERCENTAGE'
-                  ? Math.min(100, Math.max(0, Number(e.target.value)))
-                  : Math.max(0, Number(e.target.value))
-              )
-            }
-            className="w-14 text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs"
-          />
-          <button
-            onClick={() => allowDiscountTypeSwitch && onToggleDiscountType(idx)}
-            disabled={!allowDiscountTypeSwitch}
-            className={`text-[10px] font-medium px-1 py-0.5 rounded border shrink-0 ${
-              !allowDiscountTypeSwitch
-                ? 'opacity-50 cursor-not-allowed'
-                : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600'
-            } ${
-              item.discountType === 'PERCENTAGE'
-                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 border-blue-200 dark:border-blue-800'
-                : 'bg-green-50 dark:bg-green-900/30 text-green-600 border-green-200 dark:border-green-800'
-            }`}
-          >
-            {item.discountType === 'PERCENTAGE' ? '%' : 'Rs'}
-          </button>
+                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 border-blue-200 dark:border-blue-800'
+                  : 'bg-green-50 dark:bg-green-900/30 text-green-600 border-green-200 dark:border-green-800'
+              }`}
+            >
+              {item.discountType === 'PERCENTAGE' ? '%' : 'Rs'}
+            </button>
+          </div>
+          {lc.discAmt > 0 && Math.abs(item.qty) > 1 && (
+            <span className="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5">
+              Tot: -{fmt(lc.discAmt)}
+            </span>
+          )}
         </div>
       </td>
       <td className="px-2 py-1.5 align-middle text-center">

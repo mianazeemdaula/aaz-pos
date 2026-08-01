@@ -3,7 +3,7 @@ import {
   Loader2, Printer, CheckCircle2, AlertCircle, RefreshCw, Check, Image as ImageIcon
 } from 'lucide-react';
 import { useGlobalSettings } from '../../contexts/SettingsContext';
-import { saveThermalConfig, listPrinters, type ThermalPrinterConfig, type PrinterInfo } from '../../utils/thermalPrinter';
+import { saveThermalConfig, listPrinters, printTestSlip, type ThermalPrinterConfig, type PrinterInfo } from '../../utils/thermalPrinter';
 import { previewSampleSaleInvoice, previewSamplePaymentSlip } from '../../utils/invoices/sampleReceipt';
 import { SettingsHeader } from './SettingsHeader';
 
@@ -19,6 +19,7 @@ export function ThermalSettings() {
   const [thermalPrinters, setThermalPrinters] = useState<PrinterInfo[]>([]);
   const [printerLoading, setPrinterLoading] = useState(false);
   const [previewing, setPreviewing] = useState<'invoice' | 'payment' | null>(null);
+  const [testingPrint, setTestingPrint] = useState(false);
 
   useEffect(() => {
     setThermal(globalSettings.thermal);
@@ -54,6 +55,24 @@ export function ThermalSettings() {
       });
     } finally {
       setPreviewing(null);
+    }
+  };
+
+  // Prints against the values currently in the form, not the saved ones, so a
+  // new IP can be tried before committing it.
+  const sendTestPrint = async () => {
+    setTestingPrint(true);
+    setStatusMsg(null);
+    try {
+      await printTestSlip(thermal);
+      setStatusMsg({ ok: true, text: 'Test slip sent — check the printer.' });
+    } catch (e) {
+      setStatusMsg({
+        ok: false,
+        text: e instanceof Error ? e.message : 'Test print failed.',
+      });
+    } finally {
+      setTestingPrint(false);
     }
   };
 
@@ -115,6 +134,10 @@ export function ThermalSettings() {
                 className={inputCls}
                 placeholder="192.168.1.100"
               />
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                Prints straight to the printer over a RAW/JetDirect socket &mdash; no Windows driver or
+                print queue needed. Port defaults to 9100; append <code>:port</code> to override.
+              </p>
             </div>
           ) : (
             <div>
@@ -186,7 +209,8 @@ export function ThermalSettings() {
               <ImageIcon className="text-primary-600" size={16} /> Receipt Testing
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Render receipts to an image on screen so layout can be checked without wasting paper.
+              Send a short slip to the configured printer, or render receipts to an image on screen so
+              layout can be checked without wasting paper.
             </p>
           </div>
 
@@ -210,6 +234,15 @@ export function ThermalSettings() {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={sendTestPrint}
+              disabled={testingPrint}
+              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-sm transition-colors disabled:opacity-50"
+            >
+              {testingPrint ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+              Send Test Print
+            </button>
             <button
               type="button"
               onClick={() => previewSample('invoice')}

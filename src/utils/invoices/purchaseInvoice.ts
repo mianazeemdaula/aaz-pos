@@ -3,11 +3,13 @@
  */
 import type { Purchase, Supplier } from '../../types/pos';
 import {
-    title, textLeft, textCenter, line, feed, table, cell,
+    textLeft, textCenter, line, feed, table, cell,
+    bigCenter, nativeWidth,
     buildPrintJob, printDocument,
-    type PrintSection, type PrintJobRequest,
+    type PrintSection, type PrintJobRequest, nativeDefaultWidth,
 } from '../thermalPrinter';
 import { loadThermalConfig } from '../thermalPrinter';
+import { loadReceiptBusiness, businessHeaderSections } from './businessProfile';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d: string) => {
@@ -27,15 +29,14 @@ export interface PurchaseInvoiceData {
     paidAmount: number;
 }
 
-export function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): PrintSection[] {
+export async function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): Promise<PrintSection[]> {
     const config = loadThermalConfig();
     const sections: PrintSection[] = [];
 
-    // Header
-    sections.push(title(config.businessName));
-    if (config.businessAddress) sections.push(textCenter(config.businessAddress));
-    if (config.businessPhone) sections.push(textCenter(`Tel: ${config.businessPhone}`));
-    sections.push(line('='));
+    // Header — identity comes from the Business Profile in Settings.
+    const biz = await loadReceiptBusiness(config);
+    sections.push(...businessHeaderSections(biz, nativeWidth(config)));
+    sections.push(line('-'));
 
     // Invoice info
     sections.push(textCenter('PURCHASE INVOICE', true));
@@ -49,38 +50,41 @@ export function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): PrintSe
     if (data.purchase.account) {
         sections.push(textLeft(`Account: ${data.purchase.account.name}`));
     }
-    sections.push(line('='));
+    sections.push(line('-'));
 
     // Items table
     const is80mm = config.paperSize === 'Mm80';
-    const defaultWidth = is80mm ? 48 : 32;
+    const defaultWidth = nativeDefaultWidth(config);
     const width = config.nativeColumns || defaultWidth;
     const ratio = width / defaultWidth;
 
-    let colWidths = is80mm ? [3, 21, 10, 14] : [3, 13, 7, 9];
-    if (config.nativeColumns) {
-        colWidths = colWidths.map(w => Math.max(1, Math.floor(w * ratio)));
-        const sum = colWidths.reduce((a, b) => a + b, 0);
-        const diff = width - sum;
-        if (diff !== 0) {
-            colWidths[1] += diff; // Adjust Item column
-        }
-    }
+    // Qty | Item | Cost | Disc | Total. The items carry a per-line discount
+    // that the four-column layout silently dropped.
+    //
+    // Widths are derived from the real column count rather than hardcoded to
+    // Font A's 48, which left the table well short of the paper.
+    const qtyW = width >= 48 ? 4 : 3;
+    const totalW = Math.max(8, Math.round(width * 0.19));
+    const costW = Math.max(6, Math.round(width * 0.15));
+    const discW = Math.max(5, Math.round(width * 0.14));
+    const colWidths = [qtyW, width - qtyW - costW - discW - totalW, costW, discW, totalW];
 
     const header = [
         cell('Qty', 'left', true),
         cell('Item', 'left', true),
         cell('Cost', 'right', true),
+        cell('Disc', 'right', true),
         cell('Total', 'right', true),
     ];
     const body = data.items.map(i => [
         cell(String(i.qty)),
         cell(i.name),
         cell(fmt(i.unitCost), 'right'),
+        cell(i.discount > 0 ? `-${fmt(i.discount)}` : '-', 'right'),
         cell(fmt(i.total), 'right'),
     ]);
-    sections.push(table(4, body, colWidths, header));
-    sections.push(line('='));
+    sections.push(table(5, body, colWidths, header));
+    sections.push(line('-'));
 
     // Totals
     let totalsWidth = is80mm ? [32, 16] : [20, 12];
@@ -105,9 +109,9 @@ export function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): PrintSe
         totalsBody.push([cell('Expenses:'), cell(fmt(data.expenses), 'right')]);
     }
     sections.push(table(2, totalsBody, totalsWidth));
-    sections.push(line('='));
-    sections.push(textCenter(`TOTAL: ${fmt(data.grandTotal)}`, true));
-    sections.push(line('='));
+    sections.push(line('-'));
+    sections.push(bigCenter(`TOTAL: ${fmt(data.grandTotal)}`, nativeWidth(config)));
+    sections.push(line('-'));
 
     // Payment
     sections.push(textLeft(`Paid: ${fmt(data.paidAmount)}`));
@@ -128,11 +132,11 @@ export function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): PrintSe
     return sections;
 }
 
-export function buildPurchaseInvoiceJob(data: PurchaseInvoiceData): PrintJobRequest {
-    return buildPrintJob(buildPurchaseInvoiceSections(data));
+export async function buildPurchaseInvoiceJob(data: PurchaseInvoiceData): Promise<PrintJobRequest> {
+    return buildPrintJob(await buildPurchaseInvoiceSections(data));
 }
 
 export async function printPurchaseInvoice(data: PurchaseInvoiceData): Promise<boolean> {
-    const job = buildPurchaseInvoiceJob(data);
+    const job = await buildPurchaseInvoiceJob(data);
     return printDocument(job);
 }
