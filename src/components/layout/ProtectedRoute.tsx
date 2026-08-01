@@ -9,6 +9,8 @@ import type { PermissionModule } from '../../contexts/SettingsContext';
  * (e.g. the dashboard is always accessible to authenticated users via sidebar filtering).
  */
 const ROUTE_PERMISSION_MAP: Record<string, PermissionModule> = {
+  '/dashboard':         'dashboard',
+
   // Quick Actions
   '/sale':              'sales',
   '/purchase':          'purchases',
@@ -69,7 +71,7 @@ function resolvePermission(pathname: string): PermissionModule | undefined {
     segments.pop();
   }
 
-  return undefined; // No matching permission (e.g. /dashboard — always allowed)
+  return undefined;
 }
 
 export function ProtectedRoute() {
@@ -98,8 +100,8 @@ export function ProtectedRoute() {
 
   // If the route maps to a module, check permission
   if (requiredModule && !hasPermission(requiredModule, 'view')) {
-    // Find the first module the user CAN access and redirect there
-    const fallbackPath = user?.role === 'CASHIER' ? '/sale' : '/dashboard';
+    // Find the fallback route (cashier or any user without dashboard view gets /sale)
+    const fallbackPath = user?.role === 'CASHIER' || !hasPermission('dashboard', 'view') ? '/sale' : '/dashboard';
     return <Navigate to={fallbackPath} replace />;
   }
 

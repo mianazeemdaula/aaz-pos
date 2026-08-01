@@ -27,6 +27,7 @@ export interface Account {
     type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'INCOME' | 'EXPENSE';
     active: boolean;
     balance: number;
+    openingBalance?: number;
     createdAt?: string;
 }
 

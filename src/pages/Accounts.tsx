@@ -148,7 +148,7 @@ export function Accounts() {
   };
 
   const openAddModal = (type: Account['type'] = 'ASSET') => {
-    setForm({ type, balance: 0, code: '' });
+    setForm({ type, balance: 0, openingBalance: 0, code: '' });
     setModal({ mode: 'add' });
     fetchAutoAccountCode(type);
   };
@@ -325,7 +325,7 @@ export function Accounts() {
               className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
           {modal?.mode === 'add' && (
             <div><label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Opening Balance</label>
-              <input type="number" value={form.balance ?? 0} min={0} onChange={e => setForm(p => ({ ...p, balance: Number(e.target.value) }))}
+              <input type="number" value={form.openingBalance ?? form.balance ?? 0} min={0} onChange={e => setForm(p => ({ ...p, openingBalance: Number(e.target.value), balance: Number(e.target.value) }))}
                 className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" /></div>
           )}
           <div className="flex justify-end gap-2 pt-2">
