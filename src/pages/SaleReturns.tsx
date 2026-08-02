@@ -74,7 +74,9 @@ export function SaleReturns() {
   const loadSales = useCallback(async (page: number, from = salesFrom, to = salesTo, q = salesQ) => {
     setSalesLoading(true);
     try {
-      const params: Record<string, unknown> = { page, pageSize: 15, from, to, type: 'SALE' };
+      const params: Record<string, unknown> = { page, pageSize: 15, type: 'SALE' };
+      if (from) params.from = from;
+      if (to) params.to = to;
       if (q.trim()) params.q = q.trim();
       const r = await saleService.list(params);
       setSales(r.data); setSalesPage(r.pagination.page);
@@ -216,9 +218,19 @@ export function SaleReturns() {
           <input type="date" value={salesFrom} onChange={e => handleFromChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
           <span className="text-gray-400 text-sm">to</span>
           <input type="date" value={salesTo} onChange={e => handleToChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
+          {(salesFrom || salesTo) && (
+            <button onClick={() => { setSalesFrom(''); setSalesTo(''); loadSales(1, '', '', salesQ); }} title="Clear Date Filter" className="px-2 py-1 text-xs text-gray-500 hover:text-red-600 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+              Clear Dates
+            </button>
+          )}
           <div className="relative flex-1 min-w-40">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={salesQ} onChange={e => setSalesQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Search customer..." className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
+            <input value={salesQ} onChange={e => setSalesQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Search invoice #, customer name, phone, item..." className="w-full pl-7 pr-7 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
+            {salesQ && (
+              <button onClick={() => { setSalesQ(''); loadSales(1, salesFrom, salesTo, ''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <X size={13} />
+              </button>
+            )}
           </div>
           <button onClick={handleSearch} className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">Search</button>
         </div>
@@ -228,7 +240,7 @@ export function SaleReturns() {
               : (
                 <table className="w-full text-sm">
                   <thead><tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 text-left text-xs text-gray-500">
-                    <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Customer</th>
+                    <th className="px-4 py-2.5">Invoice #</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Customer</th>
                     <th className="px-4 py-2.5 text-right">Total</th><th className="px-4 py-2.5 text-right">Paid</th>
                     <th className="px-4 py-2.5 text-right">Due</th><th className="px-4 py-2.5 text-right">Items</th>
                     <th className="px-4 py-2.5 text-right">Cashier</th><th className="px-4 py-2.5 text-center">Actions</th>
@@ -238,7 +250,10 @@ export function SaleReturns() {
                       const due = Math.max(0, s.totalAmount - s.paidAmount);
                       return (
                         <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 text-sm">
-                          <td className="px-4 py-1.5 font-medium text-gray-900 dark:text-gray-100">{s.id ?? `#${s.id}`}</td>
+                          <td className="px-4 py-1.5 font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                            <div>#{s.id}</div>
+                            {s.taxInvoiceId && <div className="text-[11px] text-gray-400 font-mono font-normal">{s.taxInvoiceId}</div>}
+                          </td>
                           <td className="px-4 py-1.5 text-gray-500">{fmtDate(s.createdAt)}</td>
                           <td className="px-4 py-1.5 text-gray-700 dark:text-gray-300">{s.customer?.name ?? 'Walk-in'}</td>
                           <td className="px-4 py-1.5 text-right font-medium text-gray-900 dark:text-gray-100">{fmt(s.totalAmount)}</td>

@@ -66,7 +66,9 @@ export function PurchaseReturns() {
   const loadPurchases = useCallback(async (page: number, from = purFrom, to = purTo, q = purQ) => {
     setPurLoading(true);
     try {
-      const params: Record<string, unknown> = { page, pageSize: 15, from, to, type: 'PURCHASE' };
+      const params: Record<string, unknown> = { page, pageSize: 15, type: 'PURCHASE' };
+      if (from) params.from = from;
+      if (to) params.to = to;
       if (q.trim()) params.q = q.trim();
       const r = await purchaseService.list(params);
       setPurchases(r.data); setPurPage(r.pagination.page);
@@ -193,9 +195,19 @@ export function PurchaseReturns() {
           <input type="date" value={purFrom} onChange={e => handleFromChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
           <span className="text-gray-400 text-sm">to</span>
           <input type="date" value={purTo} onChange={e => handleToChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
+          {(purFrom || purTo) && (
+            <button onClick={() => { setPurFrom(''); setPurTo(''); loadPurchases(1, '', '', purQ); }} title="Clear Date Filter" className="px-2 py-1 text-xs text-gray-500 hover:text-red-600 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50">
+              Clear Dates
+            </button>
+          )}
           <div className="relative flex-1 min-w-40">
             <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={purQ} onChange={e => setPurQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Search supplier or invoice..." className="w-full pl-7 pr-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
+            <input value={purQ} onChange={e => setPurQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Search purchase #, invoice #, supplier, item..." className="w-full pl-7 pr-7 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
+            {purQ && (
+              <button onClick={() => { setPurQ(''); loadPurchases(1, purFrom, purTo, ''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                <X size={13} />
+              </button>
+            )}
           </div>
           <button onClick={handleSearch} className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">Search</button>
         </div>
@@ -205,7 +217,7 @@ export function PurchaseReturns() {
               : (
                 <table className="w-full text-sm">
                   <thead><tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/20 text-left text-xs text-gray-500">
-                    <th className="px-4 py-2.5">#</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Supplier</th>
+                    <th className="px-4 py-2.5">Purchase #</th><th className="px-4 py-2.5">Date</th><th className="px-4 py-2.5">Supplier</th>
                     <th className="px-4 py-2.5">Invoice No</th><th className="px-4 py-2.5 text-right">Total</th>
                     <th className="px-4 py-2.5 text-right">Paid</th><th className="px-4 py-2.5 text-right">Due</th><th className="px-4 py-2.5"></th>
                   </tr></thead>
