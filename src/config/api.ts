@@ -194,6 +194,7 @@ export const API_ENDPOINTS = {
         salesPdf: '/reports/sales/pdf',
         purchasesPdf: '/reports/purchases',
         inventoryPdf: '/reports/inventory',
+        costAboveSalePricePdf: '/reports/cost-above-sale-price',
         expensesPdf: '/reports/expenses',
         customerBalancesPdf: '/reports/customer-balances',
         supplierBalancesPdf: '/reports/supplier-balances',

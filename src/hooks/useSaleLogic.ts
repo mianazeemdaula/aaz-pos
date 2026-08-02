@@ -128,20 +128,29 @@ export function useSaleLogic() {
 
   const updateQty = (idx: number, delta: number) =>
     setCart(prev =>
-      prev.map((item, i) =>
-        i === idx
-          ? { ...item, qty: returnMode ? Math.min(-1, item.qty + delta) : Math.max(1, item.qty + delta) }
-          : item
-      )
+      prev.map((item, i) => {
+        if (i !== idx) return item;
+        const currentQty = item.qty || 0;
+        const newQty = returnMode
+          ? Math.min(-1, currentQty + delta)
+          : Math.max(1, currentQty + delta);
+        return { ...item, qty: newQty };
+      })
     );
 
   const updateField = (idx: number, field: 'price' | 'discount' | 'qty', val: number) =>
     setCart(prev =>
-      prev.map((item, i) =>
-        i === idx
-          ? { ...item, [field]: field === 'qty' ? (returnMode ? Math.min(-1, val) : Math.max(1, val)) : val }
-          : item
-      )
+      prev.map((item, i) => {
+        if (i !== idx) return item;
+        if (field === 'qty') {
+          const cleanVal = isNaN(val) ? 0 : val;
+          const newQty = returnMode
+            ? (cleanVal === 0 ? 0 : -Math.abs(cleanVal))
+            : Math.max(0, cleanVal);
+          return { ...item, qty: newQty };
+        }
+        return { ...item, [field]: val };
+      })
     );
 
   const removeItem = (idx: number) => setCart(prev => prev.filter((_, i) => i !== idx));
@@ -342,6 +351,12 @@ export function useSaleLogic() {
     if (!cart.length) return showToast('error', 'Cart is empty');
     if (!isReturnCart && paidTotal < grandTotal - 0.01 && !customer) {
       return showToast('error', 'Payment is short. Enter the received amount.');
+    }
+
+    for (const i of cart) {
+      if (!i.qty || i.qty === 0) {
+        return showToast('error', `Please enter a valid quantity for ${i.product?.name ?? i.variant?.name ?? 'item'}.`);
+      }
     }
 
     // Validate discount and cost price limits

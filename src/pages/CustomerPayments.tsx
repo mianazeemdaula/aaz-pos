@@ -11,6 +11,25 @@ import { printCustomerPayment } from '../utils/invoices';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const formatPaymentDate = (dateVal?: string | Date | null, createdAtVal?: string | Date | null) => {
+    if (!dateVal && !createdAtVal) return '—';
+    const d = dateVal ? new Date(dateVal) : null;
+    const c = createdAtVal ? new Date(createdAtVal) : null;
+
+    let target = d && !isNaN(d.getTime()) ? d : c;
+    if (!target || isNaN(target.getTime())) return '—';
+
+    if (c && !isNaN(c.getTime()) && d && d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+        const combined = new Date(d);
+        combined.setHours(c.getHours(), c.getMinutes(), c.getSeconds());
+        target = combined;
+    }
+
+    const dateStr = target.toLocaleDateString('en-PK', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = target.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return `${dateStr}, ${timeStr}`;
+};
+
 interface PaymentForm {
     amount: string;
     accountId: number | null;
@@ -240,47 +259,45 @@ export function CustomerPayments() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                             <thead>
-                                <tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500 uppercase tracking-wider">
-                                    <th className="px-4 py-2.5">#</th>
-                                    <th className="px-4 py-2.5">Date</th>
-                                    <th className="px-4 py-2.5">Type</th>
-                                    <th className="px-4 py-2.5">Account</th>
-                                    <th className="px-4 py-2.5">Note</th>
-                                    <th className="px-4 py-2.5 text-right">Amount</th>
-                                    <th className="px-4 py-2.5 text-center">Actions</th>
+                                <tr className="border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/80 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                    <th className="px-4 py-3">#</th>
+                                    <th className="px-4 py-3">Date & Time</th>
+                                    <th className="px-4 py-3">Type</th>
+                                    <th className="px-4 py-3">Account</th>
+                                    <th className="px-4 py-3">Note</th>
+                                    <th className="px-4 py-3 text-right">Amount</th>
+                                    <th className="px-4 py-3 text-center">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                                 {payments.map((p, i) => (
                                     <tr
                                         key={p.id}
-                                        className="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/30"
+                                        className="hover:bg-gray-50/80 dark:hover:bg-gray-700/40 transition-colors text-sm"
                                     >
-                                        <td className="px-4 py-2.5 text-gray-400 text-xs">{(page - 1) * PAGE_SIZE + i + 1}</td>
-                                        <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
-                                            {new Date(p.date ?? p.createdAt).toLocaleDateString('en-PK', {
-                                                day: '2-digit', month: 'short', year: 'numeric',
-                                             })}
+                                        <td className="px-4 py-3 text-xs font-medium text-gray-400 dark:text-gray-500">{(page - 1) * PAGE_SIZE + i + 1}</td>
+                                        <td className="px-4 py-3 text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                            {formatPaymentDate(p.date, p.createdAt)}
                                         </td>
-                                        <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
-                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.type === 'SENT' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                        <td className="px-4 py-3 text-xs">
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${p.type === 'SENT' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
                                                 {p.type === 'SENT' ? 'Refund' : 'Received'}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">
+                                        <td className="px-4 py-3 text-xs font-medium text-gray-600 dark:text-gray-300">
                                             {p.account?.name ?? '—'}
                                         </td>
-                                        <td className="px-4 py-2.5 text-gray-500 max-w-xs truncate">{p.note ?? '—'}</td>
-                                        <td className={`px-4 py-2.5 text-right font-semibold ${p.type === 'SENT' ? 'text-red-600' : 'text-green-600'}`}>
+                                        <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 max-w-xs truncate">{p.note ?? '—'}</td>
+                                        <td className={`px-4 py-3 text-sm text-right font-bold ${p.type === 'SENT' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                                             {p.type === 'SENT' ? `- ${fmt(p.amount)}` : fmt(p.amount)}
                                         </td>
-                                        <td className="px-4 py-2.5 text-center">
+                                        <td className="px-4 py-3 text-center">
                                             <button
                                                 onClick={() => handlePrintPayment(p)}
                                                 title="Print Receipt"
-                                                className="p-1.5 text-gray-400 hover:text-primary-600 rounded transition-colors"
+                                                className="p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 rounded transition-colors"
                                             >
-                                                <Printer size={14} />
+                                                <Printer size={15} />
                                             </button>
                                         </td>
                                     </tr>

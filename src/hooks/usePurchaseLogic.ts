@@ -206,7 +206,8 @@ export function usePurchaseLogic() {
     setCart(prev =>
       prev.map((item, i) => {
         if (i !== idx) return item;
-        const newQty = Math.max(1, item.qty + delta);
+        const currentQty = item.qty || 0;
+        const newQty = Math.max(1, currentQty + delta);
         return { ...item, qty: newQty, totalCost: round2(newQty * item.unitCost) };
       })
     );
@@ -220,7 +221,7 @@ export function usePurchaseLogic() {
       prev.map((item, i) => {
         if (i !== idx) return item;
         if (field === 'qty') {
-          const newQty = Math.max(1, val);
+          const newQty = Math.max(0, isNaN(val) ? 0 : val);
           return { ...item, qty: newQty, totalCost: round2(newQty * item.unitCost) };
         }
         if (field === 'unitCost') {
@@ -507,6 +508,11 @@ export function usePurchaseLogic() {
   // Submit / Save
   const submit = useCallback(async () => {
     if (!cart.length) return showToast('error', 'Cart is empty');
+    for (const i of cart) {
+      if (!i.qty || i.qty === 0) {
+        return showToast('error', `Please enter a valid quantity for ${i.product?.name ?? i.variant?.name ?? 'item'}.`);
+      }
+    }
     const paymentEntries = accounts
       .filter(a => (parseFloat(accountAmounts[a.id] || '0') || 0) > 0)
       .map(a => ({ accountId: a.id, amount: parseFloat(accountAmounts[a.id]) || 0 }));

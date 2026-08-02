@@ -15,7 +15,7 @@ export type ReportId =
     | 'overall-business' | 'payables-receivables' | 'daily'
     | 'sales' | 'detailed-sales' | 'cashier-sales'
     | 'purchases' | 'detailed-purchases' | 'purchase-recommendation'
-    | 'inventory' | 'stock-alert' | 'stock-negative' | 'stock-low'
+    | 'inventory' | 'cost-above-sale-price' | 'stock-alert' | 'stock-negative' | 'stock-low'
     | 'customers' | 'suppliers' | 'customer-ledger' | 'supplier-ledger'
     | 'expenses' | 'account-statement';
 
@@ -79,6 +79,7 @@ export const REPORT_GROUPS: ReportGroup[] = [
         heading: 'Inventory',
         reports: [
             { id: 'inventory', label: 'Inventory Report', description: 'Stock levels, inventory value & reorder alerts', icon: BarChart2, color: tint.positive, params: ['category', 'brand'], endpoint: '/reports/inventory' },
+            { id: 'cost-above-sale-price', label: 'Cost Above Sale Price', navLabel: 'Cost > Sale Price', description: 'Products & variants where cost price exceeds selling price (loss-making items)', icon: AlertTriangle, color: tint.critical, params: ['category', 'brand'], endpoint: '/reports/cost-above-sale-price' },
             { id: 'stock-alert', label: 'Stock Alert Report', navLabel: 'Stock Alerts', description: 'All products with negative or low stock levels', icon: AlertTriangle, color: tint.critical, params: ['stockFilter', 'category', 'brand'], endpoint: '/reports/stock', extraParams: { filter: 'alert' } },
             { id: 'stock-low', label: 'Low Stock Report', navLabel: 'Low Stock', description: 'Products at or below their reorder level', icon: AlertTriangle, color: tint.caution, params: ['stockFilter', 'category', 'brand'], endpoint: '/reports/stock', extraParams: { filter: 'low' } },
             { id: 'stock-negative', label: 'Negative Stock', description: 'Products with stock below zero (data integrity issue)', icon: AlertTriangle, color: tint.critical, params: ['stockFilter', 'category', 'brand'], endpoint: '/reports/stock', extraParams: { filter: 'negative' } },

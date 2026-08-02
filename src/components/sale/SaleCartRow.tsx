@@ -42,7 +42,7 @@ export function SaleCartRow({
 
   return (
     <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-      <td className="px-3 py-1.5 align-middle min-w-28">
+      <td className="px-3 py-1.5 align-middle min-w-24">
         <p className="font-medium text-gray-900 dark:text-gray-100 break-words">{item.product.name}</p>
         <p
           className="text-gray-400 text-xs truncate"
@@ -79,9 +79,15 @@ export function SaleCartRow({
           <input
             ref={isLast ? lastQtyRef : undefined}
             type="number"
-            value={item.qty}
+            value={item.qty === 0 ? '' : item.qty}
             min={returnMode ? -9999 : 1}
-            onChange={e => updateField(idx, 'qty', Number(e.target.value))}
+            step="any"
+            onChange={e => updateField(idx, 'qty', e.target.value === '' ? 0 : Number(e.target.value))}
+            onBlur={() => {
+              if (!item.qty || item.qty === 0) {
+                updateField(idx, 'qty', returnMode ? -1 : 1);
+              }
+            }}
             onKeyDown={
               isLast
                 ? e => {
@@ -92,7 +98,7 @@ export function SaleCartRow({
                   }
                 : undefined
             }
-            className="w-10 text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 text-xs"
+            className="w-16 text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 text-xs"
           />
           <button
             onClick={() => updateQty(idx, 1)}
@@ -193,7 +199,7 @@ export function SaleCartRow({
           )}
         </div>
       </td>
-      <td className="px-2 py-1.5 align-middle text-right font-medium text-gray-900 dark:text-gray-100">
+      <td className="px-2 py-1.5 align-middle text-right font-medium text-gray-900 dark:text-gray-100 min-w-24">
         {fmt(lc.lineTotal)}
       </td>
       <td className="px-1 py-1.5 align-middle text-center">

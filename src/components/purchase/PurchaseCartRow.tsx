@@ -101,9 +101,15 @@ export function PurchaseCartRow({
           <input
             ref={isFirst ? lastQtyRef : undefined}
             type="number"
-            value={item.qty}
+            value={item.qty === 0 ? '' : item.qty}
             min={1}
-            onChange={e => updateField(idx, 'qty', Number(e.target.value))}
+            step="any"
+            onChange={e => updateField(idx, 'qty', e.target.value === '' ? 0 : Number(e.target.value))}
+            onBlur={() => {
+              if (!item.qty || item.qty < 1) {
+                updateField(idx, 'qty', 1);
+              }
+            }}
             onKeyDown={
               isFirst
                 ? e => {

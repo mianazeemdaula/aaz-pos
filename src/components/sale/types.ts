@@ -85,7 +85,7 @@ export function computeCartProfit(cart: CartItem[], invoiceDiscount: number = 0)
 }
 
 export const fmt = (n: number) =>
-  `Rs ${round2(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `${round2(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function parseError(e: unknown, fallback: string): string {
   if (e instanceof Error) return e.message;
