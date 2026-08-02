@@ -344,29 +344,34 @@ export function ProductForm() {
             };
 
             if (isEdit) {
-                await productService.update(Number(id), payload);
-                if (product) {
-                    const defVariant = product.variants?.find(v => v.isDefault) ?? product.variants?.[0];
-                    const unitPayload = {
-                        name: 'unit', barcode: baseUnit.barcode, price: baseUnit.price,
-                        ...(baseUnit.wholesale !== '' ? { wholesale: baseUnit.wholesale } : {}),
-                        ...(baseUnit.retail !== '' ? { retail: baseUnit.retail } : {}),
-                        factor: 1, isDefault: true,
-                    };
-                    if (defVariant?.id) {
-                        await productService.updateVariant(product.id, defVariant.id, unitPayload);
-                    } else {
-                        await productService.createVariant(product.id, unitPayload);
-                    }
+                const updatedProd = await productService.update(Number(id), payload);
+                const currentVariants = updatedProd?.variants?.length ? updatedProd.variants : (product?.variants ?? []);
+                const defVariant = currentVariants.find(v => v.isDefault) ?? currentVariants[0];
+                const unitPayload = {
+                    name: defVariant?.name || 'unit',
+                    barcode: baseUnit.barcode,
+                    price: baseUnit.price,
+                    wholesale: baseUnit.wholesale !== '' && baseUnit.wholesale !== null && baseUnit.wholesale !== undefined ? Number(baseUnit.wholesale) : null,
+                    retail: baseUnit.retail !== '' && baseUnit.retail !== null && baseUnit.retail !== undefined ? Number(baseUnit.retail) : null,
+                    factor: 1,
+                    isDefault: true,
+                };
+                if (defVariant?.id) {
+                    await productService.updateVariant(Number(id), defVariant.id, unitPayload);
+                } else {
+                    await productService.createVariant(Number(id), unitPayload);
                 }
             } else {
                 await productService.create({
                     ...payload,
                     variants: [{
-                        name: 'unit', barcode: baseUnit.barcode, price: baseUnit.price,
-                        ...(baseUnit.wholesale !== '' ? { wholesale: baseUnit.wholesale } : {}),
-                        ...(baseUnit.retail !== '' ? { retail: baseUnit.retail } : {}),
-                        factor: 1, isDefault: true,
+                        name: 'unit',
+                        barcode: baseUnit.barcode,
+                        price: baseUnit.price,
+                        wholesale: baseUnit.wholesale !== '' && baseUnit.wholesale !== null && baseUnit.wholesale !== undefined ? Number(baseUnit.wholesale) : null,
+                        retail: baseUnit.retail !== '' && baseUnit.retail !== null && baseUnit.retail !== undefined ? Number(baseUnit.retail) : null,
+                        factor: 1,
+                        isDefault: true,
                     }],
                 });
             }
@@ -645,10 +650,13 @@ export function ProductVariantsPage() {
         try {
             const v = editingVariant;
             const payload = {
-                name: v.name, barcode: v.barcode, price: v.price,
-                ...(v.wholesale !== '' ? { wholesale: v.wholesale } : {}),
-                ...(v.retail !== '' ? { retail: v.retail } : {}),
-                factor: v.factor, isDefault: false,
+                name: v.name,
+                barcode: v.barcode,
+                price: Number(v.price),
+                wholesale: v.wholesale !== '' && v.wholesale !== null && v.wholesale !== undefined ? Number(v.wholesale) : null,
+                retail: v.retail !== '' && v.retail !== null && v.retail !== undefined ? Number(v.retail) : null,
+                factor: Number(v.factor) || 1,
+                isDefault: false,
             };
             if (v.id) {
                 await productService.updateVariant(product.id, v.id, payload);
