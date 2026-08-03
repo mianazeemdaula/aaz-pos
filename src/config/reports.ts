@@ -64,7 +64,7 @@ export const REPORT_GROUPS: ReportGroup[] = [
         reports: [
             { id: 'sales', label: 'Sales Report', description: 'Revenue, COGS, gross profit & all invoices', icon: ShoppingCart, color: tint.accent, params: ['dates', 'user'], endpoint: '/reports/sales' },
             { id: 'detailed-sales', label: 'Customer Sales Report', navLabel: 'Customer Sales', description: 'Detailed sales transactions showing item details', icon: ShoppingCart, color: tint.positive, params: ['dates', 'customer'], endpoint: '/reports/detailed-sales' },
-            { id: 'cashier-sales', label: 'Cashier Sales Summary', navLabel: 'Cashier Sales', description: 'Sales transactions & gross profit filtered by Cashier/Admin', icon: Users, color: tint.accent, params: ['dates', 'user'], endpoint: '/reports/cashier-sales' },
+            { id: 'cashier-sales', label: 'Cashier Sales Summary', navLabel: 'Cashier Sales', description: 'Sales totals, payment accounts breakdown & credit sales details per cashier', icon: Users, color: tint.accent, params: ['dates', 'user'], endpoint: '/reports/cashier-sales' },
         ],
     },
     {
