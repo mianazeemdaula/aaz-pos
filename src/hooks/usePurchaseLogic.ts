@@ -26,6 +26,8 @@ export function usePurchaseLogic() {
 
   const [showProductModal, setShowProductModal] = useState(false);
   const [showHeldModal, setShowHeldModal] = useState(false);
+  const [showQuickProduct, setShowQuickProduct] = useState(false);
+  const [missingBarcode, setMissingBarcode] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -186,15 +188,21 @@ export function usePurchaseLogic() {
 
   const handleBarcodeEnter = useCallback(
     async (bc: string) => {
-      if (!bc.trim()) return;
+      const code = bc.trim();
+      if (!code) return;
       setBarcodeLoading(true);
       setBarcodeError('');
       try {
-        const variant = await productService.getVariantByBarcode(bc.toUpperCase().trim());
-        if (variant) addProduct(variant);
+        const variant = await productService.getVariantByBarcode(code.toUpperCase());
+        if (variant) {
+          addProduct(variant);
+        } else {
+          setMissingBarcode(code);
+          setShowQuickProduct(true);
+        }
       } catch {
-        setBarcodeError(`"${bc.trim()}" not found`);
-        setTimeout(() => setBarcodeError(''), 2500);
+        setMissingBarcode(code);
+        setShowQuickProduct(true);
       } finally {
         setBarcodeLoading(false);
       }
@@ -692,6 +700,10 @@ export function usePurchaseLogic() {
     setShowProductModal,
     showHeldModal,
     setShowHeldModal,
+    showQuickProduct,
+    setShowQuickProduct,
+    missingBarcode,
+    setMissingBarcode,
     saving,
     toast,
     setToast,

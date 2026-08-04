@@ -1,4 +1,4 @@
-import { Scan, Search, Loader2, X } from 'lucide-react';
+import { Scan, Search, Loader2, X, Plus } from 'lucide-react';
 
 interface PurchaseHeaderProps {
   barcode: string;
@@ -9,6 +9,7 @@ interface PurchaseHeaderProps {
   barcodeRef: React.RefObject<HTMLInputElement | null>;
   onBarcodeEnter: (barcode: string) => void;
   onOpenSearchModal: () => void;
+  onOpenQuickProduct?: () => void;
 }
 
 export function PurchaseHeader({
@@ -20,6 +21,7 @@ export function PurchaseHeader({
   barcodeRef,
   onBarcodeEnter,
   onOpenSearchModal,
+  onOpenQuickProduct,
 }: PurchaseHeaderProps) {
   return (
     <div className="p-3 border-b border-gray-200 dark:border-gray-700 shrink-0">
@@ -66,8 +68,18 @@ export function PurchaseHeader({
           <Search size={14} /> <span className="hidden sm:inline">Search</span>{' '}
           <span className="text-xs text-primary-400">F5</span>
         </button>
+        {onOpenQuickProduct && (
+          <button
+            onClick={onOpenQuickProduct}
+            title="Quick Add Product"
+            className="flex items-center gap-1 px-2.5 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors whitespace-nowrap"
+          >
+            <Plus size={14} /> <span className="hidden sm:inline">Add</span>
+          </button>
+        )}
       </div>
       {barcodeError && <p className="text-xs text-red-500 mt-1 pl-1">{barcodeError}</p>}
     </div>
   );
 }
+

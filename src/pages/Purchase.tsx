@@ -3,6 +3,7 @@ import { ProductSearchModal } from '../components/ui/ProductSearch';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { PrintConfirmDialog } from '../components/ui/PrintConfirmDialog';
 import { QuickSupplierAdd } from '../components/ui/QuickSupplierAdd';
+import { QuickProductAdd } from '../components/ui/QuickProductAdd';
 import { printPurchaseInvoice } from '../utils/invoices';
 
 import { usePurchaseLogic } from '../hooks/usePurchaseLogic';
@@ -47,6 +48,10 @@ export function Purchase() {
     setShowProductModal,
     showHeldModal,
     setShowHeldModal,
+    showQuickProduct,
+    setShowQuickProduct,
+    missingBarcode,
+    setMissingBarcode,
     saving,
     toast,
     setToast,
@@ -158,6 +163,10 @@ export function Purchase() {
           barcodeRef={barcodeRef}
           onBarcodeEnter={handleBarcodeEnter}
           onOpenSearchModal={() => setShowProductModal(true)}
+          onOpenQuickProduct={() => {
+            setMissingBarcode('');
+            setShowQuickProduct(true);
+          }}
         />
 
         <PurchaseCartTable
@@ -226,6 +235,23 @@ export function Purchase() {
           setShowQuickSupplier(false);
         }}
       />
+
+      {/* Quick Product Add Modal */}
+      <QuickProductAdd
+        open={showQuickProduct}
+        initialBarcode={missingBarcode}
+        onClose={() => {
+          setShowQuickProduct(false);
+          setMissingBarcode('');
+          setTimeout(() => barcodeRef.current?.focus(), 30);
+        }}
+        onCreated={(_prod, variant) => {
+          addProduct(variant);
+          setShowQuickProduct(false);
+          setMissingBarcode('');
+        }}
+      />
     </div>
   );
 }
+
