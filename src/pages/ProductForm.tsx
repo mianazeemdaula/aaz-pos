@@ -1,16 +1,17 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Plus, Pencil, Trash2, Loader2, Save, X, Upload } from 'lucide-react';
 import { productService, categoryService, brandService, taxScheduleService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { QuickCategoryAdd } from '../components/ui/QuickCategoryAdd';
 import { QuickBrandAdd } from '../components/ui/QuickBrandAdd';
+import { Toast, type ToastMessage } from '../components/ui/Toast';
 import { API_CONFIG } from '../config/api';
 import type { Product, Category, Brand, ProductVariant, TaxSchedule } from '../types/pos';
 
 const serverOrigin = API_CONFIG.baseURL.replace(/\/api\/?$/, '');
 
-function ImageUpload({ value, onChange }: { value: string; onChange: (url: string) => void }) {
+function ImageUpload({ value, onChange, onToast }: { value: string; onChange: (url: string) => void; onToast?: (type: 'success' | 'error', msg: string) => void }) {
     const [uploading, setUploading] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -19,8 +20,9 @@ function ImageUpload({ value, onChange }: { value: string; onChange: (url: strin
         try {
             const r = await productService.uploadImage(file);
             onChange(r.imageUrl);
+            onToast?.('success', 'Image uploaded successfully');
         } catch (e: unknown) {
-            alert(parseError(e, 'Upload failed'));
+            onToast?.('error', parseError(e, 'Upload failed'));
         } finally {
             setUploading(false);
         }
@@ -270,6 +272,12 @@ export function ProductForm() {
     const [quickAddBrand, setQuickAddBrand] = useState(false);
     const [saving, setSaving] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [toast, setToast] = useState<ToastMessage | null>(null);
+
+    const showToast = useCallback((type: 'success' | 'error', msg: string) => {
+        setToast({ type, msg });
+        setTimeout(() => setToast(null), 4000);
+    }, []);
 
     useEffect(() => {
         categoryService.listAll({}).then(cats => setCatRoots(cats.filter(c => !c.parentId))).catch(() => { });
@@ -315,8 +323,32 @@ export function ProductForm() {
 
     const f = (key: string, val: unknown) => setForm(p => ({ ...p, [key]: val }));
 
+    const wholesaleErr = baseUnit.wholesale !== '' && baseUnit.price > 0 && Number(baseUnit.wholesale) > baseUnit.price;
+    const retailErr = baseUnit.retail !== '' && baseUnit.price > 0 && Number(baseUnit.retail) > baseUnit.price;
+    const canSave = !!(form.name && form.categoryId && baseUnit.barcode && !wholesaleErr && !retailErr);
+
     const handleSave = async () => {
-        if (!form.name || !form.categoryId || !baseUnit.barcode) return;
+        if (!form.name.trim()) {
+            showToast('error', 'Product name is required');
+            return;
+        }
+        if (!form.categoryId) {
+            showToast('error', 'Please select a category');
+            return;
+        }
+        if (!baseUnit.barcode.trim()) {
+            showToast('error', 'Barcode is required');
+            return;
+        }
+        if (wholesaleErr) {
+            showToast('error', 'Wholesale price must be at or below sale price');
+            return;
+        }
+        if (retailErr) {
+            showToast('error', 'Retail price must be at or below sale price');
+            return;
+        }
+
         setSaving(true);
         try {
             const payload = {
@@ -375,17 +407,15 @@ export function ProductForm() {
                     }],
                 });
             }
-            navigate('/products');
+            navigate('/products', {
+                state: { toast: { type: 'success', msg: isEdit ? 'Product updated successfully' : 'Product created successfully' } }
+            });
         } catch (e: unknown) {
-            alert(parseError(e, 'Error saving product'));
+            showToast('error', parseError(e, isEdit ? 'Error updating product' : 'Error creating product'));
         } finally {
             setSaving(false);
         }
     };
-
-    const wholesaleErr = baseUnit.wholesale !== '' && baseUnit.price > 0 && Number(baseUnit.wholesale) > baseUnit.price;
-    const retailErr = baseUnit.retail !== '' && baseUnit.price > 0 && Number(baseUnit.retail) > baseUnit.price;
-    const canSave = !!(form.name && form.categoryId && baseUnit.barcode && !wholesaleErr && !retailErr);
 
     if (loading) {
         return <div className="flex justify-center py-20"><Loader2 size={24} className="text-primary-600 animate-spin" /></div>;
@@ -430,7 +460,7 @@ export function ProductForm() {
                 <div className="flex flex-col lg:flex-row gap-5">
                     <div className="lg:w-44 shrink-0">
                         <label className={lbl}>Image</label>
-                        <ImageUpload value={form.imageUrl} onChange={url => f('imageUrl', url)} />
+                        <ImageUpload value={form.imageUrl} onChange={url => f('imageUrl', url)} onToast={showToast} />
                     </div>
                     <div className={`flex-1 ${grid12} content-start`}>
                         <div className={cellHalf}>
@@ -577,6 +607,7 @@ export function ProductForm() {
                     categoryService.list({}).then(r => setCatRoots(extractCats(r).filter(c => !c.parentId))).catch(() => { });
                     f('categoryId', cat.id);
                     setQuickAddCat(false);
+                    showToast('success', 'Category created successfully');
                 }} />
 
             <QuickBrandAdd open={quickAddBrand} onClose={() => setQuickAddBrand(false)}
@@ -584,7 +615,10 @@ export function ProductForm() {
                     setBrands(prev => [...prev, brand]);
                     f('brandId', brand.id);
                     setQuickAddBrand(false);
+                    showToast('success', 'Brand created successfully');
                 }} />
+
+            <Toast toast={toast} onClose={() => setToast(null)} />
         </div>
     );
 }
@@ -601,6 +635,12 @@ export function ProductVariantsPage() {
     const [editingVariant, setEditingVariant] = useState<VariantDraft | null>(null);
     const [variantSaving, setVariantSaving] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState<{ variantId: number } | null>(null);
+    const [toast, setToast] = useState<ToastMessage | null>(null);
+
+    const showToast = useCallback((type: 'success' | 'error', msg: string) => {
+        setToast({ type, msg });
+        setTimeout(() => setToast(null), 4000);
+    }, []);
 
     const reload = async () => {
         const p = await productService.get(Number(id));
@@ -646,9 +686,33 @@ export function ProductVariantsPage() {
 
     const saveVariant = async () => {
         if (!editingVariant || !product) return;
+        if (!editingVariant.name.trim()) {
+            showToast('error', 'Variant name is required');
+            return;
+        }
+        if (!editingVariant.barcode.trim()) {
+            showToast('error', 'Variant barcode is required');
+            return;
+        }
+        if (Number(editingVariant.price) <= 0) {
+            showToast('error', 'Sale price must be greater than 0');
+            return;
+        }
+        const wholesaleErr = editingVariant.wholesale !== '' && editingVariant.price > 0 && Number(editingVariant.wholesale) > editingVariant.price;
+        const retailErr = editingVariant.retail !== '' && editingVariant.price > 0 && Number(editingVariant.retail) > editingVariant.price;
+        if (wholesaleErr) {
+            showToast('error', 'Wholesale price must be at or below sale price');
+            return;
+        }
+        if (retailErr) {
+            showToast('error', 'Retail price must be at or below sale price');
+            return;
+        }
+
         setVariantSaving(true);
         try {
             const v = editingVariant;
+            const isEditVar = !!v.id;
             const payload = {
                 name: v.name,
                 barcode: v.barcode,
@@ -665,8 +729,9 @@ export function ProductVariantsPage() {
             }
             await reload();
             setEditingVariant(null);
+            showToast('success', isEditVar ? 'Variant updated successfully' : 'Variant created successfully');
         } catch (e: unknown) {
-            alert(parseError(e, 'Error saving variant'));
+            showToast('error', parseError(e, 'Error saving variant'));
         } finally {
             setVariantSaving(false);
         }
@@ -677,8 +742,9 @@ export function ProductVariantsPage() {
         try {
             await productService.deleteVariant(product.id, confirmDelete.variantId);
             await reload();
+            showToast('success', 'Variant deleted successfully');
         } catch (e: unknown) {
-            alert(parseError(e, 'Error deleting variant'));
+            showToast('error', parseError(e, 'Error deleting variant'));
         } finally {
             setConfirmDelete(null);
         }
@@ -793,6 +859,8 @@ export function ProductVariantsPage() {
             <ConfirmDialog open={!!confirmDelete} title="Delete Variant"
                 message="This will permanently delete this variant." variant="danger"
                 confirmLabel="Delete" onConfirm={deleteVariant} onCancel={() => setConfirmDelete(null)} />
+
+            <Toast toast={toast} onClose={() => setToast(null)} />
         </div>
     );
 }

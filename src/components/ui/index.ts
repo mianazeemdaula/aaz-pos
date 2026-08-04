@@ -16,4 +16,5 @@ export { QuickSupplierAdd } from './QuickSupplierAdd';
 export { QuickCategoryAdd } from './QuickCategoryAdd';
 export { QuickBrandAdd } from './QuickBrandAdd';
 export { QuickProductAdd } from './QuickProductAdd';
+export { Toast, type ToastMessage } from './Toast';
 

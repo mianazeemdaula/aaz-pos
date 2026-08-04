@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Plus, Pencil, Trash2, Loader2, Package, Upload, Eye, X, History, Boxes, Download } from 'lucide-react';
 import { Pagination } from '../components/ui/Pagination';
 import { productService, categoryService, dataService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Toast, type ToastMessage } from '../components/ui/Toast';
 import type { Product, Category } from '../types/pos';
 import { buildCategoryTree, renderCategorySelectOptions } from '../utils/categories';
 
@@ -197,6 +198,7 @@ function ProductHistoryModal({ product, onClose }: { product: Product; onClose: 
 // ─── Main component ──────────────────────────────────────────────────────────
 export function Products() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [items, setItems] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -214,6 +216,19 @@ export function Products() {
   const [csvImportResult, setCsvImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null);
   const csvFileInputRef = useRef<HTMLInputElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+
+  const showToast = useCallback((type: 'success' | 'error', msg: string) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  useEffect(() => {
+    if (location.state?.toast) {
+      showToast(location.state.toast.type, location.state.toast.msg);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, showToast]);
 
   const PAGE_SIZE = 20;
 
@@ -235,8 +250,12 @@ export function Products() {
 
   const del = async () => {
     if (!confirm) return;
-    try { await productService.delete(confirm.id); load(); }
-    catch (e: unknown) { alert(e instanceof Error ? e.message : 'Error'); }
+    try {
+      await productService.delete(confirm.id);
+      load();
+      showToast('success', 'Product deleted successfully');
+    }
+    catch (e: unknown) { showToast('error', e instanceof Error ? e.message : 'Error deleting product'); }
     finally { setConfirm(null); }
   };
 
@@ -249,7 +268,7 @@ export function Products() {
       setImportResult(result);
       load();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Import failed');
+      showToast('error', err instanceof Error ? err.message : 'Import failed');
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -265,7 +284,7 @@ export function Products() {
       setCsvImportResult(result);
       load();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Import failed');
+      showToast('error', err instanceof Error ? err.message : 'Import failed');
     } finally {
       setCsvImporting(false);
       if (csvFileInputRef.current) csvFileInputRef.current.value = '';
@@ -275,7 +294,7 @@ export function Products() {
   const handleExport = async () => {
     setExporting(true);
     try { await dataService.exportCSV('products'); }
-    catch (err: unknown) { alert(err instanceof Error ? err.message : 'Export failed'); }
+    catch (err: unknown) { showToast('error', err instanceof Error ? err.message : 'Export failed'); }
     finally { setExporting(false); }
   };
 
@@ -469,6 +488,8 @@ export function Products() {
           </div>
         </div>
       )}
+
+      <Toast toast={toast} onClose={() => setToast(null)} />
     </div>
   );
 }
