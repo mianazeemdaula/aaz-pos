@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, Printer, RotateCcw, Loader2, X } from 'lucide-react';
-import { saleService, accountService } from '../services/pos.service';
+import { Search, Eye, Printer, RotateCcw, Loader2, X, Filter, Hash } from 'lucide-react';
+import { saleService, accountService, userService } from '../services/pos.service';
 import { Pagination } from '../components/ui/Pagination';
 import { printSaleInvoice, type SaleInvoiceData } from '../utils/invoices';
-import type { Sale, Account } from '../types/pos';
+import type { Sale, Account, User } from '../types/pos';
 
 const fmt = (n: number) => `Rs ${Math.abs(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d: string | Date) => {
@@ -50,7 +50,10 @@ export function SaleReturns() {
   const [salesTotal, setSalesTotal] = useState(0);
   const [salesFrom, setSalesFrom] = useState(mon);
   const [salesTo, setSalesTo] = useState(today);
+  const [salesInvoiceId, setSalesInvoiceId] = useState('');
   const [salesQ, setSalesQ] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState<number | ''>('');
+  const [usersList, setUsersList] = useState<User[]>([]);
   const [salesLoading, setSalesLoading] = useState(false);
 
   const [viewSale, setViewSale] = useState<Sale | null>(null);
@@ -71,24 +74,57 @@ export function SaleReturns() {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  const loadSales = useCallback(async (page: number, from = salesFrom, to = salesTo, q = salesQ) => {
+  const loadSales = useCallback(async (
+    page: number,
+    from = salesFrom,
+    to = salesTo,
+    q = salesQ,
+    invId = salesInvoiceId,
+    uId = selectedUserId
+  ) => {
     setSalesLoading(true);
     try {
       const params: Record<string, unknown> = { page, pageSize: 15, type: 'SALE' };
       if (from) params.from = from;
       if (to) params.to = to;
-      if (q.trim()) params.q = q.trim();
+      if (uId) params.userId = uId;
+
+      const combinedQParts: string[] = [];
+      if (invId.trim()) {
+        const cleanInv = invId.trim();
+        if (/^\d+$/.test(cleanInv)) {
+          params.id = parseInt(cleanInv, 10);
+        } else {
+          combinedQParts.push(cleanInv);
+        }
+      }
+      if (q.trim()) {
+        combinedQParts.push(q.trim());
+      }
+      if (combinedQParts.length > 0) {
+        params.q = combinedQParts.join(' ');
+      }
+
       const r = await saleService.list(params);
-      setSales(r.data); setSalesPage(r.pagination.page);
-      setSalesTotalPages(r.pagination.totalPages); setSalesTotal(r.pagination.total);
-    } catch { setSales([]); } finally { setSalesLoading(false); }
-  }, [salesFrom, salesTo, salesQ]); // eslint-disable-line react-hooks/exhaustive-deps
+      setSales(r.data);
+      setSalesPage(r.pagination.page);
+      setSalesTotalPages(r.pagination.totalPages);
+      setSalesTotal(r.pagination.total);
+    } catch {
+      setSales([]);
+    } finally {
+      setSalesLoading(false);
+    }
+  }, [salesFrom, salesTo, salesQ, salesInvoiceId, selectedUserId]);
 
   useEffect(() => {
-    loadSales(1, mon, today, '');
+    loadSales(1, mon, today, '', '', '');
     accountService.list({ active: true })
       .then(r => setAccounts(r.data || []))
       .catch(e => console.error('Failed to load accounts:', e));
+    userService.list({ pageSize: 200 })
+      .then(r => setUsersList(r.data || []))
+      .catch(e => console.error('Failed to load users:', e));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openView = async (sale: Sale) => {
@@ -196,9 +232,17 @@ export function SaleReturns() {
     } finally { setReturnLoading(false); }
   };
 
-  const handleFromChange = (v: string) => { setSalesFrom(v); loadSales(1, v, salesTo, salesQ); };
-  const handleToChange = (v: string) => { setSalesTo(v); loadSales(1, salesFrom, v, salesQ); };
-  const handleSearch = () => loadSales(1, salesFrom, salesTo, salesQ);
+  const handleFromChange = (v: string) => { setSalesFrom(v); loadSales(1, v, salesTo, salesQ, salesInvoiceId, selectedUserId); };
+  const handleToChange = (v: string) => { setSalesTo(v); loadSales(1, salesFrom, v, salesQ, salesInvoiceId, selectedUserId); };
+  const handleSearch = () => loadSales(1, salesFrom, salesTo, salesQ, salesInvoiceId, selectedUserId);
+  const handleClearFilters = () => {
+    setSalesFrom('');
+    setSalesTo('');
+    setSalesInvoiceId('');
+    setSalesQ('');
+    setSelectedUserId('');
+    loadSales(1, '', '', '', '', '');
+  };
 
   return (
     <div className="space-y-4">
@@ -214,25 +258,94 @@ export function SaleReturns() {
       </div>
 
       <div className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-          <input type="date" value={salesFrom} onChange={e => handleFromChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
-          <span className="text-gray-400 text-sm">to</span>
-          <input type="date" value={salesTo} onChange={e => handleToChange(e.target.value)} className="px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none" />
-          {(salesFrom || salesTo) && (
-            <button onClick={() => { setSalesFrom(''); setSalesTo(''); loadSales(1, '', '', salesQ); }} title="Clear Date Filter" className="px-2 py-1 text-xs text-gray-500 hover:text-red-600 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50">
-              Clear Dates
-            </button>
-          )}
-          <div className="relative flex-1 min-w-40">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={salesQ} onChange={e => setSalesQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} placeholder="Search invoice #, customer name, phone, item..." className="w-full pl-7 pr-7 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
-            {salesQ && (
-              <button onClick={() => { setSalesQ(''); loadSales(1, salesFrom, salesTo, ''); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
-                <X size={13} />
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3.5 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+              <Filter size={13} /> Filter & Search Sales
+            </span>
+            {(salesFrom || salesTo || salesInvoiceId || salesQ || selectedUserId) && (
+              <button onClick={handleClearFilters} className="text-xs text-red-600 hover:text-red-700 dark:text-red-400 font-medium flex items-center gap-1 transition-colors">
+                <X size={13} /> Clear All Filters
               </button>
             )}
           </div>
-          <button onClick={handleSearch} className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">Search</button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">Invoice ID / #</label>
+              <div className="relative">
+                <Hash size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={salesInvoiceId}
+                  onChange={e => setSalesInvoiceId(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                  placeholder="e.g. 104 or FBR..."
+                  className="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">Customer / Phone / Item</label>
+              <div className="relative">
+                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={salesQ}
+                  onChange={e => setSalesQ(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                  placeholder="Name, phone, barcode..."
+                  className="w-full pl-7 pr-3 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">Cashier / User</label>
+              <select
+                value={selectedUserId}
+                onChange={e => {
+                  const val = e.target.value ? Number(e.target.value) : '';
+                  setSelectedUserId(val);
+                  loadSales(1, salesFrom, salesTo, salesQ, salesInvoiceId, val);
+                }}
+                className="w-full px-2.5 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <option value="">All Cashiers</option>
+                {usersList.map(u => (
+                  <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">From Date</label>
+              <input
+                type="date"
+                value={salesFrom}
+                onChange={e => handleFromChange(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-600 dark:text-gray-400 mb-1">To Date</label>
+              <div className="flex gap-1.5">
+                <input
+                  type="date"
+                  value={salesTo}
+                  onChange={e => handleToChange(e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <button
+                  onClick={handleSearch}
+                  className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-xs font-semibold rounded-lg shrink-0 transition-colors"
+                >
+                  Search
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           {salesLoading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
@@ -275,7 +388,7 @@ export function SaleReturns() {
                 </table>
               )}
           {!salesLoading && salesTotalPages > 1 && (
-            <Pagination currentPage={salesPage} totalPages={salesTotalPages} totalItems={salesTotal} itemsPerPage={15} onPageChange={p => loadSales(p, salesFrom, salesTo, salesQ)} />
+            <Pagination currentPage={salesPage} totalPages={salesTotalPages} totalItems={salesTotal} itemsPerPage={15} onPageChange={p => loadSales(p, salesFrom, salesTo, salesQ, salesInvoiceId, selectedUserId)} />
           )}
         </div>
       </div>
