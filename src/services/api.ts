@@ -6,6 +6,18 @@
 import { API_CONFIG } from '../config/api';
 import type { ApiError, HttpMethod, RequestConfig } from '../types/api';
 
+/**
+ * Merge a caller's AbortSignal with our own timeout signal so either can abort
+ * the request. Falls back to the timeout signal alone on the rare runtime
+ * without AbortSignal.any.
+ */
+function combineSignals(timeoutSignal: AbortSignal, callerSignal?: AbortSignal): AbortSignal {
+    if (!callerSignal) return timeoutSignal;
+    const anyOf = (AbortSignal as unknown as { any?: (s: AbortSignal[]) => AbortSignal }).any;
+    if (typeof anyOf === 'function') return anyOf([timeoutSignal, callerSignal]);
+    return callerSignal.aborted ? callerSignal : timeoutSignal;
+}
+
 class ApiClient {
     private baseURL: string;
     private timeout: number;
@@ -107,7 +119,9 @@ class ApiClient {
             const options: RequestInit = {
                 method,
                 headers,
-                signal: config?.signal || controller.signal,
+                // Combine, don't replace: a caller-supplied signal (used to cancel
+                // superseded searches) must not disable the request timeout.
+                signal: combineSignals(controller.signal, config?.signal),
             };
 
             // Add body for POST, PUT, PATCH requests

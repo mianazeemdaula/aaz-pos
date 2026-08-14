@@ -27,41 +27,69 @@ export function ProductSearch({
   const internalRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? internalRef;
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const search = useCallback(
-    async (q: string) => {
-      if (!q.trim()) { setResults([]); setOpen(false); return; }
-      setLoading(true);
-      try {
-        if (/^\S+$/.test(q) && q.length >= 4) {
-          try {
-            const variant = await productService.getVariantByBarcode(q);
-            if (variant) {
-              onSelect(variant);
-              setQuery('');
-              setOpen(false);
-              setLoading(false);
-              return;
-            }
-          } catch { /* not found by barcode — continue to text search */ }
-        }
-        const resp = await productService.list({ q, pageSize: 20 });
-        setResults(resp.data);
-        setOpen(resp.data.length > 0);
-      } catch {
-        setResults([]);
-      } finally {
-        setLoading(false);
+  // Held in a ref so `search` stays referentially stable. Callers pass an inline
+  // arrow or a plain function, so `onSelect` is a new value on every parent
+  // render; depending on it directly re-armed the debounce and fired a
+  // redundant search each time the parent re-rendered.
+  const onSelectRef = useRef(onSelect);
+  useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
+
+  const search = useCallback(async (q: string) => {
+    // Cancel whatever is still in flight: without this a slow response for an
+    // earlier, broader query ("ri") could land after the newer one ("rice")
+    // and overwrite the dropdown with stale results.
+    abortRef.current?.abort();
+    if (!q.trim()) { setResults([]); setOpen(false); return; }
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
+    setLoading(true);
+    try {
+      const looksScannable = /^\S+$/.test(q) && q.length >= 4;
+
+      // Barcode probe and text search run together rather than in sequence.
+      // Serialising them charged every ordinary word search the full cost of a
+      // failed barcode lookup before the text query even started.
+      const barcodePromise = looksScannable
+        ? productService.getVariantByBarcode(q, signal).catch(() => null)
+        : Promise.resolve(null);
+      const listPromise = productService.list({ q, pageSize: 20 }, signal);
+
+      const variant = await barcodePromise;
+      if (signal.aborted) return;
+      if (variant) {
+        // An exact barcode hit is a scan: add it and clear, ignoring the list.
+        listPromise.catch(() => { /* superseded by the scan */ });
+        controller.abort();
+        onSelectRef.current(variant);
+        setQuery('');
+        setOpen(false);
+        return;
       }
-    },
-    [onSelect],
-  );
+
+      const resp = await listPromise;
+      if (signal.aborted) return;
+      setResults(resp.data);
+      setOpen(resp.data.length > 0);
+    } catch {
+      if (!signal.aborted) setResults([]);
+    } finally {
+      if (!signal.aborted) setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => search(query), 300);
     return () => clearTimeout(timerRef.current);
   }, [query, search]);
+
+  // Drop any in-flight request when the box goes away.
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -169,6 +197,11 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
 
   useEffect(() => {
     clearTimeout(timerRef.current ?? undefined);
+    // One controller per scheduled search. Cancelling the previous request
+    // keeps a slow response for an earlier query from replacing the results of
+    // a newer one — the modal is driven by fast typing, so overlap is normal.
+    const controller = new AbortController();
+    const { signal } = controller;
     timerRef.current = setTimeout(async () => {
       setLoading(true);
       try {
@@ -176,16 +209,20 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
         if (query.trim()) params.q = query.trim();
         if (categoryId) params.categoryId = categoryId;
         if (brandId) params.brandId = brandId;
-        const resp = await productService.list(params);
+        const resp = await productService.list(params, signal);
+        if (signal.aborted) return;
         setResults(resp.data);
         setSelectedIdx(0);
       } catch {
-        setResults([]);
+        if (!signal.aborted) setResults([]);
       } finally {
-        setLoading(false);
+        if (!signal.aborted) setLoading(false);
       }
     }, 300);
-    return () => clearTimeout(timerRef.current ?? undefined);
+    return () => {
+      clearTimeout(timerRef.current ?? undefined);
+      controller.abort();
+    };
   }, [query, categoryId, brandId]);
 
   useEffect(() => {

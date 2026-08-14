@@ -106,7 +106,8 @@ export const brandService = {
 
 // ---- Products ----
 export const productService = {
-  list: (params?: object) => apiClient.get<PaginatedResponse<Product>>(API_ENDPOINTS.products.list, { params }),
+  list: (params?: object, signal?: AbortSignal) =>
+    apiClient.get<PaginatedResponse<Product>>(API_ENDPOINTS.products.list, { params, signal }),
   get: (id: number) => apiClient.get<Product>(API_ENDPOINTS.products.detail(id)),
   create: (data: object) => apiClient.post<Product>(API_ENDPOINTS.products.create, data),
   update: (id: number, data: object) => apiClient.put<Product>(API_ENDPOINTS.products.update(id), data),
@@ -115,7 +116,8 @@ export const productService = {
   createVariant: (id: number, data: object) => apiClient.post<ProductVariant>(API_ENDPOINTS.products.createVariant(id), data),
   updateVariant: (id: number, variantId: number, data: object) => apiClient.put<ProductVariant>(API_ENDPOINTS.products.updateVariant(id, variantId), data),
   deleteVariant: (id: number, variantId: number) => apiClient.delete(API_ENDPOINTS.products.deleteVariant(id, variantId)),
-  getVariantByBarcode: (barcode: string) => apiClient.get<ProductVariant>(API_ENDPOINTS.products.variantByBarcode(barcode)),
+  getVariantByBarcode: (barcode: string, signal?: AbortSignal) =>
+    apiClient.get<ProductVariant>(API_ENDPOINTS.products.variantByBarcode(barcode), { signal }),
   uploadImage: (file: File) => apiClient.uploadFile<{ imageUrl: string }>(API_ENDPOINTS.products.uploadImage, file, 'image'),
   importFile: (file: File) => apiClient.uploadFile<{ imported: { categories: number; brands: number; products: number; variants: number }; skipped: { categories: number; brands: number; products: number; variants: number }; errors: string[] }>(API_ENDPOINTS.products.importFile, file, 'file'),
   getHistory: (id: number) => apiClient.get<{ recentSales: any[]; recentPurchases: any[] }>(API_ENDPOINTS.products.history(id)),
