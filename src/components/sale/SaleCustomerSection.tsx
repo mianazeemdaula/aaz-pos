@@ -1,5 +1,6 @@
 import { UserPlus } from 'lucide-react';
 import { CustomerSearch } from '../ui/CustomerSearch';
+import { useGlobalSettings } from '../../contexts/SettingsContext';
 import type { Customer } from '../../types/pos';
 
 interface SaleCustomerSectionProps {
@@ -15,24 +16,31 @@ export function SaleCustomerSection({
   customerInputRef,
   onOpenNewCustomer,
 }: SaleCustomerSectionProps) {
+  // Creating a customer is the Customers module, and the API enforces that too.
+  // Without the permission the button would only ever produce a 403.
+  const { hasPermission } = useGlobalSettings();
+  const canCreateCustomer = hasPermission('customers', 'edit');
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-semibold text-gray-500 uppercase">
           Customer <span className="normal-case font-normal text-gray-400">(optional)</span>
         </p>
-        <button
-          onClick={onOpenNewCustomer}
-          className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-0.5"
-        >
-          <UserPlus size={11} /> New <span className="text-gray-400 ml-0.5">(F11)</span>
-        </button>
+        {canCreateCustomer && (
+          <button
+            onClick={onOpenNewCustomer}
+            className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-0.5"
+          >
+            <UserPlus size={11} /> New <span className="text-gray-400 ml-0.5">(F11)</span>
+          </button>
+        )}
       </div>
       <CustomerSearch
         value={customer}
         onSelect={setCustomer}
         inputRef={customerInputRef}
-        onCreateNew={onOpenNewCustomer}
+        onCreateNew={canCreateCustomer ? onOpenNewCustomer : undefined}
       />
     </div>
   );

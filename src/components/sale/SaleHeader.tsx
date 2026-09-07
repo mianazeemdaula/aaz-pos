@@ -1,4 +1,4 @@
-import { Scan, Search, Loader2, X } from 'lucide-react';
+import { Scan, Search, Loader2, X, Receipt } from 'lucide-react';
 
 interface SaleHeaderProps {
   barcode: string;
@@ -12,6 +12,10 @@ interface SaleHeaderProps {
   returnMode: boolean;
   setReturnMode: React.Dispatch<React.SetStateAction<boolean>>;
   setAccountAmounts: React.Dispatch<React.SetStateAction<Record<number, string>>>;
+  /** True when the cart holds at least one returned (negative qty) line. */
+  hasReturnLines: boolean;
+  originalInvoiceId: string;
+  setOriginalInvoiceId: (val: string) => void;
 }
 
 export function SaleHeader({
@@ -26,6 +30,9 @@ export function SaleHeader({
   returnMode,
   setReturnMode,
   setAccountAmounts,
+  hasReturnLines,
+  originalInvoiceId,
+  setOriginalInvoiceId,
 }: SaleHeaderProps) {
   return (
     <div className="p-3 border-b border-gray-200 dark:border-gray-700">
@@ -92,6 +99,25 @@ export function SaleHeader({
           Return
         </label>
       </div>
+      {hasReturnLines && (
+        <div className="flex items-center gap-2 mt-2">
+          <Receipt size={14} className="text-red-500 shrink-0" />
+          <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">
+            Original Invoice #
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={originalInvoiceId}
+            onChange={e => setOriginalInvoiceId(e.target.value)}
+            placeholder="Optional"
+            className="w-28 px-2 py-1 text-sm text-right border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500 outline-none"
+          />
+          <span className="text-xs text-gray-400 truncate">
+            links the returned items to the sale they came from
+          </span>
+        </div>
+      )}
       {barcodeError && <p className="text-xs text-red-500 mt-1 pl-1">{barcodeError}</p>}
     </div>
   );

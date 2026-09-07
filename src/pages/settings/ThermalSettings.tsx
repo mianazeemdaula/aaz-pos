@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
-  Loader2, Printer, CheckCircle2, AlertCircle, RefreshCw, Check, Image as ImageIcon
+  Loader2, Printer, CheckCircle2, AlertCircle, RefreshCw, Check
 } from 'lucide-react';
 import { useGlobalSettings } from '../../contexts/SettingsContext';
 import { saveThermalConfig, listPrinters, printTestSlip, type ThermalPrinterConfig, type PrinterInfo } from '../../utils/thermalPrinter';
-import { previewSampleSaleInvoice, previewSamplePaymentSlip } from '../../utils/invoices/sampleReceipt';
 import { SettingsHeader } from './SettingsHeader';
-
-const inputCls = 'w-full px-3.5 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors disabled:opacity-50';
-const labelCls = 'block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider';
+import { inputCls, labelCls, hintCls, sectionNoteCls } from './formStyles';
+import { NativeEscPosSettings } from './NativeEscPosSettings';
 
 export function ThermalSettings() {
   const { settings: globalSettings, refreshSettings, setThermalConfig } = useGlobalSettings();
@@ -18,14 +16,11 @@ export function ThermalSettings() {
   const [saving, setSaving] = useState(false);
   const [thermalPrinters, setThermalPrinters] = useState<PrinterInfo[]>([]);
   const [printerLoading, setPrinterLoading] = useState(false);
-  const [previewing, setPreviewing] = useState<'invoice' | 'payment' | null>(null);
   const [testingPrint, setTestingPrint] = useState(false);
 
   useEffect(() => {
     setThermal(globalSettings.thermal);
   }, [globalSettings.thermal]);
-
-
 
   const refreshPrintersList = async () => {
     setPrinterLoading(true);
@@ -40,21 +35,6 @@ export function ThermalSettings() {
       setStatusMsg({ ok: false, text: 'Failed to list system printers.' });
     } finally {
       setPrinterLoading(false);
-    }
-  };
-
-  const previewSample = async (kind: 'invoice' | 'payment') => {
-    setPreviewing(kind);
-    try {
-      const render = kind === 'invoice' ? previewSampleSaleInvoice : previewSamplePaymentSlip;
-      await render(thermal, { ...globalSettings.company });
-    } catch (e) {
-      setStatusMsg({
-        ok: false,
-        text: `Failed to render sample receipt: ${e instanceof Error ? e.message : 'Unknown error'}`,
-      });
-    } finally {
-      setPreviewing(null);
     }
   };
 
@@ -97,36 +77,36 @@ export function ThermalSettings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsHeader />
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-6">
-        <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <Printer className="text-primary-600" size={18} /> Thermal Receipt Printer Setup
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-4">
+        <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
+          <h2 className="text-xs font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+            <Printer className="text-primary-600" size={16} /> Thermal Receipt Printer Setup
           </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Configure direct ESC/POS thermal receipt printing, paper width, and hardware parameters.
+          <p className={sectionNoteCls}>
+            Connection, paper width and render mode.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-3 gap-y-2.5">
           <div>
-            <label className={labelCls}>Printer Connection Type</label>
+            <label className={labelCls}>Connection</label>
             <select
               value={thermal.connectionType}
               onChange={e => setThermal(t => ({ ...t, connectionType: e.target.value as ThermalPrinterConfig['connectionType'] }))}
               className={inputCls}
             >
-              <option value="USB">USB Direct Connection</option>
-              <option value="IP">Network / IP Printer</option>
-              <option value="SHARED">Shared Windows Printer</option>
+              <option value="USB">USB direct</option>
+              <option value="IP">Network / IP</option>
+              <option value="SHARED">Shared Windows printer</option>
             </select>
           </div>
 
           {thermal.connectionType === 'IP' ? (
             <div>
-              <label className={labelCls}>Printer IP Address</label>
+              <label className={labelCls}>IP address</label>
               <input
                 type="text"
                 value={thermal.ipAddress || ''}
@@ -134,15 +114,14 @@ export function ThermalSettings() {
                 className={inputCls}
                 placeholder="192.168.1.100"
               />
-              <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
-                Prints straight to the printer over a RAW/JetDirect socket &mdash; no Windows driver or
-                print queue needed. Port defaults to 9100; append <code>:port</code> to override.
+              <p className={hintCls}>
+                RAW/JetDirect socket, no driver needed. Port 9100; append <code>:port</code> to override.
               </p>
             </div>
           ) : (
             <div>
-              <label className={labelCls}>Printer Name</label>
-              <div className="flex gap-2">
+              <label className={labelCls}>Printer name</label>
+              <div className="flex gap-1.5">
                 <input
                   type="text"
                   value={thermal.printerName || ''}
@@ -154,17 +133,17 @@ export function ThermalSettings() {
                   type="button"
                   onClick={refreshPrintersList}
                   disabled={printerLoading}
-                  className="px-3 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-xs font-semibold text-gray-700 dark:text-gray-200 rounded-lg border border-gray-300 dark:border-gray-600 flex items-center gap-1 shrink-0"
+                  className="px-2 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-[11px] font-medium text-gray-700 dark:text-gray-200 rounded-md border border-gray-300 dark:border-gray-600 flex items-center gap-1 shrink-0"
                 >
-                  {printerLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Detect
+                  {printerLoading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />} Detect
                 </button>
               </div>
             </div>
           )}
 
           {thermalPrinters.length > 0 && thermal.connectionType !== 'IP' && (
-            <div className="md:col-span-2">
-              <label className={labelCls}>Detected System Printers</label>
+            <div className="col-span-2">
+              <label className={labelCls}>Detected printers</label>
               <select
                 onChange={e => setThermal(t => ({ ...t, printerName: e.target.value }))}
                 value={thermal.printerName}
@@ -178,124 +157,78 @@ export function ThermalSettings() {
           )}
 
           <div>
-            <label className={labelCls}>Paper Width</label>
+            <label className={labelCls}>Paper width</label>
             <select
               value={thermal.paperSize}
               onChange={e => setThermal(t => ({ ...t, paperSize: e.target.value as 'Mm58' | 'Mm80' }))}
               className={inputCls}
             >
-              <option value="Mm80">80mm (Standard Desktop Receipt Printer)</option>
-              <option value="Mm58">58mm (Compact Mobile Thermal Printer)</option>
+              <option value="Mm80">80mm (standard desktop)</option>
+              <option value="Mm58">58mm (compact / mobile)</option>
             </select>
           </div>
 
           <div>
-            <label className={labelCls}>Invoice Render Mode</label>
+            <label className={labelCls}>Render mode</label>
             <select
               value={thermal.invoiceMode}
               onChange={e => setThermal(t => ({ ...t, invoiceMode: e.target.value as 'html' | 'native' }))}
               className={inputCls}
             >
-              <option value="html">HTML Graphics Pipeline (Rich Formatting & Logos)</option>
-              <option value="native">Native ESC/POS Text Mode (Ultra-fast Printing)</option>
+              <option value="html">HTML image (rich layout, logos)</option>
+              <option value="native">Native ESC/POS text (fastest)</option>
             </select>
           </div>
         </div>
 
-        {/* Test / preview without a physical printer */}
-        <div className="border-t border-gray-200 dark:border-gray-700 pt-5 space-y-4">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-              <ImageIcon className="text-primary-600" size={16} /> Receipt Testing
-            </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-              Send a short slip to the configured printer, or render receipts to an image on screen so
-              layout can be checked without wasting paper.
-            </p>
-          </div>
+        <NativeEscPosSettings thermal={thermal} setThermal={setThermal} />
 
-          <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
-            <input
-              type="checkbox"
-              id="thermal-export-mode"
-              checked={!!thermal.exportInsteadOfPrint}
-              onChange={e => setThermal(t => ({ ...t, exportInsteadOfPrint: e.target.checked }))}
-              className="h-4 w-4 mt-0.5 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
-            />
-            <label htmlFor="thermal-export-mode" className="cursor-pointer">
-              <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                Export Image Instead of Printing (Test Mode)
-              </span>
-              <span className="block text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                Every sale invoice and payment slip opens as a downloadable image instead of going to the
-                printer. Applies to the HTML render mode. Remember to turn this off for live billing.
-              </span>
-            </label>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={sendTestPrint}
-              disabled={testingPrint}
-              className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-sm transition-colors disabled:opacity-50"
-            >
-              {testingPrint ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
-              Send Test Print
-            </button>
-            <button
-              type="button"
-              onClick={() => previewSample('invoice')}
-              disabled={previewing !== null}
-              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg text-xs border border-gray-300 dark:border-gray-600 flex items-center gap-2 transition-colors disabled:opacity-50"
-            >
-              {previewing === 'invoice' ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
-              Preview Sample Invoice
-            </button>
-            <button
-              type="button"
-              onClick={() => previewSample('payment')}
-              disabled={previewing !== null}
-              className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg text-xs border border-gray-300 dark:border-gray-600 flex items-center gap-2 transition-colors disabled:opacity-50"
-            >
-              {previewing === 'payment' ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
-              Preview Sample Payment Slip
-            </button>
-          </div>
+        {/* Test print — the only way to check a receipt is on paper. */}
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+          <button
+            type="button"
+            onClick={sendTestPrint}
+            disabled={testingPrint}
+            title="Sends a short slip through the same path a real invoice takes, so it proves the connection, the paper width and the font settings together."
+            className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md text-[11px] flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50"
+          >
+            {testingPrint ? <Loader2 size={12} className="animate-spin" /> : <Printer size={12} />}
+            Send test print
+          </button>
         </div>
 
         {/* Action Bar */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
           <div>
             {statusMsg && (
-              <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border ${
+              <div className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border ${
                 statusMsg.ok
                   ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800'
                   : 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
               }`}>
-                {statusMsg.ok ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                {statusMsg.ok ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
                 <span>{statusMsg.text}</span>
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={handleReset}
               disabled={saving}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-lg text-sm transition-colors"
+              className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium rounded-md text-xs transition-colors"
             >
-              Reset Form
+              Reset
             </button>
             <button
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm flex items-center gap-2 shadow-sm transition-colors"
+              className="px-4 py-1.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md text-xs flex items-center gap-1.5 shadow-sm transition-colors"
             >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-              <span>Save Printer Settings</span>
+              {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              <span>Save</span>
             </button>
           </div>
         </div>

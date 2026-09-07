@@ -4,7 +4,7 @@ import {
   Loader2, Database, Download, Upload, CheckCircle2,
   AlertCircle, ShieldCheck, ShoppingCart, Building2, Trash2,
   Printer, ShieldAlert, RefreshCw, KeyRound, Check, Users, Save,
-  FolderOpen, FolderClock, Image as ImageIcon
+  FolderOpen, FolderClock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useGlobalSettings } from '../contexts/SettingsContext';
@@ -15,7 +15,6 @@ import { API_ENDPOINTS, FBR_CONFIG } from '../config/api';
 import { userService, settingsService } from '../services/pos.service';
 import { saveThermalConfig, listPrinters, type ThermalPrinterConfig, type PrinterInfo } from '../utils/thermalPrinter';
 import { invalidateLogoCache } from '../utils/invoices/saleInvoice';
-import { previewSampleSaleInvoice, previewSamplePaymentSlip } from '../utils/invoices/sampleReceipt';
 import type { User } from '../types/pos';
 import { fbrService } from '../services/fbr.service';
 import {
@@ -54,7 +53,6 @@ export function Settings() {
   const [testingFbr, setTestingFbr] = useState(false);
   const [thermalPrinters, setThermalPrinters] = useState<PrinterInfo[]>([]);
   const [printerLoading, setPrinterLoading] = useState(false);
-  const [previewing, setPreviewing] = useState<'invoice' | 'payment' | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
   const [dbBusy, setDbBusy] = useState(false);
@@ -192,20 +190,6 @@ export function Settings() {
    * unsaved edits — so paper width and header changes can be checked before
    * committing them.
    */
-  const previewSample = async (kind: 'invoice' | 'payment') => {
-    setPreviewing(kind);
-    try {
-      const render = kind === 'invoice' ? previewSampleSaleInvoice : previewSamplePaymentSlip;
-      await render(thermal, { ...company });
-    } catch (e) {
-      setStatusMsg({
-        ok: false,
-        text: `Failed to render sample receipt: ${e instanceof Error ? e.message : 'Unknown error'}`,
-      });
-    } finally {
-      setPreviewing(null);
-    }
-  };
 
   const uploadLogoFile = async (file: File) => {
     setLogoUploading(true);
@@ -646,57 +630,6 @@ export function Settings() {
               </div>
             </div>
 
-            {/* Test / preview without a physical printer */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-5 space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                  <ImageIcon className="text-primary-600" size={16} /> Receipt Testing
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Render receipts to an image on screen so layout can be checked without wasting paper.
-                </p>
-              </div>
-
-              <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800">
-                <input
-                  type="checkbox"
-                  id="thermal-export-mode"
-                  checked={!!thermal.exportInsteadOfPrint}
-                  onChange={e => setThermal(t => ({ ...t, exportInsteadOfPrint: e.target.checked }))}
-                  className="h-4 w-4 mt-0.5 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
-                />
-                <label htmlFor="thermal-export-mode" className="cursor-pointer">
-                  <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                    Export Image Instead of Printing (Test Mode)
-                  </span>
-                  <span className="block text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                    Every sale invoice and payment slip opens as a downloadable image instead of going to the
-                    printer. Applies to the HTML render mode. Remember to turn this off for live billing.
-                  </span>
-                </label>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => previewSample('invoice')}
-                  disabled={previewing !== null}
-                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg text-xs border border-gray-300 dark:border-gray-600 flex items-center gap-2 transition-colors disabled:opacity-50"
-                >
-                  {previewing === 'invoice' ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
-                  Preview Sample Invoice
-                </button>
-                <button
-                  type="button"
-                  onClick={() => previewSample('payment')}
-                  disabled={previewing !== null}
-                  className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 font-semibold rounded-lg text-xs border border-gray-300 dark:border-gray-600 flex items-center gap-2 transition-colors disabled:opacity-50"
-                >
-                  {previewing === 'payment' ? <Loader2 size={14} className="animate-spin" /> : <ImageIcon size={14} />}
-                  Preview Sample Payment Slip
-                </button>
-              </div>
-            </div>
           </div>
         )}
 

@@ -8,7 +8,7 @@ import type { Sale, Customer } from '../../types/pos';
 import {
     feed,
     buildPrintJob, printDocument,
-    loadThermalConfig,
+    loadThermalConfig, feedLines,
     type PrintSection, type PrintJobRequest,
 } from '../thermalPrinter';
 import { buildInvoiceHtml, type HtmlInvoiceConfig } from './invoiceHtmlBuilder';
@@ -17,8 +17,6 @@ import { buildSaleInvoiceSections as buildLegacySections } from './saleInvoiceLe
 import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
 import { buildFbrCompositeBase64 } from './fbrComposite';
-import { showReceiptPreview } from './receiptExport';
-import { invoiceNumberSlug } from './invoiceNumber';
 
 // Paper width in pixels for each supported paper size
 const PAPER_WIDTH_PX: Record<string, number> = {
@@ -160,32 +158,16 @@ async function buildSaleInvoiceImageSection(input: SaleInvoiceData): Promise<Pri
     };
 }
 
-/**
- * Renders the invoice and opens it on screen for inspection / download instead
- * of printing it. Used by the "export image" test mode and by explicit
- * "preview" actions in the UI.
- */
-export async function exportSaleInvoiceImage(input: SaleInvoiceData): Promise<boolean> {
-    const { base64, widthPx } = await renderSaleInvoicePng(input);
-    const label = invoiceNumberSlug(input.sale);
-    await showReceiptPreview(base64, {
-        title: `Sale Invoice — ${label}`,
-        fileLabel: label,
-        widthPx,
-    });
-    return true;
-}
-
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function buildSaleInvoiceSections(data: SaleInvoiceData): Promise<PrintSection[]> {
     const imageSection = await buildSaleInvoiceImageSection(data);
-    return [imageSection, feed(3)];
+    return [imageSection, feed(feedLines(loadThermalConfig()))];
 }
 
 export async function buildSaleInvoiceJob(data: SaleInvoiceData): Promise<PrintJobRequest> {
     const imageSection = await buildSaleInvoiceImageSection(data);
-    return buildPrintJob([imageSection, feed(3)]);
+    return buildPrintJob([imageSection, feed(feedLines(loadThermalConfig()))]);
 }
 
 /**
@@ -206,11 +188,6 @@ export async function printSaleInvoice(input: SaleInvoiceData): Promise<boolean>
     }
 
     const invoiceNote = dbCompany.invoiceNote;
-
-    // Test mode — show the rendered image instead of sending it to the printer.
-    if (config.exportInsteadOfPrint) {
-        return exportSaleInvoiceImage(data);
-    }
 
     if (config.invoiceMode === 'native') {
         const sections = await buildLegacySections(data, invoiceNote);

@@ -11,6 +11,8 @@ interface SaleCartRowProps {
   returnMode: boolean;
   allowPriceChange: boolean;
   allowDiscountTypeSwitch: boolean;
+  /** Discount ceiling for this cashier, as a percentage. `null` = no limit. */
+  maxDiscountPercent?: number | null;
   updateQty: (idx: number, delta: number) => void;
   updateField: (idx: number, field: 'price' | 'discount' | 'qty', val: number) => void;
   removeItem: (idx: number) => void;
@@ -28,6 +30,7 @@ export function SaleCartRow({
   returnMode,
   allowPriceChange,
   allowDiscountTypeSwitch,
+  maxDiscountPercent = null,
   updateQty,
   updateField,
   removeItem,
@@ -35,6 +38,15 @@ export function SaleCartRow({
   changePriceType,
   onToggleDiscountType,
 }: SaleCartRowProps) {
+  // A percentage discount is capped at 100 anyway; a fixed one at the line
+  // price. The cashier's own limit tightens whichever applies, so the input
+  // cannot be nudged past what the API would accept.
+  const percentCeiling = maxDiscountPercent ?? 100;
+  const discountCeiling =
+    item.discountType === 'PERCENTAGE' ? percentCeiling : (item.price * percentCeiling) / 100;
+  const clampDiscount = (v: number) => Math.min(discountCeiling, Math.max(0, v));
+  const overLimit = item.qty > 0 && item.discount > discountCeiling + 0.001;
+
   const lc = computeLine(item);
   const variants = item.product.variants ?? [];
   const hasRetail = item.variant.retail != null;
@@ -129,18 +141,19 @@ export function SaleCartRow({
               type="number"
               value={item.discount}
               min={0}
-              max={item.discountType === 'PERCENTAGE' ? 100 : undefined}
+              max={discountCeiling}
               step="0.01"
-              onChange={e =>
-                updateField(
-                  idx,
-                  'discount',
-                  item.discountType === 'PERCENTAGE'
-                    ? Math.min(100, Math.max(0, Number(e.target.value)))
-                    : Math.max(0, Number(e.target.value))
-                )
+              title={
+                maxDiscountPercent !== null
+                  ? `Your discount limit is ${maxDiscountPercent}% (max ${discountCeiling.toFixed(2)} on this line)`
+                  : undefined
               }
-              className="w-14 text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs"
+              onChange={e => updateField(idx, 'discount', clampDiscount(Number(e.target.value)))}
+              className={`w-14 text-right border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs ${
+                overLimit
+                  ? 'border-red-400 dark:border-red-500 text-red-600 dark:text-red-400'
+                  : 'border-gray-300 dark:border-gray-600'
+              }`}
             />
             <button
               onClick={() => allowDiscountTypeSwitch && onToggleDiscountType(idx)}

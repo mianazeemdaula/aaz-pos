@@ -8,7 +8,7 @@ import {
     buildPrintJob, printDocument,
     type PrintSection, type PrintJobRequest, nativeDefaultWidth,
 } from '../thermalPrinter';
-import { loadThermalConfig } from '../thermalPrinter';
+import { loadThermalConfig, feedLines } from '../thermalPrinter';
 import { loadReceiptBusiness, businessHeaderSections } from './businessProfile';
 
 const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -35,7 +35,7 @@ export async function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): P
 
     // Header — identity comes from the Business Profile in Settings.
     const biz = await loadReceiptBusiness(config);
-    sections.push(...businessHeaderSections(biz, nativeWidth(config)));
+    sections.push(...businessHeaderSections(biz, config));
     sections.push(line('-'));
 
     // Invoice info
@@ -127,7 +127,7 @@ export async function buildPurchaseInvoiceSections(data: PurchaseInvoiceData): P
     // Footer
     sections.push(line('-'));
     sections.push(textCenter('Purchase Record'));
-    sections.push(feed(3));
+    sections.push(feed(feedLines(config)));
 
     return sections;
 }

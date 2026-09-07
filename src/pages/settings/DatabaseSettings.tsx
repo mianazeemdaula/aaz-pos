@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Loader2, Database, Download, Upload, CheckCircle2,
-  AlertCircle, Trash2, FolderOpen, FolderClock, ShieldAlert
+  AlertCircle, Trash2, FolderOpen, FolderClock
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useGlobalSettings } from '../../contexts/SettingsContext';
@@ -12,9 +12,8 @@ import {
   type BackupStatus, type AutoBackupSettings,
 } from '../../services/backup.service';
 import { SettingsHeader } from './SettingsHeader';
-
-const inputCls = 'w-full px-3.5 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700/50 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors disabled:opacity-50';
-const labelCls = 'block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5 uppercase tracking-wider';
+import { AdminOnly } from './AdminOnly';
+import { inputCls, labelCls } from './formStyles';
 
 export function DatabaseSettings() {
   const { user } = useAuth();
@@ -47,20 +46,7 @@ export function DatabaseSettings() {
   }, [loadPgStatus]);
 
   if (user?.role !== 'ADMIN') {
-    return (
-      <div>
-        <SettingsHeader />
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 max-w-xl mx-auto my-8 text-center space-y-4 shadow-sm">
-          <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto">
-            <ShieldAlert size={28} />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Administrator Access Required</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            You are currently signed in as <strong className="text-gray-800 dark:text-gray-200">{user?.name}</strong> ({user?.role}). System and global configuration settings require Administrator access rights.
-          </p>
-        </div>
-      </div>
-    );
+    return <AdminOnly />;
   }
 
   const saveAutoBackup = async (patch: Partial<AutoBackupSettings>) => {
@@ -159,15 +145,15 @@ export function DatabaseSettings() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsHeader />
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-6">
-        <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <Database className="text-primary-600" size={18} /> Database Backup & Maintenance
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-4">
+        <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
+          <h2 className="text-xs font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+            <Database className="text-primary-600" size={16} /> Database Backup & Maintenance
           </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
             Native PostgreSQL backups created with pg_dump — restorable with standard Postgres tools.
           </p>
         </div>
@@ -175,13 +161,13 @@ export function DatabaseSettings() {
         {/* Server-side tool availability */}
         {pgStatus && (
           pgStatus.available ? (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-xs text-green-800 dark:text-green-300">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-2.5 py-1.5 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-[11px] text-green-800 dark:text-green-300">
               <span className="flex items-center gap-1.5 font-semibold"><CheckCircle2 size={13} /> Postgres tools ready</span>
               <span className="font-mono">{pgStatus.database} @ {pgStatus.host}</span>
               <span className="text-green-600/70 dark:text-green-400/70">{pgStatus.pgDump}</span>
             </div>
           ) : (
-            <div className="px-4 py-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300">
+            <div className="px-2.5 py-1.5 rounded-md bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300">
               <span className="flex items-center gap-1.5 font-semibold"><AlertCircle size={13} /> Native backups unavailable</span>
               <p className="mt-1 leading-relaxed">{pgStatus.error}</p>
               <p className="mt-1 text-amber-700/80 dark:text-amber-400/80">
@@ -193,12 +179,12 @@ export function DatabaseSettings() {
         )}
 
         {/* Automatic backups to a folder */}
-        <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-4">
+        <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 space-y-2.5">
           <div>
-            <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
+            <h3 className="font-semibold text-xs text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
               <FolderClock size={15} className="text-primary-600" /> Automatic Backups
             </h3>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">
               Pick a folder <strong>on this PC</strong> and the database is backed up there automatically every
               time the app is closed. A USB stick or mapped network drive works too.
             </p>
@@ -223,7 +209,7 @@ export function DatabaseSettings() {
                 type="button"
                 onClick={chooseLocalFolder}
                 disabled={dbBusy}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold rounded-lg text-xs flex items-center gap-2 disabled:opacity-50"
+                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium rounded-md text-xs flex items-center gap-1.5 disabled:opacity-50"
               >
                 <FolderOpen size={14} /> Browse…
               </button>
@@ -297,7 +283,7 @@ export function DatabaseSettings() {
                   type="button"
                   onClick={runFolderBackup}
                   disabled={dbBusy || pgStatus?.available === false}
-                  className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-sm"
+                  className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-medium rounded-md text-xs flex items-center gap-1.5 shadow-sm"
                 >
                   {dbBusy ? <Loader2 size={14} className="animate-spin" /> : <Database size={14} />} Back up now
                 </button>
@@ -311,11 +297,11 @@ export function DatabaseSettings() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 space-y-2">
             <div>
-              <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100">Download Database Backup</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <h3 className="font-semibold text-xs text-gray-900 dark:text-gray-100">Download Database Backup</h3>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">
                 A complete <code className="font-mono">pg_dump</code> of the live database — schema, data, indexes and
                 constraints. Restorable on any PostgreSQL server, with or without this application.
               </p>
@@ -325,7 +311,7 @@ export function DatabaseSettings() {
                 type="button"
                 onClick={() => handleBackup('custom')}
                 disabled={dbBusy || pgStatus?.available === false}
-                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold rounded-lg text-xs flex items-center gap-2 shadow-sm transition-colors"
+                className="px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-medium rounded-md text-xs flex items-center gap-1.5 shadow-sm transition-colors"
               >
                 {dbBusy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Backup (.dump)
               </button>
@@ -333,7 +319,7 @@ export function DatabaseSettings() {
                 type="button"
                 onClick={() => handleBackup('plain')}
                 disabled={dbBusy || pgStatus?.available === false}
-                className="px-4 py-2 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-200 font-semibold rounded-lg text-xs flex items-center gap-2 transition-colors"
+                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-200 font-medium rounded-md text-xs flex items-center gap-1.5 transition-colors"
               >
                 <Download size={14} /> SQL script (.sql)
               </button>
@@ -346,16 +332,16 @@ export function DatabaseSettings() {
             </p>
           </div>
 
-          <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
+          <div className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 space-y-2">
             <div>
-              <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100">Restore Database</h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <h3 className="font-semibold text-xs text-gray-900 dark:text-gray-100">Restore Database</h3>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">
                 Upload a <code className="font-mono">.dump</code> or <code className="font-mono">.sql</code> backup — the format
                 is detected automatically. <span className="text-red-500 font-medium">Every existing table is dropped and
                 replaced.</span>
               </p>
             </div>
-            <label className={`cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg text-xs shadow-sm transition-colors ${dbBusy ? 'opacity-50 pointer-events-none' : ''}`}>
+            <label className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md text-xs shadow-sm transition-colors ${dbBusy ? 'opacity-50 pointer-events-none' : ''}`}>
               {dbBusy ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Restore from File
               <input
                 type="file"
@@ -378,7 +364,7 @@ export function DatabaseSettings() {
 
         {/* Status Notification */}
         {statusMsg && (
-          <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border ${
+          <div className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border ${
             statusMsg.ok
               ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800'
               : 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'

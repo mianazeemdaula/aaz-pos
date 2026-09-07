@@ -1,7 +1,7 @@
 // Invoice generators barrel export
 export {
     printSaleInvoice, buildSaleInvoiceJob,
-    renderSaleInvoicePng, exportSaleInvoiceImage,
+    renderSaleInvoicePng,
     type SaleInvoiceData,
 } from './saleInvoice';
 export { printPurchaseInvoice, buildPurchaseInvoiceJob, type PurchaseInvoiceData } from './purchaseInvoice';
@@ -10,10 +10,5 @@ export { printExpenseInvoice, buildExpenseInvoiceJob, type ExpenseInvoiceData } 
 export {
     printCustomerPayment, printSupplierPayment,
     buildCustomerPaymentJob, buildSupplierPaymentJob,
-    exportCustomerPaymentImage, exportSupplierPaymentImage,
     type CustomerPaymentInvoiceData, type SupplierPaymentInvoiceData,
 } from './paymentInvoice';
-export {
-    showReceiptPreview, downloadReceiptImage, receiptFileName,
-    type ReceiptPreviewMeta,
-} from './receiptExport';

@@ -10,6 +10,8 @@ interface SalePaymentSectionProps {
   firstAccountRef: React.RefObject<HTMLInputElement | null>;
   invoiceDiscount: number;
   setInvoiceDiscount: (val: number) => void;
+  /** Largest invoice discount this cashier may apply. `null` = no limit. */
+  maxInvoiceDiscount?: number | null;
   itemDiscountTotal: number;
   taxTotal: number;
   grandTotal: number;
@@ -28,6 +30,7 @@ export function SalePaymentSection({
   firstAccountRef,
   invoiceDiscount,
   setInvoiceDiscount,
+  maxInvoiceDiscount = null,
   itemDiscountTotal,
   taxTotal,
   grandTotal,
@@ -84,16 +87,29 @@ export function SalePaymentSection({
         </div>
       )}
       <div className="flex items-center justify-between gap-2 pt-0.5 border-t border-gray-100 dark:border-gray-700 mt-2">
-        <span className="text-gray-500 text-sm font-medium">Invoice Discount</span>
+        <span className="text-gray-500 text-sm font-medium">
+          Invoice Discount
+          {maxInvoiceDiscount !== null && (
+            <span className="block text-[10px] text-gray-400 font-normal">
+              max {fmt(maxInvoiceDiscount)}
+            </span>
+          )}
+        </span>
         <div className="flex items-center gap-1">
-          <span className="text-green-600"></span>
           <input
             type="number"
             value={invoiceDiscount === 0 ? '' : invoiceDiscount}
             min={0}
+            max={maxInvoiceDiscount ?? undefined}
             step="0.01"
             placeholder="0"
-            onChange={e => setInvoiceDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
+            title={maxInvoiceDiscount !== null ? `Your discount limit allows at most ${fmt(maxInvoiceDiscount)}` : undefined}
+            onChange={e => {
+              const raw = Math.max(0, parseFloat(e.target.value) || 0);
+              // Clamped here so the field cannot be nudged past what the API
+              // would refuse on submit.
+              setInvoiceDiscount(maxInvoiceDiscount === null ? raw : Math.min(maxInvoiceDiscount, raw));
+            }}
             className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-green-600 py-1 px-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
           />
         </div>

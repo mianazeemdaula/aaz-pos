@@ -53,8 +53,13 @@ export function Sale() {
     setPendingPrintData,
     returnMode,
     setReturnMode,
+    originalInvoiceId,
+    setOriginalInvoiceId,
+    hasReturnLines,
     allowPriceChange,
     allowDiscountTypeSwitch,
+    maxDiscountPercent,
+    maxInvoiceDiscount,
     allowCartProfitView,
     barcodeRef,
     customerInputRef,
@@ -174,6 +179,9 @@ export function Sale() {
           returnMode={returnMode}
           setReturnMode={setReturnMode}
           setAccountAmounts={setAccountAmounts}
+          hasReturnLines={hasReturnLines}
+          originalInvoiceId={originalInvoiceId}
+          setOriginalInvoiceId={setOriginalInvoiceId}
         />
 
         <SaleCartTable
@@ -182,6 +190,7 @@ export function Sale() {
           barcodeRef={barcodeRef}
           returnMode={returnMode}
           allowPriceChange={allowPriceChange}
+          maxDiscountPercent={maxDiscountPercent}
           allowDiscountTypeSwitch={allowDiscountTypeSwitch}
           updateQty={updateQty}
           updateField={updateField}
@@ -218,6 +227,7 @@ export function Sale() {
           firstAccountRef={firstAccountRef}
           invoiceDiscount={invoiceDiscount}
           setInvoiceDiscount={setInvoiceDiscount}
+          maxInvoiceDiscount={maxInvoiceDiscount}
           itemDiscountTotal={itemDiscountTotal}
           taxTotal={taxTotal}
           grandTotal={grandTotal}

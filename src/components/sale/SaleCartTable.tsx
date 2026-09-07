@@ -8,6 +8,7 @@ interface SaleCartTableProps {
   returnMode: boolean;
   allowPriceChange: boolean;
   allowDiscountTypeSwitch: boolean;
+  maxDiscountPercent?: number | null;
   updateQty: (idx: number, delta: number) => void;
   updateField: (idx: number, field: 'price' | 'discount' | 'qty', val: number) => void;
   removeItem: (idx: number) => void;
@@ -23,6 +24,7 @@ export function SaleCartTable({
   returnMode,
   allowPriceChange,
   allowDiscountTypeSwitch,
+  maxDiscountPercent = null,
   updateQty,
   updateField,
   removeItem,
@@ -67,6 +69,7 @@ export function SaleCartTable({
                 barcodeRef={barcodeRef}
                 returnMode={returnMode}
                 allowPriceChange={allowPriceChange}
+                maxDiscountPercent={maxDiscountPercent}
                 allowDiscountTypeSwitch={allowDiscountTypeSwitch}
                 updateQty={updateQty}
                 updateField={updateField}

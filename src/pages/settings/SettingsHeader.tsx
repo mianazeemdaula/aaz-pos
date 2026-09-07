@@ -18,19 +18,19 @@ export function SettingsHeader() {
   const { user } = useAuth();
 
   return (
-    <div className="space-y-4 mb-4">
+    <div className="space-y-3 mb-3">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
             Settings & Global Configuration
           </h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-            Configure system business details, thermal printer routing, FBR fiscal integration, and operational rules
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+            Business details, printer routing, FBR integration and operational rules
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 rounded-full text-xs font-semibold">
-            <KeyRound size={13} /> {user?.role === 'ADMIN' ? 'Admin Access Granted' : `${user?.role || 'User'} Access`}
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary-50 dark:bg-primary-950/40 text-primary-700 dark:text-primary-300 border border-primary-200 dark:border-primary-800 rounded-full text-[11px] font-medium">
+            <KeyRound size={11} /> {user?.role === 'ADMIN' ? 'Admin' : user?.role || 'User'}
           </span>
         </div>
       </div>
@@ -42,13 +42,13 @@ export function SettingsHeader() {
             <Link
               key={tab.path}
               to={tab.path}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
                 active
                   ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400 font-semibold'
                   : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
               }`}
             >
-              <tab.icon size={16} />
+              <tab.icon size={13} />
               <span>{tab.label}</span>
             </Link>
           );

@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { saleService, heldService, productService, accountService } from '../services/pos.service';
 import { useSaleSettings } from '../hooks/useSaleSettings';
+import { useGlobalSettings } from '../contexts/SettingsContext';
 import { fbrService } from '../services/fbr.service';
 import { FBRPaymentMode, FBRInvoiceType } from '../types/fbr';
 import { type SaleInvoiceData } from '../utils/invoices';
 import type { Product, ProductVariant, Customer, Account, HeldSale } from '../types/pos';
 import type { CartItem, PriceType, DiscountType } from '../components/sale/types';
-import { getVariantPrice, computeLine, computeCartProfit, parseError } from '../components/sale/types';
+import { getVariantPrice, computeLine, computeCartProfit, parseError, round2 } from '../components/sale/types';
+import { hasAnyReturnLine, resolveParentSaleId, sellingGross, validateCart } from '../components/sale/cart-rules';
 
 export function useSaleLogic() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -33,8 +35,22 @@ export function useSaleLogic() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [pendingPrintData, setPendingPrintData] = useState<SaleInvoiceData | null>(null);
   const [returnMode, setReturnMode] = useState(false);
+  // Original invoice the returned lines came from. Optional: the API only
+  // insists on it for a standalone refund, not for a counter exchange.
+  const [originalInvoiceId, setOriginalInvoiceId] = useState('');
 
-  const { allowPriceChange, allowDiscountTypeSwitch, allowCartProfitView } = useSaleSettings();
+  const {
+    allowPriceChange,
+    allowDiscountTypeSwitch,
+    allowCartProfitView,
+    maxDiscountPercent,
+    exemptFromLimits,
+  } = useSaleSettings();
+  const tillLimits = { allowPriceChange, maxDiscountPercent, exemptFromLimits };
+  // Adding a customer is the Customers module; the API refuses it without the
+  // permission, so the shortcut must not offer it either.
+  const { hasPermission } = useGlobalSettings();
+  const canCreateCustomer = hasPermission('customers', 'edit');
   const cartProfitInfo = computeCartProfit(cart, invoiceDiscount);
 
   const barcodeRef = useRef<HTMLInputElement>(null);
@@ -62,6 +78,15 @@ export function useSaleLogic() {
   const taxTotal = cart.reduce((a, i) => a + computeLine(i).taxAmt, 0);
   const grandTotal = cart.reduce((a, i) => a + computeLine(i).lineTotal, 0) - invoiceDiscount;
   const isReturnCart = grandTotal < -0.01;
+  // Any negative line at all — a cart can hold returns without netting negative.
+  const hasReturnLines = hasAnyReturnLine(cart);
+
+  // The largest invoice discount this cashier may apply: their percentage
+  // limit against the gross value of the lines actually being sold.
+  const maxInvoiceDiscount =
+    exemptFromLimits || maxDiscountPercent === null
+      ? null
+      : round2((sellingGross(cart) * maxDiscountPercent) / 100);
 
   const paidTotal = Object.values(accountAmounts).reduce((a, v) => a + (parseFloat(v) || 0), 0);
   const change = paidTotal - grandTotal;
@@ -192,6 +217,7 @@ export function useSaleLogic() {
     setNote('');
     setInvoiceDiscount(0);
     setAccountAmounts({});
+    setOriginalInvoiceId('');
     setTimeout(() => barcodeRef.current?.focus(), 30);
   }, []);
 
@@ -353,54 +379,10 @@ export function useSaleLogic() {
       return showToast('error', 'Payment is short. Enter the received amount.');
     }
 
-    for (const i of cart) {
-      if (!i.qty || i.qty === 0) {
-        return showToast('error', `Please enter a valid quantity for ${i.product?.name ?? i.variant?.name ?? 'item'}.`);
-      }
-    }
-
-    // Validate discount and cost price limits
-    let totalCostOfNonBelowCostItems = 0;
-    let totalNetOfNonBelowCostItems = 0;
-    let hasNonBelowCostItems = false;
-
-    for (const i of cart) {
-      const discountAmount = i.discountType === 'FIXED' ? i.discount : (i.price * i.discount) / 100;
-      const netPrice = i.price - discountAmount;
-      const costPrice = (i.variant.product?.avgCostPrice ?? 0) * i.variant.factor;
-      if (netPrice < 0) {
-        return showToast(
-          'error',
-          `Discount cannot exceed selling price for ${i.variant.product?.name ?? i.variant.name}.`
-        );
-      }
-      if (i.variant.product && !i.variant.product.saleBelowCost && netPrice < costPrice) {
-        return showToast(
-          'error',
-          `Discount cannot make selling price below cost price for ${
-            i.variant.product.name
-          } (Cost: Rs ${costPrice.toFixed(2)}, Net Price: Rs ${netPrice.toFixed(2)}).`
-        );
-      }
-
-      if (i.variant.product && !i.variant.product.saleBelowCost) {
-        totalCostOfNonBelowCostItems += costPrice * i.qty;
-        totalNetOfNonBelowCostItems += netPrice * i.qty;
-        hasNonBelowCostItems = true;
-      }
-    }
-
-    if (hasNonBelowCostItems) {
-      const maxOverallDiscount = totalNetOfNonBelowCostItems - totalCostOfNonBelowCostItems;
-      if (invoiceDiscount > maxOverallDiscount) {
-        return showToast(
-          'error',
-          `Overall invoice discount cannot exceed Rs ${maxOverallDiscount.toFixed(
-            2
-          )} (the margin above cost price for non-sale-below-cost items).`
-        );
-      }
-    }
+    // Cost-price and discount policy. Returned lines (qty < 0) are exempt —
+    // see components/sale/cart-rules.ts.
+    const cartError = validateCart(cart, invoiceDiscount, tillLimits);
+    if (cartError) return showToast('error', cartError);
 
     setSaving(true);
     try {
@@ -416,6 +398,7 @@ export function useSaleLogic() {
         customerId: customer?.id,
         note,
         discount: invoiceDiscount,
+        parentSaleId: resolveParentSaleId(cart, originalInvoiceId),
         items: cart.map(i => ({
           variantId: i.variant.id,
           qty: i.qty,
@@ -518,7 +501,7 @@ export function useSaleLogic() {
                 .catch(err => console.error('[FBR save taxInvoiceId]', err));
               // Update print data with FBR info
               printData.fbrInvoiceId = fbrInvoiceId;
-              printData.fbrQrUrl = `https://tp.fbr.gov.pk/InvoiceVerification?InvoiceNo=${encodeURIComponent(
+              printData.fbrQrUrl = `${encodeURIComponent(
                 fbrInvoiceId
               )}`;
               setPendingPrintData(prev => (prev ? { ...prev, fbrInvoiceId, fbrQrUrl: printData.fbrQrUrl } : prev));
@@ -556,6 +539,10 @@ export function useSaleLogic() {
     taxTotal,
     change,
     isReturnCart,
+    originalInvoiceId,
+    allowPriceChange,
+    maxDiscountPercent,
+    exemptFromLimits,
   ]);
 
   holdSaleRef.current = holdSale;
@@ -603,7 +590,7 @@ export function useSaleLogic() {
           break;
         case 'F11':
           e.preventDefault();
-          setShowNewCustomer(true);
+          if (canCreateCustomer) setShowNewCustomer(true);
           break;
         case 'F12':
           e.preventDefault();
@@ -613,7 +600,7 @@ export function useSaleLogic() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showProductModal, showHeldModal, showNewCustomer, showProfitModal]);
+  }, [showProductModal, showHeldModal, showNewCustomer, showProfitModal, canCreateCustomer]);
 
   return {
     cart,
@@ -650,9 +637,15 @@ export function useSaleLogic() {
     setPendingPrintData,
     returnMode,
     setReturnMode,
+    originalInvoiceId,
+    setOriginalInvoiceId,
+    hasReturnLines,
     allowPriceChange,
     allowDiscountTypeSwitch,
     allowCartProfitView,
+    maxDiscountPercent,
+    maxInvoiceDiscount,
+    exemptFromLimits,
     cartProfitInfo,
     barcodeRef,
     customerInputRef,

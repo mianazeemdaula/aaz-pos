@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Loader2, Users, ShieldCheck, CheckCircle2, AlertCircle, Save, ShieldAlert
+  Loader2, Users, ShieldCheck, CheckCircle2, AlertCircle, Save
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -10,6 +10,7 @@ import type { UserPermissions } from '../../contexts/SettingsContext';
 import { userService, settingsService } from '../../services/pos.service';
 import type { User } from '../../types/pos';
 import { SettingsHeader } from './SettingsHeader';
+import { AdminOnly } from './AdminOnly';
 
 export function UserPermissionsSettings() {
   const { user } = useAuth();
@@ -48,39 +49,26 @@ export function UserPermissionsSettings() {
   }, [loadUsersAndPermissions]);
 
   if (user?.role !== 'ADMIN') {
-    return (
-      <div>
-        <SettingsHeader />
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-8 max-w-xl mx-auto my-8 text-center space-y-4 shadow-sm">
-          <div className="w-14 h-14 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto">
-            <ShieldAlert size={28} />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Administrator Access Required</h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            You are currently signed in as <strong className="text-gray-800 dark:text-gray-200">{user?.name}</strong> ({user?.role}). System and global configuration settings require Administrator access rights.
-          </p>
-        </div>
-      </div>
-    );
+    return <AdminOnly />;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <SettingsHeader />
 
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-6">
-        <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <Users className="text-primary-600" size={18} /> User Access & Module Permissions
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-4">
+        <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
+          <h2 className="text-xs font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+            <Users className="text-primary-600" size={16} /> User Access & Module Permissions
           </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">
             Configure which modules each user can view, edit, or delete records in. Admin users always have full access.
           </p>
         </div>
 
         <div className="space-y-4">
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select User Account:</label>
+            <label className="text-xs font-medium text-gray-600 dark:text-gray-400">User</label>
             <select
               value={selectedUserId ?? ''}
               onChange={async (e) => {
@@ -95,7 +83,7 @@ export function UserPermissionsSettings() {
                   setUserPermissions(defaultPermissions(selectedUser?.role));
                 }
               }}
-              className="px-3.5 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              className="px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
             >
               {users.map(u => (
                 <option key={u.id} value={u.id}>{u.name} ({u.username} — {u.role})</option>
@@ -119,10 +107,10 @@ export function UserPermissionsSettings() {
                 <table className="w-full text-left text-sm">
                   <thead className="bg-gray-50 dark:bg-gray-700/50 text-gray-700 dark:text-gray-300 font-semibold border-b border-gray-200 dark:border-gray-700 text-xs uppercase tracking-wider">
                     <tr>
-                      <th className="px-4 py-3">Module</th>
-                      <th className="px-4 py-3 text-center">Can View</th>
-                      <th className="px-4 py-3 text-center">Can Edit</th>
-                      <th className="px-4 py-3 text-center">Can Delete</th>
+                      <th className="px-3 py-1.5">Module</th>
+                      <th className="px-3 py-1.5 text-center">View</th>
+                      <th className="px-3 py-1.5 text-center">Edit</th>
+                      <th className="px-3 py-1.5 text-center">Delete</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
@@ -130,9 +118,9 @@ export function UserPermissionsSettings() {
                       const isAdminUser = users.find(u => u.id === selectedUserId)?.role === 'ADMIN';
                       return (
                         <tr key={mod} className="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
-                          <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{PERMISSION_LABELS[mod]}</td>
+                          <td className="px-3 py-1 font-medium text-gray-900 dark:text-gray-100">{PERMISSION_LABELS[mod]}</td>
                           {(['view', 'edit', 'delete'] as const).map(action => (
-                            <td key={action} className="px-4 py-3 text-center">
+                            <td key={action} className="px-3 py-1 text-center">
                               <input
                                 type="checkbox"
                                 checked={isAdminUser ? true : userPermissions[mod]?.[action] ?? false}
@@ -161,7 +149,7 @@ export function UserPermissionsSettings() {
 
               {/* Status Notification */}
               {statusMsg && (
-                <div className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border ${
+                <div className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border ${
                   statusMsg.ok
                     ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800'
                     : 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
@@ -190,7 +178,7 @@ export function UserPermissionsSettings() {
                       setPermSaving(false);
                     }
                   }}
-                  className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg text-sm flex items-center gap-2 shadow-sm transition-colors disabled:opacity-50"
+                  className="px-4 py-1.5 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-md text-xs flex items-center gap-1.5 shadow-sm transition-colors disabled:opacity-50"
                 >
                   {permSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   <span>Save Permissions</span>

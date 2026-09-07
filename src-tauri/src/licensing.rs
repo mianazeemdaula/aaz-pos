@@ -9,8 +9,8 @@ use chrono::{TimeZone, Utc};
 use tauri::Manager;
 
 const PUBLIC_KEY_BYTES: [u8; 32] = [
-    0xec, 0xfb, 0x81, 0x59, 0xd1, 0x9c, 0x88, 0xb1, 0x9d, 0x1a, 0x81, 0x97, 0x69, 0xc7, 0x23, 0x75,
-    0x31, 0xfd, 0xa0, 0x6f, 0xe5, 0xf2, 0x97, 0x95, 0x24, 0x9d, 0x93, 0x46, 0xa2, 0xe7, 0x32, 0x4f
+    0x8e, 0x7a, 0xd8, 0x3a, 0x2b, 0x28, 0x6a, 0xa0, 0x64, 0x3b, 0x2a, 0x3d, 0xb9, 0x79, 0xc2, 0xb7,
+    0xdd, 0xd9, 0xf3, 0x7d, 0xbc, 0x56, 0x6b, 0x79, 0x9d, 0x3e, 0xd8, 0x07, 0x4f, 0x00, 0x92, 0xcd
 ];
 
 #[derive(serde::Serialize, Clone)]
@@ -260,7 +260,7 @@ mod tests {
 
     #[test]
     fn test_signature() {
-        let key = "MDU1YjQ4YTEwM2JmN2Y0ZDUyOTNlZDYzODQ1MWRhZjIzMjcyZDhmNTk2ZTc1MWM2NTNlNjQ1MmIzYzE0ZTkxNDoxODEzMTcwNTkxLjY0NTg4MjBhNDYwNzJjNjUwNDU2MWY5NWVhMzJhYzRkNzhhYzBiNGFlOTY0ZjVhM2NiYjVhMDg4MmJmMjY2OWU0Mzc0ZDE0MDczMDMyYjIyZjNkOGEwMTMyZjUxZDU5MGIyNTBjNWNiYzJhNDhhMzQyOTlhYWJhMWU3Njk3OTA2";
+        let key = "MDU1YjQ4YTEwM2JmN2Y0ZDUyOTNlZDYzODQ1MWRhZjIzMjcyZDhmNTk2ZTc1MWM2NTNlNjQ1MmIzYzE0ZTkxNDoxODE4NTE3MDI4LjBlN2E4NDQ4YzllZDM1ZGRkZjlkZWRlZThmMmYwMmIwYjk0OWFjMzJiNTE2ZGNiN2QwOWViOTJkYWQzMTZiNzNjYmJmODdlNDc0NWVjMDIwNGY3YTIzYzBiMjI5MDQ0NzhiZDg2YWIzMDM2NTgwMTg0M2Q3NDk4YTRiMzI1YjAy";
         let hwid = "055b48a103bf7f4d5293ed638451daf23272d8f596e751c653e6452b3c14e914";
         let res = verify_license_key(key, hwid);
         println!("Test verify result: {:?}", res);

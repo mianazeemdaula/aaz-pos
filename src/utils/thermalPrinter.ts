@@ -2,6 +2,16 @@
  * Thermal Printer Service
  * Uses tauri-plugin-thermal-printer for ESC/POS printing
  */
+import {
+    columnsFor,
+    resolveColumns,
+    type ColumnQuery,
+    type EscPosFont,
+    type EscPosPaper,
+    type EscPosSize,
+} from './thermalFont';
+
+export type { EscPosFont, EscPosSize, EscPosPaper } from './thermalFont';
 
 // Types matching the tauri-plugin-thermal-printer API
 export interface PrinterInfo {
@@ -69,68 +79,109 @@ export interface ThermalPrinterConfig {
     invoiceMode: 'html' | 'native'; // HTML image pipeline vs ESC/POS text
     imageWidth?: number; // Custom print width in pixels (e.g. 512 or 504 for Bixolon 180dpi)
     nativeColumns?: number; // Custom native characters per line (e.g. 42 for Bixolon Font A)
-    /**
-     * Test mode: render the receipt image and show it on screen for download
-     * instead of sending it to the printer. HTML pipeline only.
-     */
-    exportInsteadOfPrint?: boolean;
+
+    // ─── Native ESC/POS type ────────────────────────────────────────────────
+    // All optional, and every default reproduces the behaviour these settings
+    // replaced, so an existing install prints identically until it is changed.
+    /** Body type face. Font B (compact) is the receipt norm. */
+    nativeFont?: EscPosFont;
+    /** Body character scale. */
+    nativeTextSize?: EscPosSize;
+    /** Print the body in bold — helps on a worn print head or pale paper. */
+    nativeBold?: boolean;
+    /** Scale of the business name at the top of a slip. */
+    nativeHeadingSize?: EscPosSize;
+    /** Type face for the one emphasised figure — the grand total. */
+    nativeTotalFont?: EscPosFont;
+    /** Scale for that figure. */
+    nativeTotalSize?: EscPosSize;
+
+    // ─── Hardware behaviour ────────────────────────────────────────────────
+    /** Cut the paper at the end of a job. */
+    cutPaper?: boolean;
+    /** Sound the printer's buzzer when a job finishes. */
+    beep?: boolean;
+    /** Kick the cash drawer open on a sale. */
+    openCashDrawer?: boolean;
+    /** Blank lines fed after the slip, before the cut. */
+    feedLines?: number;
 }
 
 const THERMAL_CONFIG_KEY = 'thermal_printer_config';
 
 /**
- * Type face for native ESC/POS slips.
+ * Native ESC/POS type, resolved from settings.
  *
- * Font A is 12 dots wide, Font B is 9 — B is the compact receipt face and fits
- * 64 columns on 80mm paper against Font A's 48.
+ * Font B is 9 dots wide against Font A's 12, so it is the compact receipt face
+ * and the historic default here. Every getter below falls back to the value
+ * that was hard-coded before these became settings, so an install that has
+ * never opened the printer page keeps printing exactly as it did.
  */
-const NATIVE_FONT: NonNullable<GlobalStyles['font']> = 'B';
+export const nativeFont = (config: ThermalPrinterConfig): EscPosFont => config.nativeFont ?? 'B';
+export const nativeTextSize = (config: ThermalPrinterConfig): EscPosSize => config.nativeTextSize ?? 'normal';
+export const nativeHeadingSize = (config: ThermalPrinterConfig): EscPosSize => config.nativeHeadingSize ?? 'height';
+export const nativeTotalFont = (config: ThermalPrinterConfig): EscPosFont => config.nativeTotalFont ?? 'A';
+export const nativeTotalSize = (config: ThermalPrinterConfig): EscPosSize => config.nativeTotalSize ?? 'normal';
+export const nativeBold = (config: ThermalPrinterConfig): boolean => config.nativeBold ?? false;
+export const feedLines = (config: ThermalPrinterConfig): number => {
+    const n = Number(config.feedLines);
+    return Number.isFinite(n) && n >= 0 ? Math.min(10, Math.round(n)) : 3;
+};
 
-/** Character cell width in dots, per ESC/POS font. */
-const FONT_CELL_DOTS: Record<string, number> = { A: 12, B: 9, C: 9 };
+const paperOf = (config: ThermalPrinterConfig): EscPosPaper => config.paperSize ?? 'Mm80';
 
-/** Printable dots across, per paper size. */
-const PAPER_DOTS: Record<string, number> = { Mm80: 576, Mm58: 384 };
+/** The body line's metrics — the width every manual column override is measured against. */
+export const bodyQuery = (config: ThermalPrinterConfig): ColumnQuery => ({
+    paperSize: paperOf(config),
+    font: nativeFont(config),
+    size: nativeTextSize(config),
+});
 
 /**
- * Columns available for a native slip at the current font and paper size.
+ * Columns available for a native slip at the configured face and size.
  *
  * Shared by every native builder so the item rows, totals and rule lines all
  * agree on one width. `nativeColumns` in settings still wins when set, for
  * printers whose real column count differs from the nominal one.
  */
 export function nativeWidth(config: ThermalPrinterConfig): number {
-    if (config.nativeColumns) return config.nativeColumns;
-    const dots = PAPER_DOTS[config.paperSize] ?? 576;
-    return Math.floor(dots / (FONT_CELL_DOTS[NATIVE_FONT] ?? 12));
+    const body = bodyQuery(config);
+    return resolveColumns(body, body, config.nativeColumns);
 }
 
 /** The same width with no `nativeColumns` override, for proportional scaling. */
 export function nativeDefaultWidth(config: ThermalPrinterConfig): number {
-    const dots = PAPER_DOTS[config.paperSize] ?? 576;
-    return Math.floor(dots / (FONT_CELL_DOTS[NATIVE_FONT] ?? 12));
+    return columnsFor(bodyQuery(config));
 }
 
 /**
- * Columns available at an explicit font, for the few lines that opt out of the
- * compact face.
+ * Columns available at an explicit face and size, for the lines that opt out of
+ * the body type.
  *
  * A line printed in Font A only fits 48 columns on 80mm where Font B fits 64 —
  * padding it to the Font B width is exactly what makes a line wrap onto the
- * next one. Any `nativeColumns` override is scaled to the requested font rather
+ * next one. Any `nativeColumns` override is scaled to the requested type rather
  * than ignored.
  */
 export function nativeWidthFor(
     config: ThermalPrinterConfig,
-    font: NonNullable<GlobalStyles['font']>,
+    font: EscPosFont,
+    size: EscPosSize = 'normal',
 ): number {
-    const dots = PAPER_DOTS[config.paperSize] ?? 576;
-    const columns = Math.floor(dots / (FONT_CELL_DOTS[font] ?? 12));
-    if (!config.nativeColumns) return columns;
-
-    const base = Math.floor(dots / (FONT_CELL_DOTS[NATIVE_FONT] ?? 12));
-    return Math.max(10, Math.round(config.nativeColumns * (columns / base)));
+    return resolveColumns(
+        { paperSize: paperOf(config), font, size },
+        bodyQuery(config),
+        config.nativeColumns,
+    );
 }
+
+/** Columns for the business name at the top of a slip. */
+export const nativeHeadingWidth = (config: ThermalPrinterConfig): number =>
+    nativeWidthFor(config, nativeFont(config), nativeHeadingSize(config));
+
+/** Columns for the emphasised grand-total line. */
+export const nativeTotalWidth = (config: ThermalPrinterConfig): number =>
+    nativeWidthFor(config, nativeTotalFont(config), nativeTotalSize(config));
 
 const DEFAULT_CONFIG: ThermalPrinterConfig = {
     connectionType: 'USB',
@@ -209,21 +260,35 @@ export function buildPrintJob(
 ): PrintJobRequest {
     const config = loadThermalConfig();
 
-    // Font B at normal size for the whole job — the compact receipt face.
-    // Sections that set only `align`/`bold` inherit the rest from here, so this
-    // one line governs the type size of every native slip.
+    // The configured face and size for the whole job. Sections that set only
+    // `align`/`bold` inherit the rest from here, so this one line governs the
+    // type of every native slip.
     const jobSections: PrintSection[] = [
-        { GlobalStyles: { font: NATIVE_FONT, size: 'normal' } },
-        ...sections
+        { GlobalStyles: jobStyles(config) },
+        ...sections,
     ];
 
     return {
         printer: resolvePrinter(config),
         paper_size: config.paperSize,
-        options: { cut_paper: true, beep: false, open_cash_drawer: false, ...options },
+        options: { ...hardwareOptions(config), ...options },
         sections: jobSections,
     };
 }
+
+/** The opening GlobalStyles every native job inherits. */
+export const jobStyles = (config: ThermalPrinterConfig): GlobalStyles => ({
+    font: nativeFont(config),
+    size: nativeTextSize(config),
+    bold: nativeBold(config),
+});
+
+/** Printer behaviour at the end of a job, from settings. */
+export const hardwareOptions = (config: ThermalPrinterConfig): PrinterOptions => ({
+    cut_paper: config.cutPaper ?? true,
+    beep: config.beep ?? false,
+    open_cash_drawer: config.openCashDrawer ?? false,
+});
 
 /**
  * Send a short native ESC/POS slip to the configured printer.
@@ -256,22 +321,24 @@ export async function printTestSlip(config?: ThermalPrinterConfig): Promise<bool
     return printDocument({
         printer: target,
         paper_size: cfg.paperSize,
-        options: { cut_paper: true, beep: false, open_cash_drawer: false },
+        options: hardwareOptions(cfg),
         sections: [
-            { GlobalStyles: { font: NATIVE_FONT, size: 'normal' } },
-            headline(biz.name, width),
+            { GlobalStyles: jobStyles(cfg) },
+            headline(biz.name, nativeHeadingWidth(cfg), nativeHeadingSize(cfg)),
             textCenter('PRINTER TEST SLIP', true),
             line('='),
             textLeft(`Connection : ${cfg.connectionType}`),
             textLeft(`Target     : ${target}`),
             textLeft(`Paper      : ${cfg.paperSize === 'Mm58' ? '58mm' : '80mm'}`),
             textLeft(`Mode       : ${cfg.invoiceMode}`),
+            textLeft(`Font       : ${nativeFont(cfg)} / ${nativeTextSize(cfg)}`),
+            textLeft(`Columns    : ${width}${cfg.nativeColumns ? ' (manual)' : ''}`),
             textLeft(`Time       : ${stamp}`),
             line('='),
             textLeft('0123456789'.repeat(Math.ceil(width / 10)).slice(0, width)),
             textCenter('If this slip is complete and'),
             textCenter('aligned, printing is working.'),
-            feed(3),
+            feed(feedLines(cfg)),
         ],
     });
 }
@@ -302,13 +369,18 @@ function centreOn(text: string, columns: number): string {
 }
 
 /**
- * Business name at the top of a slip: bold and double-height.
+ * Business name at the top of a slip: bold, and larger than the body by default.
  *
- * Height only — double *width* would halve the usable columns, so the rest of
- * the slip's column arithmetic keeps working against the width passed in.
+ * `width` must be the column count for THIS size, not the body's — a
+ * double-width heading fits half as many characters, and padding it to the body
+ * width is what wraps it onto a second line. Use `nativeHeadingWidth(config)`.
  */
-export const headline = (text: string, width: number): PrintSection =>
-    ({ Text: { text: centreOn(text, width), styles: { align: 'left', bold: true, size: 'height' } } });
+export const headline = (
+    text: string,
+    width: number,
+    size: EscPosSize = 'height',
+): PrintSection =>
+    ({ Text: { text: centreOn(text, width), styles: { align: 'left', bold: true, size } } });
 
 /**
  * The single most important figure on a slip — the amount, total or net
@@ -322,12 +394,22 @@ export const bigCenter = (text: string, width: number): PrintSection =>
     ({ Text: { text: centreOn(text, width), styles: { align: 'left', bold: true } } });
 
 /**
- * Text in the large face (Font A), for the one figure that should stand out
- * from the body — the grand total.
+ * The one figure that should stand out from the body — the grand total.
  *
- * Callers must lay the text out against `nativeWidthFor(config, 'A')`, not the
- * job width, or it will wrap.
+ * Face and size come from settings (Font A at normal size by default, which is
+ * larger than the compact body face). Callers must lay the text out against
+ * `nativeTotalWidth(config)`, not the job width, or it will wrap.
  */
+export const textEmphasis = (
+    config: ThermalPrinterConfig,
+    text: string,
+    align: 'left' | 'center' | 'right' = 'left',
+    bold = true,
+): PrintSection => ({
+    Text: { text, styles: { align, bold, font: nativeTotalFont(config), size: nativeTotalSize(config) } },
+});
+
+/** @deprecated Use `textEmphasis`, which honours the configured total type. */
 export const textFontA = (
     text: string,
     align: 'left' | 'center' | 'right' = 'left',

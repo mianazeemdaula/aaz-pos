@@ -3,11 +3,11 @@
  */
 import type { Sale, Customer } from '../../types/pos';
 import {
-    textLeft, textCenter, textFontA, feed, image, imageFromFile,
+    textLeft, textCenter, textEmphasis, feed, image, imageFromFile,
     buildPrintJob, printDocument,
-    type PrintSection, type PrintJobRequest, nativeDefaultWidth, nativeWidthFor,
+    type PrintSection, type PrintJobRequest, nativeDefaultWidth, nativeTotalWidth,
 } from '../thermalPrinter';
-import { loadThermalConfig } from '../thermalPrinter';
+import { loadThermalConfig, feedLines } from '../thermalPrinter';
 import { buildFbrCompositeBase64 } from './fbrComposite';
 import { fetchLogoBase64 } from './saleInvoice';
 import { loadReceiptBusiness, businessHeaderSections } from './businessProfile';
@@ -56,7 +56,7 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
     // admin edits on the Business Info page and which lives in the database.
     // The name prints large; everything else stays in the compact face.
     const biz = await loadReceiptBusiness(config);
-    sections.push(...businessHeaderSections(biz, width));
+    sections.push(...businessHeaderSections(biz, config));
     sections.push(printLine('-'));
 
     // Invoice info
@@ -143,12 +143,13 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
     }
     sections.push(printLine('-'));
 
-    // Grand total is the one body line in the large face (Font A), so it must
-    // be laid out against Font A's narrower column count — padding it to the
-    // Font B width is what pushes it onto a second line.
-    const widthA = nativeWidthFor(config, 'A');
+    // Grand total is the one body line in the emphasis face, so it must be laid
+    // out against that face's own column count — padding it to the body width
+    // is what pushes it onto a second line.
+    const widthA = nativeTotalWidth(config);
     const valWidthA = Math.max(8, Math.round(widthA * 0.19));
-    sections.push(textFontA(
+    sections.push(textEmphasis(
+        config,
         'GRAND TOTAL:'.padStart(widthA - valWidthA) + fmt(data.grandTotal).padStart(valWidthA),
     ));
     sections.push(printLine('-'));
@@ -231,7 +232,7 @@ export async function buildSaleInvoiceSections(data: SaleInvoiceData, invoiceNot
     }
     sections.push(textCenter('Thank you for your purchase!'));
     sections.push(textCenter('Powered by AAZify 03007395147'));
-    sections.push(feed(2));
+    sections.push(feed(Math.max(1, feedLines(config) - 1)));
     return sections;
 }
 

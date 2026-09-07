@@ -9,7 +9,13 @@
  */
 import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
-import { headline, textCenter } from '../thermalPrinter';
+import {
+    headline,
+    textCenter,
+    nativeWidth,
+    nativeHeadingWidth,
+    nativeHeadingSize,
+} from '../thermalPrinter';
 import type { ThermalPrinterConfig, PrintSection } from '../thermalPrinter';
 
 export interface ReceiptBusiness {
@@ -63,8 +69,16 @@ async function fetchCompany(): Promise<Record<string, unknown>> {
  * paper, since a centred line longer than the column count wraps at an
  * arbitrary point and looks like a fault.
  */
-export function businessHeaderSections(biz: ReceiptBusiness, width: number): PrintSection[] {
-    const sections: PrintSection[] = [headline(biz.name, width)];
+export function businessHeaderSections(
+    biz: ReceiptBusiness,
+    config: ThermalPrinterConfig,
+): PrintSection[] {
+    // The name may print at a different size from the body, so it is centred
+    // against its OWN column count — padding it to the body width would wrap it.
+    const width = nativeWidth(config);
+    const sections: PrintSection[] = [
+        headline(biz.name, nativeHeadingWidth(config), nativeHeadingSize(config)),
+    ];
 
     const tel = biz.phone ? `Tel: ${biz.phone}` : undefined;
     const parts = [biz.address, tel].filter((p): p is string => !!p);
