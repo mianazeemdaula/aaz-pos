@@ -11,7 +11,7 @@
  */
 
 import { code128Bars, code128Modules } from './code128';
-import { textWidthDots, ZPL_FONT_ADVANCE } from './generate';
+import { textWidthDots, ZPL_FONT_ADVANCE, mmToDots } from './generate';
 
 interface Command {
     name: string;
@@ -297,3 +297,143 @@ export function renderZpl(
 
     return { widthDots, heightDots, copies };
 }
+
+/**
+ * Render the first TSPL format onto `canvas`.
+ */
+export function renderTspl(
+    tspl: string,
+    canvas: HTMLCanvasElement,
+    options: ZplRenderOptions = {},
+): ZplRenderResult {
+    const scale = options.scale ?? 3;
+    const lines = tspl.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+    let widthDots = options.defaultWidth ?? 400;
+    let heightDots = options.defaultHeight ?? 240;
+    let copies = 1;
+
+    // Scan for SIZE and PRINT commands to determine canvas geometry
+    for (const line of lines) {
+        const sizeMatch = line.match(/^SIZE\s+([0-9.]+)\s*(mm)?\s*,\s*([0-9.]+)\s*(mm)?/i);
+        if (sizeMatch) {
+            const wVal = parseFloat(sizeMatch[1]);
+            const hVal = parseFloat(sizeMatch[3]);
+            const isMm = Boolean(sizeMatch[2] || sizeMatch[4] || wVal < 25);
+            widthDots = isMm ? mmToDots(wVal, 203) : Math.round(wVal);
+            heightDots = isMm ? mmToDots(hVal, 203) : Math.round(hVal);
+        }
+        const printMatch = line.match(/^PRINT\s+([0-9]+)/i);
+        if (printMatch) {
+            copies = Math.max(1, parseInt(printMatch[1], 10) || 1);
+            break; // Stop at first label's PRINT command
+        }
+    }
+
+    canvas.width = Math.max(1, Math.round(widthDots * scale));
+    canvas.height = Math.max(1, Math.round(heightDots * scale));
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return { widthDots, heightDots, copies };
+
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, widthDots, heightDots);
+    ctx.fillStyle = '#000000';
+    ctx.strokeStyle = '#000000';
+
+    for (const line of lines) {
+        // Stop rendering further labels if it's a batch
+        if (/^PRINT\s+/i.test(line)) {
+            break;
+        }
+
+        // BOX x1, y1, x2, y2, thickness
+        const boxMatch = line.match(/^BOX\s+([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*([0-9]+)/i);
+        if (boxMatch) {
+            const x1 = parseFloat(boxMatch[1]);
+            const y1 = parseFloat(boxMatch[2]);
+            const x2 = parseFloat(boxMatch[3]);
+            const y2 = parseFloat(boxMatch[4]);
+            const thickness = Math.max(1, parseInt(boxMatch[5], 10) || 1);
+
+            const w = x2 - x1;
+            const h = y2 - y1;
+            if (w <= thickness || h <= thickness) {
+                ctx.fillRect(x1, y1, Math.max(w, thickness), Math.max(h, thickness));
+            } else {
+                ctx.lineWidth = thickness;
+                ctx.strokeRect(x1 + thickness / 2, y1 + thickness / 2, w - thickness, h - thickness);
+            }
+            continue;
+        }
+
+        // TEXT x, y, "font", rotation, x_mult, y_mult, [alignment,] "content"
+        const textMatch = line.match(/^TEXT\s+([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*"([^"]+)"\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*(?:,\s*([0-9]+)\s*)?,\s*"([^"]*)"/i);
+        if (textMatch) {
+            const x = parseFloat(textMatch[1]);
+            const y = parseFloat(textMatch[2]);
+            const fontName = textMatch[3];
+            const yMult = Math.max(1, parseInt(textMatch[6], 10) || 1);
+            const textContent = textMatch[8];
+
+            const baseHeight = fontName === '1' ? 12
+                : fontName === '2' ? 20
+                : fontName === '3' ? 24
+                : fontName === '4' ? 32
+                : fontName === '5' ? 48
+                : 24;
+
+            const pixelSize = Math.round(baseHeight * yMult * 0.82);
+            ctx.font = `${pixelSize}px Helvetica, Arial, sans-serif`;
+            ctx.textBaseline = 'top';
+            ctx.textAlign = 'left';
+            ctx.fillText(textContent, x, y);
+            continue;
+        }
+
+        // BARCODE x, y, "type", height, readable, rotation, narrow, wide, [alignment,] "content"
+        const barMatch = line.match(/^BARCODE\s+([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*"([^"]+)"\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)\s*(?:,\s*([0-9]+)\s*)?,\s*"([^"]*)"/i);
+        if (barMatch) {
+            const x = parseFloat(barMatch[1]);
+            const y = parseFloat(barMatch[2]);
+            const barHeight = parseInt(barMatch[4], 10);
+            const readable = parseInt(barMatch[5], 10);
+            const moduleWidth = Math.max(1, parseInt(barMatch[7], 10) || 2);
+            const barcodeContent = barMatch[10];
+
+            for (const [offset, width] of code128Bars(barcodeContent)) {
+                ctx.fillRect(x + offset * moduleWidth, y, width * moduleWidth, barHeight);
+            }
+
+            if (readable > 0) {
+                const fontHeight = Math.max(10, Math.round(barHeight * 0.26));
+                ctx.font = `${fontHeight}px Helvetica, Arial, sans-serif`;
+                ctx.textBaseline = 'top';
+                ctx.textAlign = 'left';
+                const symbolWidth = code128Modules(barcodeContent) * moduleWidth;
+                const textWidth = ctx.measureText(barcodeContent).width;
+                const textX = readable === 2 ? x + (symbolWidth - textWidth) / 2 : x;
+                ctx.fillText(barcodeContent, textX, y + barHeight + 3);
+            }
+            continue;
+        }
+    }
+
+    return { widthDots, heightDots, copies };
+}
+
+/**
+ * Render label preview from either ZPL or TSPL code.
+ */
+export function renderLabel(
+    code: string,
+    canvas: HTMLCanvasElement,
+    options: ZplRenderOptions = {},
+): ZplRenderResult {
+    if (code.includes('^XA')) {
+        return renderZpl(code, canvas, options);
+    }
+    return renderTspl(code, canvas, options);
+}
+

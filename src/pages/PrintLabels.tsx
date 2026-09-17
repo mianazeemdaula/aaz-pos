@@ -9,9 +9,10 @@ import { ProductSearch } from '../components/ui/ProductSearch';
 import { settingsService } from '../services/pos.service';
 import type { ProductVariant } from '../types/pos';
 import {
-  buildBatchZpl, buildLabelZpl, renderZpl, sendZpl, downloadZpl, copyZpl,
-  listLabelPrinters, isLikelyZplPrinter, isTauri, loadZplSettings, saveZplSettings,
-  DEFAULT_LABEL_CONFIG, SIZE_PRESETS, SAMPLE_LABEL, mmToDots,
+  buildBatchCode, buildLabelCode, renderLabel, sendLabel, downloadLabel, copyLabel,
+  listLabelPrinters, isLikelyLabelPrinter, isLikelySpeedXPrinter, isLikelyZebraPrinter,
+  detectPrinterModel, isTauri, loadZplSettings, saveZplSettings, tsplDensity,
+  DEFAULT_LABEL_CONFIG, SIZE_PRESETS, SAMPLE_LABEL,
   type LabelConfig, type LabelData, type PrinterInfo, type ZplTarget, type Dpi,
 } from '../utils/zpl';
 
@@ -39,22 +40,27 @@ const toLabelData = (item: LabelItem): LabelData => ({
   price: priceOf(item),
 });
 
-/** Canvas render of a ZPL format — this is the preview. */
-function ZplPreview({ zpl }: { zpl: string }) {
+/** Canvas render of a label format (TSPL or ZPL) — this is the preview. */
+function LabelPreview({ code }: { code: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [widthDots, setWidthDots] = useState(400);
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    const result = renderZpl(zpl, canvasRef.current, { scale: 3 });
+    const result = renderLabel(code, canvasRef.current, { scale: 2.5 });
     setWidthDots(result.widthDots);
-  }, [zpl]);
+  }, [code]);
 
   return (
     <canvas
       ref={canvasRef}
-      style={{ width: '100%', maxWidth: `${widthDots}px`, height: 'auto' }}
-      className="rounded-sm shadow-md ring-1 ring-gray-300 dark:ring-gray-600"
+      style={{
+        width: 'auto',
+        maxWidth: `${Math.min(widthDots, 220)}px`,
+        maxHeight: '130px',
+        height: 'auto',
+      }}
+      className="rounded-sm shadow-xs ring-1 ring-gray-300 dark:ring-gray-600 block mx-auto"
     />
   );
 }
@@ -67,7 +73,7 @@ const labelText = 'block text-[10px] font-medium text-gray-400 mb-0.5';
 export function PrintLabels() {
   const [items, setItems] = useState<LabelItem[]>([]);
   const [config, setConfig] = useState<LabelConfig>(() => loadZplSettings(DEFAULT_LABEL_CONFIG));
-  const [tab, setTab] = useState<'label' | 'zpl'>('label');
+  const [tab, setTab] = useState<'label' | 'code'>('label');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -104,11 +110,16 @@ export function PrintLabels() {
     listLabelPrinters()
       .then(found => {
         setPrinters(found);
-        const zebra = found.find(p => isLikelyZplPrinter(p.name));
-        setPrinterName(zebra?.name ?? found[0]?.name ?? '');
+        const likely = found.find(p => isLikelyLabelPrinter(p.name));
+        const chosen = likely?.name ?? found[0]?.name ?? '';
+        setPrinterName(chosen);
+        if (chosen) {
+          const detected = detectPrinterModel(chosen);
+          set('printerModel', detected);
+        }
       })
       .catch(() => setPrinters([]));
-  }, []);
+  }, [set]);
 
   const addVariant = (variant: ProductVariant) => {
     setItems(prev => {
@@ -134,28 +145,28 @@ export function PrintLabels() {
 
   const totalLabels = useMemo(() => items.reduce((sum, item) => sum + item.copies, 0), [items]);
 
-  const previewZpl = useMemo(
-    () => buildLabelZpl(config, items[0] ? toLabelData(items[0]) : SAMPLE_LABEL, 1),
+  const previewCode = useMemo(
+    () => buildLabelCode(config, items[0] ? toLabelData(items[0]) : SAMPLE_LABEL, 1),
     [config, items],
   );
 
-  const batchZpl = useMemo(
+  const batchCode = useMemo(
     () => (items.length === 0
-      ? previewZpl
-      : buildBatchZpl(config, items.map(item => ({ data: toLabelData(item), copies: item.copies })))),
-    [config, items, previewZpl],
+      ? previewCode
+      : buildBatchCode(config, items.map(item => ({ data: toLabelData(item), copies: item.copies })))),
+    [config, items, previewCode],
   );
 
   const target: ZplTarget = targetKind === 'system'
     ? { kind: 'system', name: printerName }
     : { kind: 'tcp', host, port };
 
-  const send = async (zpl: string, description: string) => {
+  const send = async (code: string, description: string) => {
     if (targetKind === 'system' && !printerName) { showToast('error', 'Select a printer first'); return; }
     if (targetKind === 'tcp' && !host.trim()) { showToast('error', 'Enter the printer IP address'); return; }
     setSending(true);
     try {
-      await sendZpl(target, zpl);
+      await sendLabel(target, code);
       showToast('success', `${description} sent to ${targetKind === 'system' ? printerName : host}`);
     } catch (err: any) {
       showToast('error', String(err?.message ?? err));
@@ -166,7 +177,8 @@ export function PrintLabels() {
 
   const handlePrint = () => {
     if (items.length === 0) { showToast('error', 'Add a product first'); return; }
-    send(batchZpl, `${totalLabels} label(s)`);
+    const modelDesc = config.printerModel === 'speedx' ? 'Speed-X (TSPL)' : 'Zebra (ZPL)';
+    send(batchCode, `${totalLabels} label(s) [${modelDesc}]`);
   };
 
   const presetIndex = SIZE_PRESETS.findIndex(
@@ -183,6 +195,8 @@ export function PrintLabels() {
     ['Border', 'showBorder'],
   ];
 
+  const codeLangName = config.printerModel === 'speedx' ? 'TSPL' : 'ZPL';
+
   return (
     <div className="flex flex-col gap-3">
       {toast && (
@@ -193,65 +207,131 @@ export function PrintLabels() {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-3">
-          <Link to="/products" className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">
-            <ChevronLeft size={18} />
+      {/* Header — Single line compact toolbar */}
+      <div className="flex items-center justify-between gap-2 pb-2 border-b border-gray-200 dark:border-gray-700 flex-nowrap overflow-x-auto">
+        <div className="flex items-center gap-2 shrink-0">
+          <Link to="/products" className="p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <ChevronLeft size={16} />
           </Link>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 tracking-tight flex items-center gap-2">
-              <Tag size={20} className="text-teal-600" /> Label Printing
+          <div className="flex items-center gap-1.5">
+            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 tracking-tight flex items-center gap-1">
+              <Tag size={15} className="text-teal-600" /> Labels
             </h1>
-            <p className="text-[11px] text-gray-500 dark:text-gray-400">
-              ZPL II · {config.widthMm}×{config.heightMm}mm · {config.dpi} dpi
-              ({mmToDots(config.widthMm, config.dpi)}×{mmToDots(config.heightMm, config.dpi)} dots)
-            </p>
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 hidden md:inline">
+              ({config.widthMm}×{config.heightMm}mm)
+            </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <select value={targetKind} onChange={e => setTargetKind(e.target.value as 'system' | 'tcp')} className={`${field} w-auto`}>
+        {/* Printer Selection & Actions — tight single line */}
+        <div className="flex items-center gap-1 flex-nowrap shrink-0">
+          {/* Printer Model Switcher */}
+          <div className="inline-flex items-center h-7 bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg border border-gray-200 dark:border-gray-700 text-[11px]">
+            <button
+              type="button"
+              onClick={() => set('printerModel', 'speedx')}
+              className={`h-full px-2 rounded-md font-medium transition-all flex items-center gap-1 ${
+                config.printerModel === 'speedx'
+                  ? 'bg-white dark:bg-gray-700 text-teal-600 dark:text-teal-400 shadow-xs font-semibold'
+                  : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
+              }`}
+              title="Speed-X & TSC compatible barcode printers (TSPL)"
+            >
+              ⚡ Speed-X
+            </button>
+            <button
+              type="button"
+              onClick={() => set('printerModel', 'zebra')}
+              className={`h-full px-2 rounded-md font-medium transition-all flex items-center gap-1 ${
+                config.printerModel === 'zebra'
+                  ? 'bg-white dark:bg-gray-700 text-teal-600 dark:text-teal-400 shadow-xs font-semibold'
+                  : 'text-gray-500 hover:text-gray-800 dark:text-gray-400'
+              }`}
+              title="Zebra & ZPL-compatible printers (ZPL II)"
+            >
+              🦓 Zebra
+            </button>
+          </div>
+
+          {/* Connection Type */}
+          <select
+            value={targetKind}
+            onChange={e => setTargetKind(e.target.value as 'system' | 'tcp')}
+            className="h-7 px-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-teal-500"
+          >
             <option value="system">Printer</option>
             <option value="tcp">Network</option>
           </select>
 
+          {/* Printer Dropdown / Network inputs */}
           {targetKind === 'system' ? (
-            <select value={printerName} onChange={e => setPrinterName(e.target.value)} className={`${field} w-auto max-w-[220px]`}>
+            <select
+              value={printerName}
+              onChange={e => {
+                const name = e.target.value;
+                setPrinterName(name);
+                if (name) {
+                  const detected = detectPrinterModel(name);
+                  set('printerModel', detected);
+                }
+              }}
+              className="h-7 px-2 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none focus:ring-1 focus:ring-teal-500 max-w-[190px] truncate"
+            >
               {printers.length === 0 && <option value="">No printers found</option>}
-              {printers.map(p => (
-                <option key={p.identifier + p.name} value={p.name}>
-                  {p.name}{isLikelyZplPrinter(p.name) ? ' 🏷️' : ''}
-                </option>
-              ))}
+              {printers.map(p => {
+                const isSpeedX = isLikelySpeedXPrinter(p.name);
+                const isZebra = isLikelyZebraPrinter(p.name);
+                const badge = isSpeedX ? ' ⚡' : isZebra ? ' 🦓' : '';
+                return (
+                  <option key={p.identifier + p.name} value={p.name}>
+                    {p.name}{badge}
+                  </option>
+                );
+              })}
             </select>
           ) : (
-            <>
-              <input value={host} onChange={e => setHost(e.target.value)} placeholder="192.168.1.50" className={`${field} w-32`} />
-              <input type="number" value={port} onChange={e => setPort(parseInt(e.target.value) || 9100)} className={`${field} w-16`} />
-            </>
+            <div className="inline-flex items-center gap-1">
+              <input
+                value={host}
+                onChange={e => setHost(e.target.value)}
+                placeholder="192.168.1.50"
+                className="h-7 w-28 px-1.5 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none"
+              />
+              <input
+                type="number"
+                value={port}
+                onChange={e => setPort(parseInt(e.target.value) || 9100)}
+                className="h-7 w-14 px-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none"
+              />
+            </div>
           )}
 
+          {/* Test Button */}
           <button
-            onClick={() => send(buildLabelZpl(config, SAMPLE_LABEL, 1), 'Test label')}
+            onClick={() => send(
+              buildLabelCode(config, SAMPLE_LABEL, 1),
+              `Test label (${config.printerModel === 'speedx' ? 'Speed-X' : 'Zebra'})`,
+            )}
             disabled={sending}
-            className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+            className="h-7 px-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 shrink-0"
           >
             Test
           </button>
+
+          {/* Print Button */}
           <button
             onClick={handlePrint}
             disabled={items.length === 0 || sending}
-            className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5"
+            className="h-7 px-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0"
           >
-            <Printer size={14} /> Print ({totalLabels})
+            <Printer size={13} /> Print ({totalLabels})
           </button>
         </div>
       </div>
 
       {!isTauri() && (
         <p className="text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-1.5">
-          Running outside the desktop app — direct printing is unavailable. Use <strong>Download .zpl</strong> to send labels manually.
+          Running outside the desktop app — direct printing is unavailable. Use <strong>Download .{codeLangName.toLowerCase()}</strong> to send labels manually.
         </p>
       )}
 
@@ -348,40 +428,53 @@ export function PrintLabels() {
         </div>
 
         {/* Preview + settings */}
-        {/* top-16 clears the sticky navigation bar */}
-        <div className="w-full lg:w-2/5 flex flex-col gap-3 lg:sticky lg:top-16">
-          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-2">
+        <div className="w-full lg:w-2/5 flex flex-col gap-2.5 lg:sticky lg:top-16">
+          {/* Compact Preview & Code Card */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-xs">
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-2 py-0.5 bg-gray-50/60 dark:bg-gray-900/30">
               <div className="flex">
-                {(['label', 'zpl'] as const).map(key => (
-                  <button
-                    key={key}
-                    onClick={() => setTab(key)}
-                    className={`px-3 py-2 text-[11px] font-semibold uppercase tracking-wide border-b-2 -mb-px transition-colors ${tab === key
-                      ? 'border-teal-600 text-teal-600'
-                      : 'border-transparent text-gray-400 hover:text-gray-600'}`}
-                  >
-                    {key === 'label' ? 'Preview' : 'ZPL'}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => copyZpl(batchZpl).then(() => showToast('success', 'ZPL copied'))} title="Copy ZPL" className="p-1.5 text-gray-400 hover:text-teal-600">
-                  <Copy size={14} />
+                <button
+                  onClick={() => setTab('label')}
+                  className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${tab === 'label'
+                    ? 'border-teal-600 text-teal-600'
+                    : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                >
+                  Preview
                 </button>
-                <button onClick={() => downloadZpl(batchZpl, `labels-${totalLabels || 1}.zpl`)} title="Download .zpl" className="p-1.5 text-gray-400 hover:text-teal-600">
-                  <Download size={14} />
+                <button
+                  onClick={() => setTab('code')}
+                  className={`px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider border-b-2 -mb-px transition-colors ${tab === 'code'
+                    ? 'border-teal-600 text-teal-600'
+                    : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                >
+                  {codeLangName}
+                </button>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={() => copyLabel(batchCode).then(() => showToast('success', `${codeLangName} copied`))}
+                  title={`Copy ${codeLangName}`}
+                  className="p-1 text-gray-400 hover:text-teal-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Copy size={12} />
+                </button>
+                <button
+                  onClick={() => downloadLabel(batchCode, `labels-${totalLabels || 1}.${codeLangName.toLowerCase()}`)}
+                  title={`Download .${codeLangName.toLowerCase()}`}
+                  className="p-1 text-gray-400 hover:text-teal-600 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                >
+                  <Download size={12} />
                 </button>
               </div>
             </div>
 
             {tab === 'label' ? (
-              <div className="p-5 flex justify-center bg-gray-50 dark:bg-gray-900/30">
-                <ZplPreview zpl={previewZpl} />
+              <div className="p-2 flex items-center justify-center bg-gray-50/70 dark:bg-gray-900/30 min-h-[90px] max-h-[145px]">
+                <LabelPreview code={previewCode} />
               </div>
             ) : (
-              <pre className="p-3 text-[10px] leading-relaxed font-mono text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/30 max-h-[280px] overflow-auto whitespace-pre-wrap break-all">
-                {batchZpl}
+              <pre className="p-2 text-[9px] leading-snug font-mono text-gray-700 dark:text-gray-300 bg-gray-50/70 dark:bg-gray-900/30 max-h-[135px] overflow-auto whitespace-pre-wrap break-all">
+                {batchCode}
               </pre>
             )}
           </div>
@@ -419,14 +512,38 @@ export function PrintLabels() {
               <div>
                 <label className={labelText}>Resolution</label>
                 <select value={config.dpi} onChange={e => set('dpi', Number(e.target.value) as Dpi)} className={field}>
-                  <option value={203}>203 dpi (8 dots/mm)</option>
+                  <option value={203}>203 dpi (Speed-X & standard)</option>
                   <option value={300}>300 dpi (12 dots/mm)</option>
                   <option value={600}>600 dpi (24 dots/mm)</option>
                 </select>
               </div>
               <div>
-                <label className={labelText}>Darkness (^MD)</label>
-                <input type="number" min={-30} max={30} value={config.darkness} onChange={e => set('darkness', Math.max(-30, Math.min(30, parseInt(e.target.value) || 0)))} className={field} />
+                <label className={labelText}>
+                  {config.printerModel === 'speedx' ? 'Density (1–15)' : 'Darkness (^MD)'}
+                </label>
+                {config.printerModel === 'speedx' ? (
+                  <input
+                    type="number"
+                    min={1}
+                    max={15}
+                    value={tsplDensity(config.darkness)}
+                    onChange={e => {
+                      const val = Math.max(1, Math.min(15, parseInt(e.target.value) || 8));
+                      const darknessVal = Math.round(((val - 8) / 7) * 30);
+                      set('darkness', darknessVal);
+                    }}
+                    className={field}
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    min={-30}
+                    max={30}
+                    value={config.darkness}
+                    onChange={e => set('darkness', Math.max(-30, Math.min(30, parseInt(e.target.value) || 0)))}
+                    className={field}
+                  />
+                )}
               </div>
               <div>
                 <label className={labelText}>Barcode height (mm)</label>
@@ -459,7 +576,7 @@ export function PrintLabels() {
             </div>
 
             <p className="flex items-center gap-1.5 text-[10px] text-gray-400 pt-1">
-              <Code2 size={11} /> Preview is rendered from the same ZPL that is sent to the printer.
+              <Code2 size={11} /> Preview is rendered from the same {codeLangName} commands sent to the printer.
             </p>
           </div>
         </div>

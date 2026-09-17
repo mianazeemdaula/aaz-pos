@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sed -n '/export interface Sale /,/^}/p' src/types/pos.ts)",
+      "Bash(sed -n '/export interface User/,/^}/p' src/types/pos.ts)",
+      "PowerShell(npx tsc --noEmit -p tsconfig.json 2>&1 | Select-Object -First 40)",
+      "PowerShell(node \"C:\\\\Users\\\\Azeem\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--aazify-pos-aazify-aaz-pos\\\\c08f4555-174d-46c7-8cd7-8984b13a66c6\\\\scratchpad\\\\preview.mjs\")",
+      "PowerShell($paths = @\\(\"$env:ProgramFiles\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\",\"${env:ProgramFiles\\(x86\\)}\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\",\"$env:LOCALAPPDATA\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\",\"$env:ProgramFiles\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe\",\"${env:ProgramFiles\\(x86\\)}\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe\"\\); $paths | Where-Object { Test-Path $_ })"
+    ]
+  }
+}

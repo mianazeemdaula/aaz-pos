@@ -9,12 +9,15 @@
 import { code128WidthDots, fitModuleWidth } from './code128';
 
 export type Dpi = 203 | 300 | 600;
+export type LabelPrinterModel = 'speedx' | 'zebra';
 
 export interface LabelConfig {
+    printerModel: LabelPrinterModel;
     dpi: Dpi;
     widthMm: number;
     heightMm: number;
-    /** Print darkness, `^MD` (-30…30). 0 leaves the printer default alone. */
+    gapMm?: number;
+    /** Print darkness: For Zebra, ^MD (-30…30). For SpeedX, maps to DENSITY (1…15). */
     darkness: number;
     showShop: boolean;
     shopName: string;
@@ -39,9 +42,11 @@ export interface LabelData {
 }
 
 export const DEFAULT_LABEL_CONFIG: LabelConfig = {
+    printerModel: 'speedx',
     dpi: 203,
     widthMm: 50,
     heightMm: 30,
+    gapMm: 2,
     darkness: 0,
     showShop: true,
     shopName: 'Aazify POS',
@@ -88,7 +93,7 @@ export const textWidthDots = (text: string, fontHeight: number) =>
 const wrappedLines = (text: string, fontHeight: number, blockWidth: number, maxLines: number) =>
     Math.min(maxLines, Math.max(1, Math.ceil(textWidthDots(text, fontHeight) / blockWidth)));
 
-interface Row {
+export interface Row {
     kind: 'text' | 'barcode';
     text: string;
     fontHeight: number;
@@ -104,7 +109,7 @@ interface Row {
  * taller than the label. The barcode gives up height first (it degrades most
  * gracefully), then everything scales down together.
  */
-function buildRows(config: LabelConfig, data: LabelData) {
+export function buildRows(config: LabelConfig, data: LabelData) {
     const { dpi } = config;
     const width = mmToDots(config.widthMm, dpi);
     const height = mmToDots(config.heightMm, dpi);
