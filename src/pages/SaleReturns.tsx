@@ -34,8 +34,14 @@ async function printSaleReceipt(saleId: number) {
       grandTotal: s.totalAmount,
       paidAmount: s.paidAmount,
       changeAmount: s.changeAmount,
+      cashier: (s as any).cashierName || s.user?.name,
+      payments: (s.payments ?? []).filter(p => p.amount > 0).map(p => ({
+        name: p.account?.name || p.method || 'Cash',
+        amount: p.amount,
+      })),
+      isDuplicate: true,
       fbrInvoiceId: s.taxInvoiceId,
-      fbrQrUrl: s.taxInvoiceId ? `https://tp.fbr.gov.pk/InvoiceVerification?InvoiceNo=${encodeURIComponent(s.taxInvoiceId)}` : null,
+      fbrQrUrl: s.taxInvoiceId ? s.taxInvoiceId.toString() : null,
     };
     await printSaleInvoice(printData);
   } catch (e) {

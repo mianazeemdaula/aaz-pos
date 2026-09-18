@@ -8,8 +8,12 @@
  * needing a server-side counter.
  */
 
-/** Zero-pad the sequence to four digits, letting it grow past 9999 naturally. */
-const pad4 = (n: number): string => String(Math.max(0, Math.trunc(n))).padStart(4, '0');
+/** Zero-pad the sequence to four digits, safely handling NaN, undefined, or strings. */
+const pad4 = (n: unknown): string => {
+    const num = typeof n === 'number' ? n : parseInt(String(n ?? ''), 10);
+    const safe = Number.isFinite(num) ? Math.max(0, Math.trunc(num)) : 0;
+    return String(safe).padStart(4, '0');
+};
 
 /**
  * Date part in the *local* timezone.
@@ -25,25 +29,54 @@ function yyyymmdd(date: Date): string {
     return `${y}${m}${d}`;
 }
 
-export interface InvoiceNumberSource {
-    id: number;
-    /** Honoured as-is when the server ever starts issuing real numbers. */
-    invoiceNumber?: string | null;
-    createdAt?: string | Date | null;
-}
+export type InvoiceNumberSource =
+    | {
+          id?: number | string | null;
+          /** Honoured as-is when the server ever starts issuing real numbers. */
+          invoiceNumber?: string | null;
+          invoiceNo?: string | null;
+          createdAt?: string | Date | null;
+      }
+    | number
+    | string;
 
 /**
  * Format a document number, e.g. `INV-20260801-0042`.
  *
  * An explicit `invoiceNumber` from the server wins — a number someone else
- * assigned must never be rewritten by the printer.
+ * assigned must never be rewritten by the printer (unless it is corrupted with NaN).
  */
 export function formatInvoiceNumber(
-    source: InvoiceNumberSource,
+    source: InvoiceNumberSource | null | undefined,
     prefix = 'INV',
 ): string {
-    const explicit = source.invoiceNumber?.trim();
-    if (explicit) return explicit;
+    if (source === null || source === undefined) {
+        const now = new Date();
+        return `${prefix}-${yyyymmdd(now)}-0000`;
+    }
+
+    if (typeof source === 'number') {
+        const now = new Date();
+        return `${prefix}-${yyyymmdd(now)}-${pad4(source)}`;
+    }
+
+    if (typeof source === 'string') {
+        const trimmed = source.trim();
+        if (/^\d+$/.test(trimmed)) {
+            const now = new Date();
+            return `${prefix}-${yyyymmdd(now)}-${pad4(trimmed)}`;
+        }
+        if (trimmed && !trimmed.toLowerCase().endsWith('nan')) {
+            return trimmed;
+        }
+        const now = new Date();
+        return `${prefix}-${yyyymmdd(now)}-0000`;
+    }
+
+    const explicit = (source.invoiceNumber ?? source.invoiceNo)?.trim();
+    if (explicit && !explicit.toLowerCase().endsWith('nan')) {
+        return explicit;
+    }
 
     const raw = source.createdAt ? new Date(source.createdAt) : new Date();
     const date = Number.isNaN(raw.getTime()) ? new Date() : raw;
@@ -52,6 +85,6 @@ export function formatInvoiceNumber(
 }
 
 /** Same string, safe to use as a filename. */
-export function invoiceNumberSlug(source: InvoiceNumberSource, prefix = 'INV'): string {
+export function invoiceNumberSlug(source: InvoiceNumberSource | null | undefined, prefix = 'INV'): string {
     return formatInvoiceNumber(source, prefix).replace(/[^A-Za-z0-9._-]+/g, '-');
 }

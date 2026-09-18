@@ -17,8 +17,8 @@ function printPurchaseReceipt(p: Purchase, isReturn = false) {
   if (!w) return;
   const due = Math.max(0, p.totalAmount - p.paidAmount);
   w.document.write(`<!DOCTYPE html><html><head><title>Purchase</title><style>
-    body{font-family:monospace;font-size:12px;width:300px;margin:10px auto}
-    h2{text-align:center;margin:0} hr{border-top:1px dashed #000}
+    body{font-family:monospace;font-size:14px;width:300px;margin:10px auto}
+    h2{text-align:center;margin:0;font-size:18px} hr{border-top:1px dashed #000}
     .row{display:flex;justify-content:space-between} .bold{font-weight:bold}
   </style></head><body>
     <h2>${isReturn ? 'PURCHASE RETURN' : 'PURCHASE ORDER'}</h2>

@@ -2,6 +2,7 @@
 mod backup;
 mod printer;
 mod licensing;
+pub mod thermal;
 
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 
@@ -46,6 +47,9 @@ pub fn run() {
             printer::list_serial_ports,
             printer::test_printer_connection,
             printer::open_cash_drawer,
+            printer::print_thermal_invoice,
+            printer::preview_thermal_invoice,
+            printer::print_thermal_test_slip,
             backup::pick_backup_dir,
             backup::validate_backup_dir,
             backup::save_backup,

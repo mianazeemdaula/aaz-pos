@@ -1,89 +1,68 @@
 /**
  * Expense Invoice Generator for Thermal Printer
+ * via the direct Tauri / Rust Skia + HarfBuzz + Urdu + 203 DPI engine.
  */
 import type { Expense } from '../../types/pos';
 import {
-    textLeft, textCenter, line, feed, table, cell,
-    bigCenter, nativeWidth,
-    buildPrintJob, printDocument,
-    type PrintSection, type PrintJobRequest, nativeDefaultWidth,
+    loadThermalConfig,
+    printThermalInvoice,
+    type ThermalInvoiceData,
 } from '../thermalPrinter';
-import { loadThermalConfig, feedLines } from '../thermalPrinter';
-import { loadReceiptBusiness, businessHeaderSections } from './businessProfile';
-
-const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+import { fetchLogoBase64 } from './saleInvoice';
+import { apiClient } from '../../services/api';
+import { API_ENDPOINTS } from '../../config/api';
 
 export interface ExpenseInvoiceData {
     expense: Expense;
 }
 
-export async function buildExpenseInvoiceSections(data: ExpenseInvoiceData): Promise<PrintSection[]> {
+export async function printExpenseInvoice(data: ExpenseInvoiceData): Promise<boolean> {
     const config = loadThermalConfig();
     const { expense } = data;
-    const sections: PrintSection[] = [];
 
-    // Header — identity comes from the Business Profile in Settings.
-    const biz = await loadReceiptBusiness(config);
-    sections.push(...businessHeaderSections(biz, config));
-    sections.push(line('-'));
-
-    // Title
-    sections.push(textCenter('EXPENSE VOUCHER', true));
-    sections.push(textLeft(`Voucher #${expense.id}`));
-    sections.push(textLeft(`Date: ${new Date(expense.date).toLocaleDateString('en-PK')}`));
-    sections.push(line('-'));
-
-    // Details
-    const is80mm = config.paperSize === 'Mm80';
-    const defaultWidth = nativeDefaultWidth(config);
-    const width = config.nativeColumns || defaultWidth;
-    const ratio = width / defaultWidth;
-
-    let colWidths = is80mm ? [32, 16] : [20, 12];
-    if (config.nativeColumns) {
-        colWidths = colWidths.map(w => Math.max(1, Math.floor(w * ratio)));
-        const sum = colWidths.reduce((a, b) => a + b, 0);
-        const diff = width - sum;
-        if (diff !== 0) {
-            colWidths[0] += diff; // Adjust label column
-        }
+    let dbCompany: Record<string, any> = {};
+    try {
+        dbCompany = await apiClient.get<Record<string, any>>(API_ENDPOINTS.settings.get);
+    } catch (e) {
+        console.warn('[ExpenseInvoice] Failed to fetch company settings', e);
     }
 
-    const body = [
-        [cell('Description:'), cell(expense.description)],
-    ];
-    if (expense.category) {
-        body.push([cell('Category:'), cell(expense.category)]);
-    }
-    if (expense.account) {
-        body.push([cell('Account:'), cell(expense.account.name)]);
-    }
-    if (expense.user) {
-        body.push([cell('By:'), cell(expense.user.name)]);
-    }
-    sections.push(table(2, body, colWidths));
+    const dateStr = expense.date
+        ? new Date(expense.date).toLocaleDateString('en-PK')
+        : new Date().toLocaleDateString('en-PK');
 
-    sections.push(line('-'));
-    sections.push(bigCenter(`AMOUNT: ${fmt(expense.amount)}`, nativeWidth(config)));
-    sections.push(line('-'));
+    const desc = [
+        expense.description,
+        expense.category ? `Category: ${expense.category}` : '',
+        expense.user ? `By: ${expense.user.name}` : '',
+    ].filter(Boolean).join(' | ');
 
-    if (expense.note) {
-        sections.push(textLeft(`Note: ${expense.note}`));
-    }
+    const invoice: ThermalInvoiceData = {
+        business_name: dbCompany.businessName || config.businessName || 'Aazify POS',
+        business_address: dbCompany.address || config.businessAddress || undefined,
+        business_phone: dbCompany.phone || config.businessPhone || undefined,
+        business_ntn: dbCompany.ntn || config.businessNTN || undefined,
+        business_strn: dbCompany.strn || undefined,
+        title: 'EXPENSE VOUCHER',
+        invoice_no: `EXP-${expense.id}`,
+        date_time: dateStr,
+        cashier: expense.user?.name || undefined,
+        items: [
+            {
+                name: desc || 'Expense (اخراجات)',
+                qty: 1,
+                price: expense.amount,
+                discount: 0,
+                total: expense.amount,
+            }
+        ],
+        subtotal: expense.amount,
+        grand_total: expense.amount,
+        paid_amount: expense.amount,
+        change_amount: 0,
+        notes: expense.note || undefined,
+        logo_base64: await fetchLogoBase64(),
+    };
 
-    // Footer
-    sections.push(line('-'));
-    sections.push(textCenter('Expense Record'));
-    sections.push(feed(feedLines(config)));
-
-    return sections;
-}
-
-export async function buildExpenseInvoiceJob(data: ExpenseInvoiceData): Promise<PrintJobRequest> {
-    return buildPrintJob(await buildExpenseInvoiceSections(data));
-}
-
-export async function printExpenseInvoice(data: ExpenseInvoiceData): Promise<boolean> {
-    const job = await buildExpenseInvoiceJob(data);
-    return printDocument(job);
+    return printThermalInvoice(invoice);
 }

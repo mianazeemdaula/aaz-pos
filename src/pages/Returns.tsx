@@ -32,8 +32,14 @@ async function printSaleReceipt(saleId: number) {
             grandTotal: s.totalAmount,
             paidAmount: s.paidAmount,
             changeAmount: s.changeAmount,
+            cashier: (s as any).cashierName || s.user?.name,
+            payments: (s.payments ?? []).filter(p => p.amount > 0).map(p => ({
+                name: p.account?.name || p.method || 'Cash',
+                amount: p.amount,
+            })),
+            isDuplicate: true,
             fbrInvoiceId: s.taxInvoiceId,
-            fbrQrUrl: s.taxInvoiceId ? `https://tp.fbr.gov.pk/InvoiceVerification?InvoiceNo=${encodeURIComponent(s.taxInvoiceId)}` : null,
+            fbrQrUrl: s.taxInvoiceId ? s.taxInvoiceId.toString() : null,
         };
         await printSaleInvoice(printData);
     } catch (e) {
@@ -45,8 +51,8 @@ function printPurchaseReceipt(p: Purchase) {
     const w = window.open('', '_blank', 'width=400,height=600');
     if (!w) return;
     w.document.write(`<!DOCTYPE html><html><head><title>Purchase</title><style>
-    body{font-family:monospace;font-size:12px;width:300px;margin:10px auto}
-    h2{text-align:center;margin:0} hr{border-top:1px dashed #000}
+    body{font-family:monospace;font-size:14px;width:300px;margin:10px auto}
+    h2{text-align:center;margin:0;font-size:18px} hr{border-top:1px dashed #000}
     .row{display:flex;justify-content:space-between} .bold{font-weight:bold}
   </style></head><body>
     <h2>PURCHASE RETURN</h2>

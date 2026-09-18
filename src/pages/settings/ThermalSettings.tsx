@@ -6,7 +6,6 @@ import { useGlobalSettings } from '../../contexts/SettingsContext';
 import { saveThermalConfig, listPrinters, printTestSlip, type ThermalPrinterConfig, type PrinterInfo } from '../../utils/thermalPrinter';
 import { SettingsHeader } from './SettingsHeader';
 import { inputCls, labelCls, hintCls, sectionNoteCls } from './formStyles';
-import { NativeEscPosSettings } from './NativeEscPosSettings';
 
 export function ThermalSettings() {
   const { settings: globalSettings, refreshSettings, setThermalConfig } = useGlobalSettings();
@@ -169,19 +168,12 @@ export function ThermalSettings() {
           </div>
 
           <div>
-            <label className={labelCls}>Render mode</label>
-            <select
-              value={thermal.invoiceMode}
-              onChange={e => setThermal(t => ({ ...t, invoiceMode: e.target.value as 'html' | 'native' }))}
-              className={inputCls}
-            >
-              <option value="html">HTML image (rich layout, logos)</option>
-              <option value="native">Native ESC/POS text (fastest)</option>
-            </select>
+            <label className={labelCls}>Printing Engine</label>
+            <div className="text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded border border-gray-200 dark:border-gray-700">
+              <span className="font-semibold text-primary-600 dark:text-primary-400">Tauri / Rust Engine</span>: Skia 2D canvas, HarfBuzz Urdu text shaping, 203 DPI raster & 1-bit ESC/POS.
+            </div>
           </div>
         </div>
-
-        <NativeEscPosSettings thermal={thermal} setThermal={setThermal} />
 
         {/* Test print — the only way to check a receipt is on paper. */}
         <div className="border-t border-gray-200 dark:border-gray-700 pt-4">

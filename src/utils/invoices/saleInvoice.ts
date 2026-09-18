@@ -1,31 +1,40 @@
 /**
  * Sale Invoice Generator for Thermal Printer
  *
- * Uses an HTML → html2canvas → PNG image pipeline for a rich, styled receipt.
- * Falls back to the original ESC/POS text mode if image rendering fails.
+ * Direct Tauri / Rust Pipeline:
+ * Tauri / Rust -> Skia -> HarfBuzz text shaping -> Urdu font -> 203 DPI raster -> 1-bit conversion -> ESC/POS
  */
 import type { Sale, Customer } from '../../types/pos';
 import {
-    feed,
-    buildPrintJob, printDocument,
-    loadThermalConfig, feedLines,
-    type PrintSection, type PrintJobRequest,
+    loadThermalConfig,
+    printThermalInvoice,
+    previewThermalInvoice,
+    type ThermalInvoiceData,
 } from '../thermalPrinter';
-import { buildInvoiceHtml, type HtmlInvoiceConfig } from './invoiceHtmlBuilder';
-import { renderHtmlToBase64Png } from './htmlInvoiceRenderer';
-import { buildSaleInvoiceSections as buildLegacySections } from './saleInvoiceLegacy';
 import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
-import { buildFbrCompositeBase64 } from './fbrComposite';
+import { formatInvoiceNumber } from './invoiceNumber';
+import { FBR_LOGO_BASE64 } from './fbrLogo';
 
-// Paper width in pixels for each supported paper size
-const PAPER_WIDTH_PX: Record<string, number> = {
-    Mm80: 576,
-    Mm58: 384,
-};
+export interface SaleInvoiceData {
+    sale: Sale;
+    items: { name: string; qty: number; price: number; discount: number; total: number }[];
+    customer?: Customer | null;
+    subtotal: number;
+    discountAmount: number;
+    taxAmount: number;
+    grandTotal: number;
+    paidAmount: number;
+    changeAmount: number;
+    payments?: { name: string; amount: number }[];
+    cashier?: string;
+    isDuplicate?: boolean;
+    fbrInvoiceId?: string | null;
+    fbrQrUrl?: string | null;
+}
 
-// Cache logo base64 in memory so we only fetch once per session
-let _cachedLogoBase64: string | null | undefined = undefined; // undefined = not yet fetched
+// Cache logo base64 in memory
+let _cachedLogoBase64: string | null | undefined = undefined;
 
 export async function fetchLogoBase64(): Promise<string | undefined> {
     if (_cachedLogoBase64 !== undefined) return _cachedLogoBase64 ?? undefined;
@@ -38,38 +47,12 @@ export async function fetchLogoBase64(): Promise<string | undefined> {
     return _cachedLogoBase64 ?? undefined;
 }
 
-/** Call this after uploading a new logo so the next print picks it up. */
 export function invalidateLogoCache(): void {
     _cachedLogoBase64 = undefined;
 }
 
-export interface SaleInvoiceData {
-    sale: Sale;
-    items: { name: string; qty: number; price: number; discount: number; total: number }[];
-    customer?: Customer | null;
-    subtotal: number;
-    discountAmount: number;
-    taxAmount: number;
-    grandTotal: number;
-    paidAmount: number;
-    changeAmount: number;
-    fbrInvoiceId?: string | null;
-    fbrQrUrl?: string | null;
-}
-
-// ─── Customer credit resolution ───────────────────────────────────────────────
-
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-/**
- * Fills in `previousBalance` / `newBalance` on the invoice's customer so the
- * receipt can always print the credit summary.
- *
- * The server balance is authoritative and already reflects this sale, so it is
- * taken as the closing balance and the opening balance is derived from the
- * amount left unpaid on this bill. Falls back to the customer snapshot held in
- * memory (which is pre-sale) if the lookup fails.
- */
 async function resolveCustomerBalances(data: SaleInvoiceData): Promise<SaleInvoiceData> {
     const c = data.customer;
     if (!c) return data;
@@ -93,112 +76,98 @@ async function resolveCustomerBalances(data: SaleInvoiceData): Promise<SaleInvoi
     return { ...data, customer: { ...c, previousBalance, newBalance } };
 }
 
-// ─── HTML image pipeline ──────────────────────────────────────────────────────
-
 /**
- * Renders the invoice to the exact PNG that would be sent to the printer.
- * Shared by the print path and the image-export / preview path.
+ * Builds the unified ThermalInvoiceData structure for the Rust engine
  */
-export async function renderSaleInvoicePng(
-    input: SaleInvoiceData,
-): Promise<{ base64: string; widthPx: number }> {
+export async function buildSaleThermalInvoice(input: SaleInvoiceData): Promise<ThermalInvoiceData> {
     const data = await resolveCustomerBalances(input);
     const config = loadThermalConfig();
-    const defaultWidth = PAPER_WIDTH_PX[config.paperSize] ?? 560;
-    const widthPx = config.imageWidth || defaultWidth;
+
+    let dbCompany: Record<string, any> = {};
+    try {
+        dbCompany = await apiClient.get<Record<string, any>>(API_ENDPOINTS.settings.get);
+    } catch (e) {
+        console.warn('[SaleInvoice] Failed to fetch company settings from DB', e);
+    }
 
     const logoBase64 = await fetchLogoBase64();
-
-    // Fetch fresh company settings from DB to get invoiceNote and other business details
-    let dbCompany: Record<string, any> = {};
-    try {
-        dbCompany = await apiClient.get<Record<string, any>>(API_ENDPOINTS.settings.get);
-    } catch (e) {
-        console.warn('[SaleInvoice] Failed to fetch company settings from DB', e);
-    }
-
     const fbrId = data.fbrInvoiceId || data.sale.taxInvoiceId;
-    let fbrCompositeBase64: string | undefined = undefined;
-    if (fbrId) {
-        try {
-            fbrCompositeBase64 = await buildFbrCompositeBase64(fbrId.toString(), widthPx - 24);
-        } catch (e) {
-            console.error('[SaleInvoice] Failed to build FBR composite base64', e);
-        }
-    }
-
-    const htmlConfig: HtmlInvoiceConfig = {
-        businessName: dbCompany.businessName || config.businessName,
-        businessAddress: dbCompany.address || config.businessAddress,
-        businessPhone: dbCompany.phone || config.businessPhone,
-        businessNTN: dbCompany.ntn || config.businessNTN,
-        printWidthPx: widthPx,
-        logoBase64,
-        fbrCompositeBase64,
-        invoiceNote: dbCompany.invoiceNote,
-    };
-
-    const html = buildInvoiceHtml(data, htmlConfig);
-    const base64 = await renderHtmlToBase64Png(html, { widthPx });
-
-    return { base64, widthPx };
-}
-
-async function buildSaleInvoiceImageSection(input: SaleInvoiceData): Promise<PrintSection> {
-    const { base64, widthPx } = await renderSaleInvoicePng(input);
+    const dateStr = data.sale.createdAt
+        ? new Date(data.sale.createdAt).toLocaleString('en-PK', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        })
+        : new Date().toLocaleString('en-PK');
 
     return {
-        Image: {
-            data: base64,
-            max_width: widthPx,
-            align: 'center',
-            dithering: false,
-            size: 'normal',
-        },
+        business_name: dbCompany.businessName || config.businessName || 'Aazify POS',
+        business_address: dbCompany.address || config.businessAddress || undefined,
+        business_phone: dbCompany.phone || config.businessPhone || undefined,
+        business_ntn: dbCompany.ntn || config.businessNTN || undefined,
+        business_strn: dbCompany.strn || undefined,
+        title: data.sale.totalAmount < 0 ? 'SALE RETURN' : 'SALE INVOICE',
+        invoice_no: formatInvoiceNumber(data.sale),
+        date_time: dateStr,
+        cashier: data.cashier || (data.sale as any).cashierName || (data.sale as any).user?.name || undefined,
+        customer_name: data.customer?.name || undefined,
+        customer_phone: data.customer?.phone || undefined,
+        customer_previous_balance: data.customer?.previousBalance,
+        customer_new_balance: data.customer?.newBalance,
+        is_duplicate: !!data.isDuplicate,
+        items: data.items.map(item => ({
+            name: item.name,
+            qty: item.qty,
+            price: item.price,
+            discount: item.discount,
+            total: item.total,
+        })),
+        payments: (() => {
+            if (data.payments && data.payments.length > 0) {
+                return data.payments.filter(p => p.amount > 0);
+            }
+            if (data.sale.payments && data.sale.payments.length > 0) {
+                return data.sale.payments
+                    .filter(p => p.amount > 0)
+                    .map(p => ({
+                        name: p.account?.name || p.method || 'Cash',
+                        amount: p.amount,
+                    }));
+            }
+            return undefined;
+        })(),
+        subtotal: data.subtotal,
+        discount_amount: data.discountAmount,
+        tax_amount: data.taxAmount,
+        grand_total: data.grandTotal,
+        paid_amount: data.paidAmount,
+        change_amount: data.changeAmount,
+        fbr_invoice_id: fbrId ? fbrId.toString() : undefined,
+        qr_data: fbrId ? fbrId.toString() : (data.fbrQrUrl || undefined),
+        fbr_logo_base64: fbrId ? FBR_LOGO_BASE64 : undefined,
+        notes: dbCompany.invoiceNote || undefined,
+        logo_base64: logoBase64,
     };
-}
-
-// ─── Public API ───────────────────────────────────────────────────────────────
-
-export async function buildSaleInvoiceSections(data: SaleInvoiceData): Promise<PrintSection[]> {
-    const imageSection = await buildSaleInvoiceImageSection(data);
-    return [imageSection, feed(feedLines(loadThermalConfig()))];
-}
-
-export async function buildSaleInvoiceJob(data: SaleInvoiceData): Promise<PrintJobRequest> {
-    const imageSection = await buildSaleInvoiceImageSection(data);
-    return buildPrintJob([imageSection, feed(feedLines(loadThermalConfig()))]);
 }
 
 /**
- * Renders and prints the sale invoice as a styled PNG image.
- * Falls back to the legacy ESC/POS text mode if image rendering fails,
- * or immediately uses native mode if configured.
+ * Print sale invoice via the Tauri / Rust 203 DPI Skia + HarfBuzz engine
  */
 export async function printSaleInvoice(input: SaleInvoiceData): Promise<boolean> {
-    const data = await resolveCustomerBalances(input);
+    const thermalInvoice = await buildSaleThermalInvoice(input);
+    return printThermalInvoice(thermalInvoice);
+}
+
+/**
+ * Renders the invoice to PNG base64 via the Rust Skia engine
+ */
+export async function renderSaleInvoicePng(input: SaleInvoiceData): Promise<{ base64: string; widthPx: number }> {
+    const thermalInvoice = await buildSaleThermalInvoice(input);
     const config = loadThermalConfig();
-
-    // Fetch fresh company settings from DB to get STRN, NTN and invoiceNote
-    let dbCompany: Record<string, any> = {};
-    try {
-        dbCompany = await apiClient.get<Record<string, any>>(API_ENDPOINTS.settings.get);
-    } catch (e) {
-        console.warn('[SaleInvoice] Failed to fetch company settings from DB', e);
-    }
-
-    const invoiceNote = dbCompany.invoiceNote;
-
-    if (config.invoiceMode === 'native') {
-        const sections = await buildLegacySections(data, invoiceNote);
-        return printDocument(buildPrintJob(sections));
-    }
-    try {
-        const job = await buildSaleInvoiceJob(data);
-        return await printDocument(job);
-    } catch (err) {
-        console.warn('[SaleInvoice] HTML image render failed, falling back to text mode:', err);
-        const sections = await buildLegacySections(data, invoiceNote);
-        return printDocument(buildPrintJob(sections));
-    }
+    const widthPx = config.paperSize === 'Mm58' ? 384 : 576;
+    const base64 = await previewThermalInvoice(thermalInvoice, config);
+    return { base64, widthPx };
 }

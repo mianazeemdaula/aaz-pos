@@ -618,15 +618,10 @@ export function Settings() {
               </div>
 
               <div>
-                <label className={labelCls}>Invoice Render Mode</label>
-                <select
-                  value={thermal.invoiceMode}
-                  onChange={e => setThermal(t => ({ ...t, invoiceMode: e.target.value as 'html' | 'native' }))}
-                  className={inputCls}
-                >
-                  <option value="html">HTML Graphics Pipeline (Rich Formatting & Logos)</option>
-                  <option value="native">Native ESC/POS Text Mode (Ultra-fast Printing)</option>
-                </select>
+                <label className={labelCls}>Thermal Printing Engine</label>
+                <div className="text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded border border-gray-200 dark:border-gray-700">
+                  <span className="font-semibold text-primary-600 dark:text-primary-400">Tauri / Rust Engine</span>: Skia 2D Canvas · HarfBuzz text shaping · Noto Nastaliq Urdu · 203 DPI 1-bit ESC/POS
+                </div>
               </div>
             </div>
 

@@ -48,7 +48,7 @@ export function useSaleSettings(): SaleSettings & { loading: boolean } {
                 setSettings({
                     allowPriceChange: flag('sale.allowPriceChange', true),
                     allowDiscountTypeSwitch: flag('sale.allowDiscountTypeSwitch', true),
-                    allowCartProfitView: flag('sale.allowCartProfitView', user.role === 'ADMIN' || user.role === 'MANAGER'),
+                    allowCartProfitView: user.role === 'ADMIN' || flag('sale.allowCartProfitView', user.role === 'MANAGER'),
                     maxDiscountPercent: parseDiscountLimit(pick('maxCashierDiscount')),
                     exemptFromLimits: user.role === 'ADMIN',
                 });

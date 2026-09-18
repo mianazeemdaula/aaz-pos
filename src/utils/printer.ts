@@ -123,14 +123,14 @@ export async function openCashDrawer(config: PrinterConfig): Promise<string> {
  * Save printer configuration to localStorage
  */
 export function savePrinterConfig(config: PrinterConfig): void {
-    localStorage.setItem('coldstore_printer_config', JSON.stringify(config));
+    localStorage.setItem('aazifypos_printer_config', JSON.stringify(config));
 }
 
 /**
  * Load printer configuration from localStorage
  */
 export function loadPrinterConfig(): PrinterConfig | null {
-    const stored = localStorage.getItem('coldstore_printer_config');
+    const stored = localStorage.getItem('aazifypos_printer_config') || localStorage.getItem('coldstore_printer_config');
     if (stored) {
         try {
             return JSON.parse(stored) as PrinterConfig;

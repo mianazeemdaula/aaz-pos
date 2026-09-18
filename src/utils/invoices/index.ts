@@ -1,14 +1,15 @@
-// Invoice generators barrel export
+// Thermal Invoice generators barrel export
 export {
-    printSaleInvoice, buildSaleInvoiceJob,
+    printSaleInvoice,
     renderSaleInvoicePng,
     type SaleInvoiceData,
 } from './saleInvoice';
-export { printPurchaseInvoice, buildPurchaseInvoiceJob, type PurchaseInvoiceData } from './purchaseInvoice';
-export { printSalaryInvoice, buildSalaryInvoiceJob, type SalaryInvoiceData } from './salaryInvoice';
-export { printExpenseInvoice, buildExpenseInvoiceJob, type ExpenseInvoiceData } from './expenseInvoice';
+export { printPurchaseInvoice, type PurchaseInvoiceData } from './purchaseInvoice';
+export { printSalaryInvoice, type SalaryInvoiceData } from './salaryInvoice';
+export { printExpenseInvoice, type ExpenseInvoiceData } from './expenseInvoice';
 export {
-    printCustomerPayment, printSupplierPayment,
-    buildCustomerPaymentJob, buildSupplierPaymentJob,
-    type CustomerPaymentInvoiceData, type SupplierPaymentInvoiceData,
+    printCustomerPayment,
+    printSupplierPayment,
+    type CustomerPaymentInvoiceData,
+    type SupplierPaymentInvoiceData,
 } from './paymentInvoice';

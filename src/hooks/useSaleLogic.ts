@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { saleService, heldService, productService, accountService } from '../services/pos.service';
 import { useSaleSettings } from '../hooks/useSaleSettings';
 import { useGlobalSettings } from '../contexts/SettingsContext';
+import { useAuth } from '../contexts';
 import { fbrService } from '../services/fbr.service';
 import { FBRPaymentMode, FBRInvoiceType } from '../types/fbr';
 import { type SaleInvoiceData } from '../utils/invoices';
@@ -11,6 +12,7 @@ import { getVariantPrice, computeLine, computeCartProfit, parseError, round2 } f
 import { hasAnyReturnLine, resolveParentSaleId, sellingGross, validateCart } from '../components/sale/cart-rules';
 
 export function useSaleLogic() {
+  const { user } = useAuth();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [note, setNote] = useState('');
@@ -423,9 +425,20 @@ export function useSaleLogic() {
 
       const sale = await saleService.create(salePayload);
 
+      const paymentsList = accounts
+        .filter(a => (parseFloat(accountAmounts[a.id] || '0') || 0) > 0)
+        .map(a => ({
+          name: a.name,
+          amount: parseFloat(accountAmounts[a.id]) || 0,
+        }));
+
       // Build print data immediately (FBR ID added later if available)
       const printData: SaleInvoiceData = {
-        sale,
+        sale: {
+          ...sale,
+          user: sale.user || (user ? ({ id: user.id, name: user.name, role: user.role } as any) : undefined),
+        },
+        cashier: user?.name || (sale as any).cashierName || (sale as any).user?.name,
         items: cartSnapshot.map(i => ({
           name: i.variant.product?.name ?? i.variant.name,
           qty: i.qty,
@@ -440,6 +453,7 @@ export function useSaleLogic() {
         grandTotal: snapshotGrandTotal,
         paidAmount: snapshotPaidTotal,
         changeAmount: Math.max(0, snapshotChange),
+        payments: paymentsList.length > 0 ? paymentsList : undefined,
       };
 
       // Clear cart immediately so user can start next sale
@@ -543,6 +557,7 @@ export function useSaleLogic() {
     allowPriceChange,
     maxDiscountPercent,
     exemptFromLimits,
+    user,
   ]);
 
   holdSaleRef.current = holdSale;

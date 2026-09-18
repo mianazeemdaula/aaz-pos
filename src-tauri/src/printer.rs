@@ -442,3 +442,31 @@ pub fn open_cash_drawer(config: PrinterConfig) -> Result<String, String> {
         PrinterConnectionType::TCP => print_via_tcp(&config, drawer_data),
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Thermal Printing Mode (Rust Engine: Skia + HarfBuzz + Urdu + 203 DPI + ESC/POS)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub fn print_thermal_invoice(
+    invoice: crate::thermal::models::ThermalInvoice,
+    config: crate::thermal::models::ThermalPrinterConfig,
+) -> Result<String, String> {
+    crate::thermal::print_invoice(invoice, config)
+}
+
+#[tauri::command]
+pub fn preview_thermal_invoice(
+    invoice: crate::thermal::models::ThermalInvoice,
+    config: crate::thermal::models::ThermalPrinterConfig,
+) -> Result<String, String> {
+    crate::thermal::render_preview_base64(invoice, config)
+}
+
+#[tauri::command]
+pub fn print_thermal_test_slip(
+    config: crate::thermal::models::ThermalPrinterConfig,
+) -> Result<String, String> {
+    crate::thermal::print_test_slip(config)
+}
+

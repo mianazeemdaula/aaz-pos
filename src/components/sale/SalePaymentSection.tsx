@@ -47,12 +47,17 @@ export function SalePaymentSection({
         <p className="text-xs font-semibold text-gray-500 uppercase">
           Payment <span className="normal-case font-normal text-gray-400">(F6)</span>
         </p>
-        {allowCartProfitView && cartLength > 0 && onOpenProfitModal && (
+        {allowCartProfitView && onOpenProfitModal && (
           <button
             type="button"
             onClick={onOpenProfitModal}
-            title="View Cart Profit Analysis"
-            className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200 dark:border-emerald-800 rounded-md px-1.5 py-0.5 font-medium transition-colors"
+            disabled={cartLength === 0}
+            title={cartLength === 0 ? "Add items to cart to view profit analysis" : "View Cart Profit Analysis"}
+            className={`flex items-center gap-1 text-xs rounded-md px-1.5 py-0.5 font-medium transition-colors border ${
+              cartLength === 0
+                ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border-emerald-200 dark:border-emerald-800'
+            }`}
           >
             <TrendingUp size={12} />
             <span className="text-[11px]">Profit</span>
