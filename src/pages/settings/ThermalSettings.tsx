@@ -168,11 +168,18 @@ export function ThermalSettings() {
           </div>
 
           <div>
-            <label className={labelCls}>Printing Engine</label>
-            <div className="text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded border border-gray-200 dark:border-gray-700">
-              <span className="font-semibold text-primary-600 dark:text-primary-400">Tauri / Rust Engine</span>: Skia 2D canvas, HarfBuzz Urdu text shaping, 203 DPI raster & 1-bit ESC/POS.
-            </div>
+            <label className={labelCls}>Printer Protocol</label>
+            <select
+              value={thermal.emulation || 'auto'}
+              onChange={e => setThermal(t => ({ ...t, emulation: e.target.value as 'auto' | 'escpos' | 'star' }))}
+              className={inputCls}
+            >
+              <option value="auto">Auto-detect (Recommended)</option>
+              <option value="star">Star Line Mode (TSP100 / TSP700 / TSP650)</option>
+              <option value="escpos">Standard ESC/POS (Black Copper / Smart)</option>
+            </select>
           </div>
+
         </div>
 
         {/* Test print — the only way to check a receipt is on paper. */}

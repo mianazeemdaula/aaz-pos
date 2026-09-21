@@ -69,4 +69,6 @@ pub struct ThermalPrinterConfig {
     pub beep: Option<bool>,
     pub open_cash_drawer: Option<bool>,
     pub feed_lines: Option<u8>,
+    #[serde(default)]
+    pub emulation: Option<String>,
 }

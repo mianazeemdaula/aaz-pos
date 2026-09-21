@@ -101,14 +101,14 @@ export function buildLabelTspl(config: LabelConfig, data: LabelData, copies = 1)
         `SIZE ${config.widthMm} mm, ${config.heightMm} mm`,
         `GAP ${gapMm} mm, 0 mm`,
         'DIRECTION 1',
-        'REFERENCE 0, 0',
         `DENSITY ${density}`,
+        'SPEED 4',
         'CLS',
     ];
 
     if (config.showBorder) {
         const thickness = Math.max(1, Math.round(config.dpi / 100));
-        lines.push(`BOX 1, 1, ${width - 1}, ${height - 1}, ${thickness}`);
+        lines.push(`BOX 1,1,${width - 1},${height - 1},${thickness}`);
     }
 
     let y = startY;
@@ -121,7 +121,7 @@ export function buildLabelTspl(config: LabelConfig, data: LabelData, copies = 1)
             const readable = config.showBarcodeText ? 2 : 0; // 2 = centered text in TSPL
             const safeText = escapeTspl(row.text);
 
-            lines.push(`BARCODE ${x}, ${y}, "128", ${row.barHeight}, ${readable}, 0, ${module}, ${module}, "${safeText}"`);
+            lines.push(`BARCODE ${x},${y},"128",${row.barHeight},${readable},0,${module},${module},"${safeText}"`);
         } else {
             const fontMatch = selectTsplFont(row.fontHeight);
             const charsPerLine = Math.max(1, Math.floor(innerWidth / fontMatch.charWidth));
@@ -132,14 +132,14 @@ export function buildLabelTspl(config: LabelConfig, data: LabelData, copies = 1)
             for (const lineText of safeWrapped) {
                 const textWidth = lineText.length * fontMatch.charWidth;
                 const x = Math.max(pad, Math.round((width - textWidth) / 2));
-                lines.push(`TEXT ${x}, ${lineY}, "${fontMatch.font}", 0, ${fontMatch.xMult}, ${fontMatch.yMult}, "${lineText}"`);
+                lines.push(`TEXT ${x},${lineY},"${fontMatch.font}",0,${fontMatch.xMult},${fontMatch.yMult},"${lineText}"`);
                 lineY += fontMatch.charHeight + 2;
             }
         }
         y += row.height + gap;
     }
 
-    lines.push(`PRINT ${Math.max(1, copies)}, 1`);
+    lines.push(`PRINT ${Math.max(1, copies)},1`);
     return lines.join('\r\n') + '\r\n';
 }
 

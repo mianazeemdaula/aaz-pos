@@ -9,7 +9,8 @@ import { ProductSearch } from '../components/ui/ProductSearch';
 import { settingsService } from '../services/pos.service';
 import type { ProductVariant } from '../types/pos';
 import {
-  buildBatchCode, buildLabelCode, renderLabel, sendLabel, downloadLabel, copyLabel,
+  buildBatchCode, buildLabelCode, downloadLabel, copyLabel,
+  sendLabelBitmap, sendTestLabelBitmap, drawLabelToCanvas,
   listLabelPrinters, isLikelyLabelPrinter, isLikelySpeedXPrinter, isLikelyZebraPrinter,
   detectPrinterModel, isTauri, loadZplSettings, saveZplSettings, tsplDensity,
   DEFAULT_LABEL_CONFIG, SIZE_PRESETS, SAMPLE_LABEL,
@@ -40,27 +41,25 @@ const toLabelData = (item: LabelItem): LabelData => ({
   price: priceOf(item),
 });
 
-/** Canvas render of a label format (TSPL or ZPL) — this is the preview. */
-function LabelPreview({ code }: { code: string }) {
+/** Canvas render of the centered label image — this is what gets sent dot-for-dot to the printer. */
+function LabelPreview({ config, data }: { config: LabelConfig; data: LabelData }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [widthDots, setWidthDots] = useState(400);
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    const result = renderLabel(code, canvasRef.current, { scale: 2.5 });
-    setWidthDots(result.widthDots);
-  }, [code]);
+    drawLabelToCanvas(config, data, canvasRef.current);
+  }, [config, data]);
 
   return (
     <canvas
       ref={canvasRef}
       style={{
         width: 'auto',
-        maxWidth: `${Math.min(widthDots, 220)}px`,
+        maxWidth: '220px',
         maxHeight: '130px',
         height: 'auto',
       }}
-      className="rounded-sm shadow-xs ring-1 ring-gray-300 dark:ring-gray-600 block mx-auto"
+      className="rounded-sm shadow-xs ring-1 ring-gray-300 dark:ring-gray-600 block mx-auto bg-white"
     />
   );
 }
@@ -145,9 +144,14 @@ export function PrintLabels() {
 
   const totalLabels = useMemo(() => items.reduce((sum, item) => sum + item.copies, 0), [items]);
 
+  const previewData = useMemo(
+    () => (items[0] ? toLabelData(items[0]) : SAMPLE_LABEL),
+    [items],
+  );
+
   const previewCode = useMemo(
-    () => buildLabelCode(config, items[0] ? toLabelData(items[0]) : SAMPLE_LABEL, 1),
-    [config, items],
+    () => buildLabelCode(config, previewData, 1),
+    [config, previewData],
   );
 
   const batchCode = useMemo(
@@ -161,13 +165,19 @@ export function PrintLabels() {
     ? { kind: 'system', name: printerName }
     : { kind: 'tcp', host, port };
 
-  const send = async (code: string, description: string) => {
+  const handlePrint = async () => {
+    if (items.length === 0) { showToast('error', 'Add a product first'); return; }
     if (targetKind === 'system' && !printerName) { showToast('error', 'Select a printer first'); return; }
     if (targetKind === 'tcp' && !host.trim()) { showToast('error', 'Enter the printer IP address'); return; }
     setSending(true);
     try {
-      await sendLabel(target, code);
-      showToast('success', `${description} sent to ${targetKind === 'system' ? printerName : host}`);
+      const modelDesc = config.printerModel === 'speedx' ? 'Speed-X (TSPL)' : 'Zebra (ZPL)';
+      await sendLabelBitmap(
+        target,
+        config,
+        items.map(item => ({ data: toLabelData(item), copies: item.copies })),
+      );
+      showToast('success', `${totalLabels} label(s) [Image: ${modelDesc}] sent to ${targetKind === 'system' ? printerName : host}`);
     } catch (err: any) {
       showToast('error', String(err?.message ?? err));
     } finally {
@@ -175,10 +185,19 @@ export function PrintLabels() {
     }
   };
 
-  const handlePrint = () => {
-    if (items.length === 0) { showToast('error', 'Add a product first'); return; }
-    const modelDesc = config.printerModel === 'speedx' ? 'Speed-X (TSPL)' : 'Zebra (ZPL)';
-    send(batchCode, `${totalLabels} label(s) [${modelDesc}]`);
+  const handleTestPrint = async () => {
+    if (targetKind === 'system' && !printerName) { showToast('error', 'Select a printer first'); return; }
+    if (targetKind === 'tcp' && !host.trim()) { showToast('error', 'Enter the printer IP address'); return; }
+    setSending(true);
+    try {
+      const modelDesc = config.printerModel === 'speedx' ? 'Speed-X' : 'Zebra';
+      await sendTestLabelBitmap(target, config);
+      showToast('success', `Test label [Image: ${modelDesc}] sent to ${targetKind === 'system' ? printerName : host}`);
+    } catch (err: any) {
+      showToast('error', String(err?.message ?? err));
+    } finally {
+      setSending(false);
+    }
   };
 
   const presetIndex = SIZE_PRESETS.findIndex(
@@ -308,10 +327,7 @@ export function PrintLabels() {
 
           {/* Test Button */}
           <button
-            onClick={() => send(
-              buildLabelCode(config, SAMPLE_LABEL, 1),
-              `Test label (${config.printerModel === 'speedx' ? 'Speed-X' : 'Zebra'})`,
-            )}
+            onClick={handleTestPrint}
             disabled={sending}
             className="h-7 px-2 border border-gray-300 dark:border-gray-600 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 shrink-0"
           >
@@ -470,7 +486,7 @@ export function PrintLabels() {
 
             {tab === 'label' ? (
               <div className="p-2 flex items-center justify-center bg-gray-50/70 dark:bg-gray-900/30 min-h-[90px] max-h-[145px]">
-                <LabelPreview code={previewCode} />
+                <LabelPreview config={config} data={previewData} />
               </div>
             ) : (
               <pre className="p-2 text-[9px] leading-snug font-mono text-gray-700 dark:text-gray-300 bg-gray-50/70 dark:bg-gray-900/30 max-h-[135px] overflow-auto whitespace-pre-wrap break-all">

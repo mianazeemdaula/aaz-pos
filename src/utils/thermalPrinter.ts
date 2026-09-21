@@ -86,6 +86,7 @@ export interface ThermalPrinterConfig {
     beep?: boolean;
     openCashDrawer?: boolean;
     feedLines?: number;
+    emulation?: 'auto' | 'escpos' | 'star';
 
     // Optional legacy fields preserved for settings compatibility
     invoiceMode?: 'rust' | 'html' | 'native';
@@ -115,6 +116,7 @@ const DEFAULT_CONFIG: ThermalPrinterConfig = {
     beep: false,
     openCashDrawer: false,
     feedLines: 3,
+    emulation: 'auto',
 };
 
 export function saveThermalConfig(config: ThermalPrinterConfig): void {
@@ -158,6 +160,7 @@ function toRustConfig(cfg: ThermalPrinterConfig) {
         beep: cfg.beep ?? false,
         open_cash_drawer: cfg.openCashDrawer ?? false,
         feed_lines: cfg.feedLines ?? 3,
+        emulation: cfg.emulation || 'auto',
     };
 }
 

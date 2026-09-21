@@ -23,7 +23,7 @@ export type LabelTarget = ZplTarget;
 
 /** Detect if a printer is likely a Speed-X / TSC label printer. */
 export function isLikelySpeedXPrinter(name: string): boolean {
-    return /speed[-_\s]?x|sp[-_\s]?(?:700|710|690|650|600|200|300|90)|spt[-_\s]?710|tsc|gprinter|xprinter/i.test(name);
+    return /speed[-_\s]?x|sp[-_\s]?(?:700|710|690|650|600|200|300|90)|spt[-_\s]?710|tsc|gprinter|xprinter|4barcode|3b[-_\s]?365/i.test(name);
 }
 
 /** Detect if a printer is likely a Zebra label printer. */

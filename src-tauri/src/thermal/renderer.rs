@@ -46,7 +46,7 @@ impl ThermalRenderer {
         pixmap_opt: &mut Option<&mut Pixmap>,
     ) -> Result<f32, String> {
         let w = width as f32;
-        let mut y = 20.0; // Top padding
+        let mut y = 0.0; // No leading feed before content starts
 
         let is_compact = width <= 384;
         let font_title = if is_compact { 28.0 } else { 34.0 };
@@ -594,7 +594,21 @@ impl ThermalRenderer {
                 self.shaper.draw_text(pm, thank_you_ur, center_x, y + font_body + 2.0, font_body + 2.0, true, TextAlign::Center);
             }
         }
-        y += font_body + 16.0;
+        y += font_body + 10.0;
+
+        // 11. Software branding footer (20pt)
+        let font_powered = if is_compact { 18.0 } else { 20.0 };
+        let powered_by = "Powered by aazify 03007395147  aazify.com";
+        let powered_lines = self.shaper.wrap_text(powered_by, w - (left_margin * 2.0), font_powered, true);
+        for p_line in powered_lines {
+            if render {
+                if let Some(ref mut pm) = pixmap_opt {
+                    self.shaper.draw_text(pm, &p_line, center_x, y + font_powered, font_powered, true, TextAlign::Center);
+                }
+            }
+            y += font_powered + 6.0;
+        }
+        y += 10.0;
 
         Ok(y)
     }

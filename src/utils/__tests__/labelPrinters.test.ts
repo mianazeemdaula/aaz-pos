@@ -16,6 +16,8 @@ import {
   isLikelyLabelPrinter,
   detectPrinterModel,
   renderLabel,
+  drawLabelToCanvas,
+  renderLabelBitmap,
   type LabelConfig,
 } from '../zpl';
 
@@ -28,6 +30,8 @@ describe('Speed-X & Zebra Printer Detection', () => {
     expect(isLikelySpeedXPrinter('SP-700 Thermal Printer')).toBe(true);
     expect(isLikelySpeedXPrinter('TSC TTP-244 Pro')).toBe(true);
     expect(isLikelySpeedXPrinter('Xprinter XP-365B')).toBe(true);
+    expect(isLikelySpeedXPrinter('4BARCODE 3B-365B')).toBe(true);
+    expect(isLikelySpeedXPrinter('4barcode 3b-365b')).toBe(true);
   });
 
   it('detects various Zebra printer names', () => {
@@ -47,6 +51,7 @@ describe('Speed-X & Zebra Printer Detection', () => {
   it('auto-detects model family correctly', () => {
     expect(detectPrinterModel('Speed-X SP-700U')).toBe('speedx');
     expect(detectPrinterModel('Zebra ZD220')).toBe('zebra');
+    expect(detectPrinterModel('4BARCODE 3B-365B')).toBe('speedx');
     expect(detectPrinterModel('Generic Label Printer')).toBe('zebra');
   });
 });
@@ -88,18 +93,20 @@ describe('TSPL Label Generation for Speed-X', () => {
     expect(tspl).toContain('SIZE 50 mm, 30 mm');
     expect(tspl).toContain('GAP 2 mm, 0 mm');
     expect(tspl).toContain('DIRECTION 1');
+    expect(tspl).toContain('SPEED 4');
     expect(tspl).toContain('CLS');
     expect(tspl).toContain('TEXT');
     expect(tspl).toContain('Aazify POS');
     expect(tspl).toContain('BARCODE');
     expect(tspl).toContain('"128"');
     expect(tspl).toContain(SAMPLE_LABEL.barcode);
-    expect(tspl).toContain('PRINT 2, 1');
+    expect(tspl).toContain('PRINT 2,1');
+    expect(tspl).not.toContain('REFERENCE');
   });
 
   it('includes border when showBorder is enabled', () => {
     const withBorder = buildLabelTspl({ ...baseConfig, showBorder: true }, SAMPLE_LABEL, 1);
-    expect(withBorder).toContain('BOX 1, 1');
+    expect(withBorder).toContain('BOX 1,1');
   });
 
   it('generates batch TSPL formats for multiple items', () => {
@@ -109,9 +116,9 @@ describe('TSPL Label Generation for Speed-X', () => {
     ]);
 
     expect(batch).toContain('111111');
-    expect(batch).toContain('PRINT 2, 1');
+    expect(batch).toContain('PRINT 2,1');
     expect(batch).toContain('222222');
-    expect(batch).toContain('PRINT 3, 1');
+    expect(batch).toContain('PRINT 3,1');
   });
 });
 
@@ -122,7 +129,7 @@ describe('Unified Label Dispatcher (Speed-X & Zebra)', () => {
   it('buildLabelCode routes to TSPL for speedx and ZPL for zebra', () => {
     const speedxCode = buildLabelCode(speedxConfig, SAMPLE_LABEL, 1);
     expect(speedxCode).toContain('SIZE 50 mm, 30 mm');
-    expect(speedxCode).toContain('PRINT 1, 1');
+    expect(speedxCode).toContain('PRINT 1,1');
     expect(speedxCode).not.toContain('^XA');
 
     const zebraCode = buildLabelCode(zebraConfig, SAMPLE_LABEL, 1);
@@ -170,3 +177,91 @@ describe('Label Preview Renderer', () => {
     expect(zplResult.copies).toBe(3);
   });
 });
+
+describe('Bitmap Label Generator & Centering', () => {
+  const config: LabelConfig = {
+    ...DEFAULT_LABEL_CONFIG,
+    widthMm: 40,
+    heightMm: 30,
+    dpi: 203,
+  };
+
+  it('draws centered label to canvas with byte-aligned width', () => {
+    const mockContext = {
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 0,
+      font: '',
+      textAlign: '',
+      textBaseline: '',
+      fillRect: () => {},
+      strokeRect: () => {},
+      fillText: () => {},
+      measureText: (text: string) => ({ width: text.length * 8 }),
+    };
+
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: () => mockContext,
+    } as unknown as HTMLCanvasElement;
+
+    const result = drawLabelToCanvas(config, SAMPLE_LABEL, canvas);
+    expect(result.widthDots % 8).toBe(0); // Byte-aligned width
+    expect(result.heightDots).toBeGreaterThan(0);
+    expect(canvas.width).toBe(result.widthDots);
+    expect(canvas.height).toBe(result.heightDots);
+  });
+
+  it('converts label to valid 1-bit monochrome hex bitmap', () => {
+    const widthDots = 320;
+    const heightDots = 240;
+    const widthBytes = widthDots / 8;
+    const pixelCount = widthDots * heightDots;
+    const rgba = new Uint8ClampedArray(pixelCount * 4);
+
+    // Make some pixels black (alpha 255, rgb 0)
+    for (let i = 0; i < pixelCount; i++) {
+      rgba[i * 4 + 3] = 255;
+      if (i % 2 === 0) {
+        rgba[i * 4] = 0;
+        rgba[i * 4 + 1] = 0;
+        rgba[i * 4 + 2] = 0;
+      } else {
+        rgba[i * 4] = 255;
+        rgba[i * 4 + 1] = 255;
+        rgba[i * 4 + 2] = 255;
+      }
+    }
+
+    const mockCtx = {
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 0,
+      font: '',
+      textAlign: '',
+      textBaseline: '',
+      fillRect: () => {},
+      strokeRect: () => {},
+      fillText: () => {},
+      measureText: (text: string) => ({ width: text.length * 8 }),
+      getImageData: () => ({
+        data: rgba,
+        width: widthDots,
+        height: heightDots,
+      }),
+    };
+
+    const mockCanvas = {
+      width: widthDots,
+      height: heightDots,
+      getContext: () => mockCtx,
+    } as unknown as HTMLCanvasElement;
+
+    const bitmap = renderLabelBitmap(config, SAMPLE_LABEL, mockCanvas);
+    expect(bitmap.widthDots % 8).toBe(0);
+    expect(bitmap.imageHex.length).toBe(widthBytes * heightDots * 2); // 2 hex chars per byte
+    expect(/^[0-9a-f]+$/i.test(bitmap.imageHex)).toBe(true);
+  });
+});
+

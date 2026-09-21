@@ -82,3 +82,50 @@ pub fn print_test_slip(config: ThermalPrinterConfig) -> Result<String, String> {
 
     print_invoice(test_invoice, config)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore]
+    fn test_direct_star_print() {
+        let config = ThermalPrinterConfig {
+            connection_type: "USB".to_string(),
+            printer_name: Some("Star TSP700II (TSP743II)".to_string()),
+            ip_address: None,
+            tcp_port: None,
+            paper_size: Some("Mm80".to_string()),
+            cut_paper: Some(true),
+            beep: Some(false),
+            open_cash_drawer: Some(false),
+            feed_lines: Some(3),
+            emulation: Some("star".to_string()),
+        };
+
+        let res = print_test_slip(config);
+        println!("Print result: {:?}", res);
+        assert!(res.is_ok(), "Print test slip failed: {:?}", res);
+    }
+
+    #[test]
+    #[ignore]
+    fn test_direct_speedx_print() {
+        let config = ThermalPrinterConfig {
+            connection_type: "USB".to_string(),
+            printer_name: Some("POS-SpeedX-80".to_string()),
+            ip_address: None,
+            tcp_port: None,
+            paper_size: Some("Mm80".to_string()),
+            cut_paper: Some(true),
+            beep: Some(false),
+            open_cash_drawer: Some(false),
+            feed_lines: Some(3),
+            emulation: Some("escpos".to_string()),
+        };
+
+        let res = print_test_slip(config);
+        println!("Print result: {:?}", res);
+        assert!(res.is_ok(), "Print test slip failed: {:?}", res);
+    }
+}

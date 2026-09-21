@@ -157,7 +157,7 @@ export function buildRows(config: LabelConfig, data: LabelData) {
     if (config.showPrice) {
         pushText(`${config.currency} ${data.price.toFixed(2)}`.trim(), 4);
     }
-    if (config.footer) pushText(config.footer, 1.8);
+    if (config.footer) pushText(config.footer, 4.0);
 
     if (rows.length === 0) return { rows, width, height, pad, innerWidth, gap, startY: pad };
 

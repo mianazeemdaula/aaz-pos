@@ -50,6 +50,7 @@ pub fn run() {
             printer::print_thermal_invoice,
             printer::preview_thermal_invoice,
             printer::print_thermal_test_slip,
+            printer::print_label_bitmap,
             backup::pick_backup_dir,
             backup::validate_backup_dir,
             backup::save_backup,
