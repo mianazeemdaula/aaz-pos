@@ -62,6 +62,8 @@ export interface ZplRenderResult {
 interface TextStyle {
     height: number;
     width: number;
+    /** ^A orientation: N normal, R 90° clockwise, B 270° (reads bottom-up), I inverted. */
+    orientation?: string;
 }
 
 /**
@@ -157,6 +159,25 @@ export function renderZpl(
         const y = originY + cursorY;
         const padTop = (font.height - size) / 2;
 
+        // Rotated field: ^FO is the top-left of a box `height` wide and as long
+        // as the text. Drawn in a rotated frame, centred on the printer's
+        // estimated length so it lands where the generator reserved space.
+        if (font.orientation === 'R' || font.orientation === 'B') {
+            const length = block ? block.width : textWidthDots(text, font.height);
+            ctx.save();
+            if (font.orientation === 'R') {
+                ctx.translate(x + font.height, y);
+                ctx.rotate(Math.PI / 2);
+            } else {
+                ctx.translate(x, y + length);
+                ctx.rotate(-Math.PI / 2);
+            }
+            ctx.textAlign = 'center';
+            ctx.fillText(text, length / 2, padTop);
+            ctx.restore();
+            return;
+        }
+
         if (!block) {
             ctx.fillText(text, x, y + padTop);
             return;
@@ -230,7 +251,8 @@ export function renderZpl(
             case 'AG': {
                 // ^A0N,h,w — the orientation letter is folded into params[0]
                 const height = num(params[1], font.height);
-                font = { height, width: num(params[2], height) };
+                const orientation = (params[0] || 'N').trim().toUpperCase().charAt(0) || 'N';
+                font = { height, width: num(params[2], height), orientation };
                 break;
             }
 
@@ -297,6 +319,14 @@ export function renderZpl(
 
     return { widthDots, heightDots, copies };
 }
+
+const TSPL_FONT_CELLS: Record<string, [number, number]> = {
+    '1': [8, 12],
+    '2': [12, 20],
+    '3': [16, 24],
+    '4': [24, 32],
+    '5': [32, 48],
+};
 
 /**
  * Render the first TSPL format onto `canvas`.
@@ -374,21 +404,28 @@ export function renderTspl(
             const x = parseFloat(textMatch[1]);
             const y = parseFloat(textMatch[2]);
             const fontName = textMatch[3];
+            const rotation = parseInt(textMatch[4], 10) || 0;
+            const xMult = Math.max(1, parseInt(textMatch[5], 10) || 1);
             const yMult = Math.max(1, parseInt(textMatch[6], 10) || 1);
             const textContent = textMatch[8];
 
-            const baseHeight = fontName === '1' ? 12
-                : fontName === '2' ? 20
-                : fontName === '3' ? 24
-                : fontName === '4' ? 32
-                : fontName === '5' ? 48
-                : 24;
+            // Built-in TSPL bitmap fonts are fixed-width: [cell width, cell height] in dots.
+            const [cellW, cellH] = TSPL_FONT_CELLS[fontName] ?? [16, 24];
+            const w = cellW * xMult;
+            const h = cellH * yMult;
 
-            const pixelSize = Math.round(baseHeight * yMult * 0.82);
-            ctx.font = `${pixelSize}px Helvetica, Arial, sans-serif`;
+            // One glyph per cell, like the printer — keeps widths and centring true.
+            // Rotation turns the text box clockwise about its (x, y) anchor, as TSPL does.
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate((rotation * Math.PI) / 180);
+            ctx.font = `bold ${Math.round(h * 0.8)}px Arial, Helvetica, sans-serif`;
             ctx.textBaseline = 'top';
-            ctx.textAlign = 'left';
-            ctx.fillText(textContent, x, y);
+            ctx.textAlign = 'center';
+            [...textContent].forEach((ch, i) => {
+                ctx.fillText(ch, i * w + w / 2, h * 0.08, w);
+            });
+            ctx.restore();
             continue;
         }
 
@@ -407,8 +444,9 @@ export function renderTspl(
             }
 
             if (readable > 0) {
-                const fontHeight = Math.max(10, Math.round(barHeight * 0.26));
-                ctx.font = `${fontHeight}px Helvetica, Arial, sans-serif`;
+                // The printer's human-readable font is ~20 dots tall at 203 dpi.
+                const fontHeight = 20;
+                ctx.font = `bold ${fontHeight}px Arial, Helvetica, sans-serif`;
                 ctx.textBaseline = 'top';
                 ctx.textAlign = 'left';
                 const symbolWidth = code128Modules(barcodeContent) * moduleWidth;

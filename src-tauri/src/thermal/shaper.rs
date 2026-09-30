@@ -4,8 +4,8 @@ use ttf_parser::{Face, GlyphId, OutlineBuilder};
 use rustybuzz::{Face as RbFace, UnicodeBuffer, Direction, script, Language};
 use unicode_bidi::BidiInfo;
 
-const NOTO_URDU_REGULAR: &[u8] = include_bytes!("../../fonts/NotoNastaliqUrdu-Regular.ttf");
-const NOTO_URDU_BOLD: &[u8] = include_bytes!("../../fonts/NotoNastaliqUrdu-Bold.ttf");
+// Jameel Noori Nastaleeq ships a single weight; bold is synthesized by stroking outlines.
+const JAMEEL_NOORI: &[u8] = include_bytes!("../../fonts/JameelNooriNastaleeq.ttf");
 const CALIBRI_REGULAR: &[u8] = include_bytes!("../../fonts/calibri-regular.ttf");
 const CALIBRI_BOLD: &[u8] = include_bytes!("../../fonts/calibri-bold.ttf");
 
@@ -58,13 +58,13 @@ struct ShapedRun<'a> {
     glyph_infos: Vec<rustybuzz::GlyphInfo>,
     glyph_positions: Vec<rustybuzz::GlyphPosition>,
     width: f32,
+    /// Synthetic bold: stroke outlines in addition to filling (for single-weight fonts)
+    embolden: bool,
 }
 
 pub struct TextShaper {
-    urdu_reg_face: Face<'static>,
-    urdu_bold_face: Face<'static>,
-    urdu_reg_rb: RbFace<'static>,
-    urdu_bold_rb: RbFace<'static>,
+    urdu_face: Face<'static>,
+    urdu_rb: RbFace<'static>,
 
     lat_reg_face: Face<'static>,
     lat_bold_face: Face<'static>,
@@ -74,14 +74,10 @@ pub struct TextShaper {
 
 impl TextShaper {
     pub fn new() -> Result<Self, String> {
-        let urdu_reg_face = Face::parse(NOTO_URDU_REGULAR, 0)
-            .map_err(|e| format!("Failed to parse NotoNastaliqUrdu-Regular: {:?}", e))?;
-        let urdu_bold_face = Face::parse(NOTO_URDU_BOLD, 0)
-            .map_err(|e| format!("Failed to parse NotoNastaliqUrdu-Bold: {:?}", e))?;
-        let urdu_reg_rb = RbFace::from_slice(NOTO_URDU_REGULAR, 0)
-            .ok_or_else(|| "Failed to parse NotoNastaliqUrdu-Regular for rustybuzz".to_string())?;
-        let urdu_bold_rb = RbFace::from_slice(NOTO_URDU_BOLD, 0)
-            .ok_or_else(|| "Failed to parse NotoNastaliqUrdu-Bold for rustybuzz".to_string())?;
+        let urdu_face = Face::parse(JAMEEL_NOORI, 0)
+            .map_err(|e| format!("Failed to parse JameelNooriNastaleeq: {:?}", e))?;
+        let urdu_rb = RbFace::from_slice(JAMEEL_NOORI, 0)
+            .ok_or_else(|| "Failed to parse JameelNooriNastaleeq for rustybuzz".to_string())?;
 
         let lat_reg_face = Face::parse(CALIBRI_REGULAR, 0)
             .map_err(|e| format!("Failed to parse calibri-regular: {:?}", e))?;
@@ -93,10 +89,8 @@ impl TextShaper {
             .ok_or_else(|| "Failed to parse calibri-bold for rustybuzz".to_string())?;
 
         Ok(Self {
-            urdu_reg_face,
-            urdu_bold_face,
-            urdu_reg_rb,
-            urdu_bold_rb,
+            urdu_face,
+            urdu_rb,
             lat_reg_face,
             lat_bold_face,
             lat_reg_rb,
@@ -147,6 +141,7 @@ impl TextShaper {
                 glyph_infos: infos,
                 glyph_positions: positions,
                 width,
+                embolden: false,
             });
         } else {
             let bidi_info = BidiInfo::new(text, Some(unicode_bidi::Level::rtl()));
@@ -162,7 +157,7 @@ impl TextShaper {
                     let is_urdu_run = Self::is_urdu_or_arabic(subtext);
 
                     let (face, rb_face) = if is_urdu_run {
-                        if bold { (&self.urdu_bold_face, &self.urdu_bold_rb) } else { (&self.urdu_reg_face, &self.urdu_reg_rb) }
+                        (&self.urdu_face, &self.urdu_rb)
                     } else {
                         if bold { (&self.lat_bold_face, &self.lat_bold_rb) } else { (&self.lat_reg_face, &self.lat_reg_rb) }
                     };
@@ -190,6 +185,7 @@ impl TextShaper {
                         glyph_infos: infos,
                         glyph_positions: positions,
                         width,
+                        embolden: bold && is_urdu_run,
                     });
                 }
             }
@@ -258,6 +254,14 @@ impl TextShaper {
                             Transform::identity(),
                             None,
                         );
+                        if run.embolden {
+                            let stroke = Stroke {
+                                width: (size_pt * 0.04).max(0.8),
+                                line_join: LineJoin::Round,
+                                ..Stroke::default()
+                            };
+                            pixmap.stroke_path(&path, &paint, &stroke, Transform::identity(), None);
+                        }
                     }
                 }
 

@@ -74,7 +74,8 @@ pub fn print_test_slip(config: ThermalPrinterConfig) -> Result<String, String> {
         ],
         fbr_invoice_id: Some("1234567890123456".to_string()),
         qr_data: Some("1234567890123456".to_string()),
-        notes: Some("یہ ایک آزمائشی پرنٹ سلپ ہے۔ تمام نستعلیق اردو اور انگریزی فانٹ درست کام کر رہے ہیں۔".to_string()),
+        notes: Some("This is a test print slip. English and Urdu fonts are working.".to_string()),
+        notes_urdu: Some("یہ ایک آزمائشی پرنٹ سلپ ہے۔ تمام نستعلیق اردو اور انگریزی فانٹ درست کام کر رہے ہیں۔".to_string()),
         logo_base64: None,
         fbr_logo_base64: None,
         is_duplicate: false,
@@ -101,6 +102,7 @@ mod tests {
             open_cash_drawer: Some(false),
             feed_lines: Some(3),
             emulation: Some("star".to_string()),
+            logo_scale: None,
         };
 
         let res = print_test_slip(config);
@@ -122,6 +124,7 @@ mod tests {
             open_cash_drawer: Some(false),
             feed_lines: Some(3),
             emulation: Some("escpos".to_string()),
+            logo_scale: None,
         };
 
         let res = print_test_slip(config);

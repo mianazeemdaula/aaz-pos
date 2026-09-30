@@ -478,14 +478,27 @@ export function Settings() {
                 />
               </div>
 
-              <div className="md:col-span-2">
-                <label className={labelCls}>Invoice Footer Note / Terms</label>
+              <div>
+                <label className={labelCls}>Invoice Note (English)</label>
                 <textarea
                   rows={3}
                   value={company.invoiceNote}
                   onChange={e => setCompany(c => ({ ...c, invoiceNote: e.target.value }))}
                   className={`${inputCls} resize-none`}
                   placeholder="Thank you for shopping with us! Goods once sold can be returned within 7 days with original receipt."
+                />
+              </div>
+
+              <div>
+                <label className={labelCls}>Invoice Note (Urdu)</label>
+                <textarea
+                  rows={3}
+                  dir="rtl"
+                  lang="ur"
+                  value={company.invoiceNoteUrdu}
+                  onChange={e => setCompany(c => ({ ...c, invoiceNoteUrdu: e.target.value }))}
+                  className={`${inputCls} resize-none`}
+                  placeholder="خریداری کا شکریہ! فروخت شدہ مال اصل رسید کے ساتھ 7 دن میں واپس ہو سکتا ہے۔"
                 />
               </div>
             </div>
@@ -620,7 +633,7 @@ export function Settings() {
               <div>
                 <label className={labelCls}>Thermal Printing Engine</label>
                 <div className="text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/60 p-2.5 rounded border border-gray-200 dark:border-gray-700">
-                  <span className="font-semibold text-primary-600 dark:text-primary-400">Tauri / Rust Engine</span>: Skia 2D Canvas · HarfBuzz text shaping · Noto Nastaliq Urdu · 203 DPI 1-bit ESC/POS
+                  <span className="font-semibold text-primary-600 dark:text-primary-400">Tauri / Rust Engine</span>: Skia 2D Canvas · HarfBuzz text shaping · Jameel Noori Nastaleeq · 203 DPI 1-bit ESC/POS
                 </div>
               </div>
             </div>

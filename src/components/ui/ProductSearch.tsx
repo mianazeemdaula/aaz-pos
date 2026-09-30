@@ -3,6 +3,12 @@ import { Search, X, Loader2, Check } from 'lucide-react';
 import { productService, categoryService, brandService } from '../../services/pos.service';
 import type { Product, ProductVariant, Category, Brand } from '../../types/pos';
 
+/**
+ * Barcode scanners type a whole code in a burst; people don't. Gaps between
+ * keystrokes below this (ms) mark the input as a scan.
+ */
+const SCAN_KEY_GAP_MS = 40;
+
 const _fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 interface ProductSearchProps {
@@ -28,6 +34,8 @@ export function ProductSearch({
   const inputRef = externalRef ?? internalRef;
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const abortRef = useRef<AbortController | null>(null);
+  /** Time of the last keystroke and whether every keystroke so far was scanner-fast. */
+  const typingRef = useRef({ last: 0, fast: true });
 
   // Held in a ref so `search` stays referentially stable. Callers pass an inline
   // arrow or a plain function, so `onSelect` is a new value on every parent
@@ -36,7 +44,10 @@ export function ProductSearch({
   const onSelectRef = useRef(onSelect);
   useEffect(() => { onSelectRef.current = onSelect; }, [onSelect]);
 
-  const search = useCallback(async (q: string) => {
+  // An exact barcode hit is only added straight away for a scan (or Enter);
+  // hand-typed text that happens to match a barcode just lists results, so the
+  // user still picks the unit themselves.
+  const search = useCallback(async (q: string, allowAutoAdd: boolean) => {
     // Cancel whatever is still in flight: without this a slow response for an
     // earlier, broader query ("ri") could land after the newer one ("rice")
     // and overwrite the dropdown with stale results.
@@ -49,7 +60,7 @@ export function ProductSearch({
 
     setLoading(true);
     try {
-      const looksScannable = /^\S+$/.test(q) && q.length >= 4;
+      const looksScannable = allowAutoAdd && /^\S+$/.test(q) && q.length >= 4;
 
       // Barcode probe and text search run together rather than in sequence.
       // Serialising them charged every ordinary word search the full cost of a
@@ -84,7 +95,8 @@ export function ProductSearch({
 
   useEffect(() => {
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => search(query), 300);
+    const { fast } = typingRef.current;
+    timerRef.current = setTimeout(() => search(query, fast), 300);
     return () => clearTimeout(timerRef.current);
   }, [query, search]);
 
@@ -94,6 +106,22 @@ export function ProductSearch({
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
   }, [autoFocus, inputRef]);
+
+  const handleChange = (value: string) => {
+    const now = performance.now();
+    const t = typingRef.current;
+    if (value.length <= 1) t.fast = true; // a fresh entry starts a new burst
+    else if (now - t.last > SCAN_KEY_GAP_MS) t.fast = false;
+    t.last = now;
+    setQuery(value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter' || !query.trim()) return;
+    e.preventDefault();
+    clearTimeout(timerRef.current);
+    search(query, true);
+  };
 
   const handleSelect = (v: ProductVariant) => {
     onSelect(v);
@@ -110,7 +138,8 @@ export function ProductSearch({
           ref={inputRef}
           type="text"
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={e => handleChange(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="w-full pl-9 pr-9 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
           onFocus={() => results.length > 0 && setOpen(true)}

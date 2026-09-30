@@ -184,14 +184,27 @@ export function CompanySettings() {
             />
           </div>
 
-          <div className="md:col-span-2">
-            <label className={labelCls}>Invoice Footer Note / Terms</label>
+          <div>
+            <label className={labelCls}>Invoice Note (English)</label>
             <textarea
               rows={3}
               value={company.invoiceNote}
               onChange={e => setCompany(c => ({ ...c, invoiceNote: e.target.value }))}
               className={`${inputCls} resize-none`}
               placeholder="Thank you for shopping with us! Goods once sold can be returned within 7 days with original receipt."
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>Invoice Note (Urdu)</label>
+            <textarea
+              rows={3}
+              dir="rtl"
+              lang="ur"
+              value={company.invoiceNoteUrdu}
+              onChange={e => setCompany(c => ({ ...c, invoiceNoteUrdu: e.target.value }))}
+              className={`${inputCls} resize-none`}
+              placeholder="خریداری کا شکریہ! فروخت شدہ مال اصل رسید کے ساتھ 7 دن میں واپس ہو سکتا ہے۔"
             />
           </div>
         </div>

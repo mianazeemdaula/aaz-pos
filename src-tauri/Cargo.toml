@@ -1,6 +1,6 @@
 [package]
 name = "aazifypos"
-version = "1.0.4"
+version = "1.0.5"
 description = "Aazify POS Desktop App"
 authors = ["Aazify"]
 edition = "2021"

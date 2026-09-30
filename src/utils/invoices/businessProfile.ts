@@ -24,8 +24,9 @@ export interface ReceiptBusiness {
     phone?: string;
     ntn?: string;
     strn?: string;
-    /** Footer line shown under the totals, when configured. */
+    /** Footer lines shown under the totals, when configured. */
     invoiceNote?: string;
+    invoiceNoteUrdu?: string;
 }
 
 /**
@@ -119,5 +120,6 @@ export async function loadReceiptBusiness(
         ntn: str(company.ntn) ?? str(config.businessNTN),
         strn: str(company.strn),
         invoiceNote: str(company.invoiceNote),
+        invoiceNoteUrdu: str(company.invoiceNoteUrdu),
     };
 }

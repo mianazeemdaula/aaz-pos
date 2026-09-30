@@ -149,6 +149,7 @@ export async function buildSaleThermalInvoice(input: SaleInvoiceData): Promise<T
         qr_data: fbrId ? fbrId.toString() : (data.fbrQrUrl || undefined),
         fbr_logo_base64: fbrId ? FBR_LOGO_BASE64 : undefined,
         notes: dbCompany.invoiceNote || undefined,
+        notes_urdu: dbCompany.invoiceNoteUrdu || undefined,
         logo_base64: logoBase64,
     };
 }

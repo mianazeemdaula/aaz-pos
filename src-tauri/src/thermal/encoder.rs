@@ -230,6 +230,7 @@ mod tests {
             open_cash_drawer: Some(false),
             feed_lines: Some(3),
             emulation: None,
+            logo_scale: None,
         };
         assert!(EscPosEncoder::is_star_printer(&config_star));
 
@@ -244,6 +245,7 @@ mod tests {
             open_cash_drawer: Some(false),
             feed_lines: Some(3),
             emulation: None,
+            logo_scale: None,
         };
         assert!(!EscPosEncoder::is_star_printer(&config_bc));
     }
@@ -261,6 +263,7 @@ mod tests {
             open_cash_drawer: Some(false),
             feed_lines: Some(3),
             emulation: Some("star".to_string()),
+            logo_scale: None,
         };
         assert!(EscPosEncoder::is_star_printer(&config_force_star));
 
@@ -275,6 +278,7 @@ mod tests {
             open_cash_drawer: Some(false),
             feed_lines: Some(3),
             emulation: Some("escpos".to_string()),
+            logo_scale: None,
         };
         assert!(!EscPosEncoder::is_star_printer(&config_force_escpos));
     }
@@ -293,6 +297,7 @@ mod tests {
             open_cash_drawer: Some(true),
             feed_lines: Some(2),
             emulation: Some("star".to_string()),
+            logo_scale: None,
         };
 
         let encoded = EscPosEncoder::encode_pixmap(&pixmap, &config);
@@ -334,6 +339,7 @@ mod tests {
             open_cash_drawer: Some(false),
             feed_lines: Some(2),
             emulation: Some("escpos".to_string()),
+            logo_scale: None,
         };
 
         let encoded = EscPosEncoder::encode_pixmap(&pixmap, &config);

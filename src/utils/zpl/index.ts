@@ -6,7 +6,7 @@ export * from './generate';
 export * from './tspl';
 export * from './render';
 export * from './print';
-export * from './bitmap';
+export * from './native';
 
 /** Build label command string for the configured printer model (Speed-X TSPL or Zebra ZPL). */
 export function buildLabelCode(config: LabelConfig, data: LabelData, copies = 1): string {

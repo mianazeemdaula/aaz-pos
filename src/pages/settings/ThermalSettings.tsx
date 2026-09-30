@@ -180,6 +180,23 @@ export function ThermalSettings() {
             </select>
           </div>
 
+          <div>
+            <label className={labelCls}>Invoice logo size (%)</label>
+            <input
+              type="number"
+              min={25}
+              max={300}
+              step={5}
+              value={thermal.logoSize ?? ''}
+              onChange={e => setThermal(t => ({ ...t, logoSize: e.target.value === '' ? undefined : Number(e.target.value) }))}
+              onBlur={() => setThermal(t => ({ ...t, logoSize: Math.min(300, Math.max(25, Math.round(t.logoSize ?? 100))) }))}
+              className={inputCls}
+            />
+            <p className={hintCls}>
+              100 = default, 25–300. Never wider than the paper. Save, then reprint an invoice to check.
+            </p>
+          </div>
+
         </div>
 
         {/* Test print — the only way to check a receipt is on paper. */}

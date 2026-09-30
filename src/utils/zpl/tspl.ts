@@ -10,7 +10,11 @@ import { code128WidthDots } from './code128';
 import {
     type LabelConfig,
     type LabelData,
+    type NativeLayout,
     buildRows,
+    fitLength,
+    textSpan,
+    mmToDots,
 } from './generate';
 
 export interface TsplFontMatch {
@@ -90,10 +94,85 @@ export function tsplDensity(darkness: number): number {
 }
 
 /**
+ * Space the printer's own human-readable line takes under a TSPL barcode
+ * (its internal font is ~20–24 dots tall at 203 dpi, plus a small gap).
+ */
+const tsplReadableHeight = (dpi: number) => mmToDots(3.4, dpi as LabelConfig['dpi']);
+
+/**
+ * Drawing commands for one label. Rows advance by the height of the printer
+ * font actually selected — not the requested height — so lines never overlap.
+ */
+export function tsplLayout(config: LabelConfig, data: LabelData): NativeLayout {
+    const { rows, sides, width, height, areaX, innerWidth, gap, startY } = buildRows(config, data);
+    const body: string[] = [];
+    let barcodeBottom: number | undefined;
+    let truncated = false;
+    const centreX = areaX + innerWidth / 2;
+
+    if (config.showBorder) {
+        const thickness = Math.max(1, Math.round(config.dpi / 100));
+        body.push(`BOX 1,1,${width - 1},${height - 1},${thickness}`);
+    }
+
+    // Rotated side text. TSPL turns the text box about its (x, y) anchor: at 90°
+    // the box lies left of x and runs down from y; at 270° it lies right of x
+    // and runs up from y. Anchors below put the box in the strip, centred.
+    for (const side of sides) {
+        const f = selectTsplFont(side.fontHeight);
+        const text = escapeTspl(fitLength(side.text, f.charWidth, side.maxLength));
+        truncated ||= text.length < side.text.length;
+        const length = text.length * f.charWidth;
+        if (side.side === 'right') {
+            const y = Math.round((height - length) / 2);
+            body.push(`TEXT ${side.x + f.charHeight},${y},"${f.font}",90,${f.xMult},${f.yMult},"${text}"`);
+        } else {
+            const y = Math.round((height + length) / 2);
+            body.push(`TEXT ${side.x},${y},"${f.font}",270,${f.xMult},${f.yMult},"${text}"`);
+        }
+    }
+
+    let y = startY;
+
+    for (const row of rows) {
+        let rowHeight: number;
+        if (row.kind === 'barcode' && row.barHeight && row.module) {
+            const module = row.module;
+            const barWidth = code128WidthDots(row.text, module);
+            const x = Math.max(0, Math.round(centreX - barWidth / 2));
+            const readable = config.showBarcodeText ? 2 : 0; // 2 = centered text in TSPL
+            const safeText = escapeTspl(row.text);
+
+            body.push(`BARCODE ${x},${y},"128",${row.barHeight},${readable},0,${module},${module},"${safeText}"`);
+            barcodeBottom = y + row.barHeight;
+            rowHeight = row.barHeight + (readable ? tsplReadableHeight(config.dpi) : 0);
+        } else {
+            const fontMatch = selectTsplFont(row.fontHeight);
+            const { x: spanX, width: spanWidth } =
+                textSpan(row, areaX, innerWidth, row.text.length * fontMatch.charWidth);
+            const spanCentre = spanX + spanWidth / 2;
+            const charsPerLine = Math.max(1, Math.floor(spanWidth / fontMatch.charWidth));
+            const wrapped = wrapTsplLines(row.text, charsPerLine, row.maxLines);
+            const safeWrapped = wrapped.map(escapeTspl).filter(Boolean);
+            const lineStep = fontMatch.charHeight + 2;
+
+            safeWrapped.forEach((lineText, i) => {
+                const textWidth = lineText.length * fontMatch.charWidth;
+                const x = Math.max(spanX, Math.round(spanCentre - textWidth / 2));
+                body.push(`TEXT ${x},${y + i * lineStep},"${fontMatch.font}",0,${fontMatch.xMult},${fontMatch.yMult},"${lineText}"`);
+            });
+            rowHeight = safeWrapped.length * lineStep - 2;
+        }
+        y += rowHeight + gap;
+    }
+
+    return { body, endY: y - gap, barcodeBottom, sideTruncated: truncated };
+}
+
+/**
  * Build TSPL commands for a single label.
  */
 export function buildLabelTspl(config: LabelConfig, data: LabelData, copies = 1): string {
-    const { rows, width, height, pad, innerWidth, gap, startY } = buildRows(config, data);
     const density = tsplDensity(config.darkness);
     const gapMm = config.gapMm ?? 2;
 
@@ -104,42 +183,9 @@ export function buildLabelTspl(config: LabelConfig, data: LabelData, copies = 1)
         `DENSITY ${density}`,
         'SPEED 4',
         'CLS',
+        ...tsplLayout(config, data).body,
+        `PRINT ${Math.max(1, copies)},1`,
     ];
-
-    if (config.showBorder) {
-        const thickness = Math.max(1, Math.round(config.dpi / 100));
-        lines.push(`BOX 1,1,${width - 1},${height - 1},${thickness}`);
-    }
-
-    let y = startY;
-
-    for (const row of rows) {
-        if (row.kind === 'barcode' && row.barHeight && row.module) {
-            const module = row.module;
-            const barWidth = code128WidthDots(row.text, module);
-            const x = Math.max(pad, Math.round((width - barWidth) / 2));
-            const readable = config.showBarcodeText ? 2 : 0; // 2 = centered text in TSPL
-            const safeText = escapeTspl(row.text);
-
-            lines.push(`BARCODE ${x},${y},"128",${row.barHeight},${readable},0,${module},${module},"${safeText}"`);
-        } else {
-            const fontMatch = selectTsplFont(row.fontHeight);
-            const charsPerLine = Math.max(1, Math.floor(innerWidth / fontMatch.charWidth));
-            const wrapped = wrapTsplLines(row.text, charsPerLine, row.lines);
-            const safeWrapped = wrapped.map(escapeTspl).filter(Boolean);
-
-            let lineY = y;
-            for (const lineText of safeWrapped) {
-                const textWidth = lineText.length * fontMatch.charWidth;
-                const x = Math.max(pad, Math.round((width - textWidth) / 2));
-                lines.push(`TEXT ${x},${lineY},"${fontMatch.font}",0,${fontMatch.xMult},${fontMatch.yMult},"${lineText}"`);
-                lineY += fontMatch.charHeight + 2;
-            }
-        }
-        y += row.height + gap;
-    }
-
-    lines.push(`PRINT ${Math.max(1, copies)},1`);
     return lines.join('\r\n') + '\r\n';
 }
 

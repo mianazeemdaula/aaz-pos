@@ -16,8 +16,7 @@ import {
   isLikelyLabelPrinter,
   detectPrinterModel,
   renderLabel,
-  drawLabelToCanvas,
-  renderLabelBitmap,
+  checkNativeLabel,
   type LabelConfig,
 } from '../zpl';
 
@@ -122,6 +121,109 @@ describe('TSPL Label Generation for Speed-X', () => {
   });
 });
 
+describe('Printer-fonts (native) mode', () => {
+  const speedx: LabelConfig = { ...DEFAULT_LABEL_CONFIG, printerModel: 'speedx' };
+
+  it('stacks TSPL rows by the real printer-font heights, without overlap', () => {
+    const tspl = buildLabelTspl({ ...speedx, showVariant: true }, SAMPLE_LABEL, 1);
+    const tops = [...tspl.matchAll(/^(?:TEXT|BARCODE) \d+,(\d+),/gm)].map(m => Number(m[1]));
+    expect(tops.length).toBeGreaterThan(3);
+    for (let i = 1; i < tops.length; i++) expect(tops[i]).toBeGreaterThan(tops[i - 1] + 10);
+    expect(tops[0]).toBe(12); // top padding 1.5 mm at 203 dpi
+  });
+
+  it('flags a barcode too wide for the label and Urdu text', () => {
+    expect(checkNativeLabel(speedx, SAMPLE_LABEL).printable).toBe(true);
+
+    const long = checkNativeLabel(speedx, { ...SAMPLE_LABEL, barcode: 'ABCDEFGHIJKLMNOPQRSTUV' });
+    expect(long.printable).toBe(false);
+    expect(long.warnings[0]).toMatch(/doesn't fit/);
+    expect(checkNativeLabel({ ...speedx, barcodeModuleDots: 1 }, { ...SAMPLE_LABEL, barcode: 'ABCDEFGHIJKLMNOPQRSTUV' }).printable).toBe(true);
+
+    const urdu = checkNativeLabel(speedx, { ...SAMPLE_LABEL, name: 'چاول' });
+    expect(urdu.printable).toBe(false);
+    expect(urdu.warnings[0]).toMatch(/Urdu/);
+  });
+
+  it('fits the default 50×30 label with a one-line name, and prints the price with an Rs prefix', () => {
+    const longName = { ...SAMPLE_LABEL, name: 'Basmati Rice Super Kernel Premium 5kg' };
+    for (const model of ['speedx', 'zebra'] as const) {
+      const check = checkNativeLabel({ ...DEFAULT_LABEL_CONFIG, printerModel: model }, longName);
+      expect(check, model).toEqual({ printable: true, warnings: [] });
+    }
+    const tspl = buildLabelTspl(speedx, longName, 1);
+    expect(tspl).toContain('"Rs 250.00"');
+    expect(tspl).toMatch(/TEXT \d+,\d+,"3",0,1,1,"Basmati/); // name on font 3 (16×24)
+    expect(tspl.match(/"3",0,1,1,"/g)!.length).toBe(2); // 1 name line + price
+    expect(tspl).toMatch(/TEXT \d+,\d+,"2",0,1,1,"Aazify POS"/); // shop on font 2 (12×20)
+  });
+
+  it('side designs move price / note into rotated strips and narrow the main column', () => {
+    const withNote = { ...speedx, footer: 'Keep dry' };
+
+    const priceSide = buildLabelTspl({ ...withNote, design: 'price-side' }, SAMPLE_LABEL, 1);
+    const priceLine = priceSide.split('\r\n').find(l => l.includes('"Rs 250.00"'))!;
+    expect(priceLine).toMatch(/^TEXT \d+,\d+,"3",90,1,1,"Rs 250\.00"$/);
+    // Right strip: anchor x is the strip's right edge, within the label.
+    const px = Number(priceLine.split(/[ ,]/)[1]);
+    expect(px).toBeGreaterThan(350);
+    expect(px).toBeLessThanOrEqual(400);
+    expect(priceSide).toMatch(/TEXT \d+,\d+,"2",0,1,1,"Keep dry"/); // note stays horizontal
+
+    const both = buildLabelTspl({ ...withNote, design: 'price-note-side' }, SAMPLE_LABEL, 1);
+    expect(both).toMatch(/TEXT 10,\d+,"2",270,1,1,"Keep dry"/);
+    expect(both).toMatch(/"3",90,1,1,"Rs 250\.00"/);
+
+    // Standard centres the barcode on the label; price-side shifts it left.
+    const bx = (code: string) => Number(code.match(/^BARCODE (\d+),/m)![1]);
+    expect(bx(priceSide)).toBeLessThan(bx(buildLabelTspl(withNote, SAMPLE_LABEL, 1)));
+    expect(checkNativeLabel({ ...withNote, design: 'price-note-side' }, SAMPLE_LABEL).printable).toBe(true);
+
+    const zpl = buildLabelZpl({ ...withNote, printerModel: 'zebra', design: 'price-note-side' }, SAMPLE_LABEL, 1);
+    expect(zpl).toMatch(/\^A0R,24,24\^FDRs 250\.00\^FS/);
+    expect(zpl).toMatch(/\^A0B,16,16\^FDKeep dry\^FS/);
+  });
+
+  it('sizes the note from the setting and centres it on the whole label', () => {
+    const cfg = { ...speedx, footer: 'Keep dry', footerSizeMm: 3 };
+    const noteX = (code: string) => Number(code.match(/^TEXT (\d+),\d+,"3",0,1,1,"Keep dry"$/m)![1]);
+    const labelCentre = 400 / 2;
+    const width = 'Keep dry'.length * 16;
+    // Centred on the label in both Standard and price-side (column shifted left).
+    expect(noteX(buildLabelTspl(cfg, SAMPLE_LABEL, 1))).toBe(labelCentre - width / 2);
+    expect(noteX(buildLabelTspl({ ...cfg, design: 'price-side' }, SAMPLE_LABEL, 1))).toBe(labelCentre - width / 2);
+
+    const zpl = buildLabelZpl({ ...cfg, printerModel: 'zebra', design: 'price-side' }, SAMPLE_LABEL, 1);
+    // Price strip starts at x=366 (clear space to 356): the band is 200 ± 156.
+    expect(zpl).toMatch(/\^FO44,\d+\^A0N,24,24\^FB312,1,0,C,0\^FDKeep dry\^FS/);
+
+    // A note too wide for the band moves into the column and never reaches the price.
+    const longNote = { ...cfg, design: 'price-side' as const, footer: 'Keep in a cool dry place' };
+    const line = buildLabelTspl(longNote, SAMPLE_LABEL, 1).split('\r\n').find(l => l.includes('"Keep in'))!;
+    const [, lx, text] = line.match(/^TEXT (\d+),\d+,"3",0,1,1,"(.*)"$/)!;
+    expect(Number(lx)).toBeGreaterThanOrEqual(10);
+    expect(Number(lx) + text.length * 16).toBeLessThanOrEqual(356);
+    const zplLong = buildLabelZpl({ ...longNote, printerModel: 'zebra' }, SAMPLE_LABEL, 1);
+    expect(zplLong).toMatch(/\^FO10,\d+\^A0N,24,24\^FB346,1,0,C,0\^FDKeep in/);
+
+    // Vertical note uses the same size and stays centred along the label height.
+    const side = buildLabelTspl({ ...cfg, design: 'note-side' }, SAMPLE_LABEL, 1);
+    const [, sy] = side.match(/^TEXT \d+,(\d+),"3",270,1,1,"Keep dry"$/m)!;
+    expect(Number(sy)).toBe((240 + width) / 2);
+  });
+
+  it('shortens vertical text that is longer than the label height, with a warning', () => {
+    const cfg = { ...speedx, design: 'note-side' as const, footer: 'x'.repeat(60) };
+    expect(checkNativeLabel(cfg, SAMPLE_LABEL).warnings.join(' ')).toMatch(/shortened/);
+  });
+
+  it('flags a barcode pushed off the bottom of the label', () => {
+    const tall = checkNativeLabel({ ...speedx, topPaddingMm: 20 }, SAMPLE_LABEL);
+    expect(tall.printable).toBe(false);
+    expect(tall.warnings.join(' ')).toMatch(/bottom/);
+  });
+});
+
 describe('Unified Label Dispatcher (Speed-X & Zebra)', () => {
   const speedxConfig: LabelConfig = { ...DEFAULT_LABEL_CONFIG, printerModel: 'speedx' };
   const zebraConfig: LabelConfig = { ...DEFAULT_LABEL_CONFIG, printerModel: 'zebra' };
@@ -157,6 +259,10 @@ describe('Label Preview Renderer', () => {
       height: 0,
       getContext: () => ({
         setTransform: () => {},
+        save: () => {},
+        restore: () => {},
+        translate: () => {},
+        rotate: () => {},
         fillRect: () => {},
         strokeRect: () => {},
         fillText: () => {},
@@ -175,93 +281,6 @@ describe('Label Preview Renderer', () => {
     expect(zplResult.widthDots).toBe(400);
     expect(zplResult.heightDots).toBe(240);
     expect(zplResult.copies).toBe(3);
-  });
-});
-
-describe('Bitmap Label Generator & Centering', () => {
-  const config: LabelConfig = {
-    ...DEFAULT_LABEL_CONFIG,
-    widthMm: 40,
-    heightMm: 30,
-    dpi: 203,
-  };
-
-  it('draws centered label to canvas with byte-aligned width', () => {
-    const mockContext = {
-      fillStyle: '',
-      strokeStyle: '',
-      lineWidth: 0,
-      font: '',
-      textAlign: '',
-      textBaseline: '',
-      fillRect: () => {},
-      strokeRect: () => {},
-      fillText: () => {},
-      measureText: (text: string) => ({ width: text.length * 8 }),
-    };
-
-    const canvas = {
-      width: 0,
-      height: 0,
-      getContext: () => mockContext,
-    } as unknown as HTMLCanvasElement;
-
-    const result = drawLabelToCanvas(config, SAMPLE_LABEL, canvas);
-    expect(result.widthDots % 8).toBe(0); // Byte-aligned width
-    expect(result.heightDots).toBeGreaterThan(0);
-    expect(canvas.width).toBe(result.widthDots);
-    expect(canvas.height).toBe(result.heightDots);
-  });
-
-  it('converts label to valid 1-bit monochrome hex bitmap', () => {
-    const widthDots = 320;
-    const heightDots = 240;
-    const widthBytes = widthDots / 8;
-    const pixelCount = widthDots * heightDots;
-    const rgba = new Uint8ClampedArray(pixelCount * 4);
-
-    // Make some pixels black (alpha 255, rgb 0)
-    for (let i = 0; i < pixelCount; i++) {
-      rgba[i * 4 + 3] = 255;
-      if (i % 2 === 0) {
-        rgba[i * 4] = 0;
-        rgba[i * 4 + 1] = 0;
-        rgba[i * 4 + 2] = 0;
-      } else {
-        rgba[i * 4] = 255;
-        rgba[i * 4 + 1] = 255;
-        rgba[i * 4 + 2] = 255;
-      }
-    }
-
-    const mockCtx = {
-      fillStyle: '',
-      strokeStyle: '',
-      lineWidth: 0,
-      font: '',
-      textAlign: '',
-      textBaseline: '',
-      fillRect: () => {},
-      strokeRect: () => {},
-      fillText: () => {},
-      measureText: (text: string) => ({ width: text.length * 8 }),
-      getImageData: () => ({
-        data: rgba,
-        width: widthDots,
-        height: heightDots,
-      }),
-    };
-
-    const mockCanvas = {
-      width: widthDots,
-      height: heightDots,
-      getContext: () => mockCtx,
-    } as unknown as HTMLCanvasElement;
-
-    const bitmap = renderLabelBitmap(config, SAMPLE_LABEL, mockCanvas);
-    expect(bitmap.widthDots % 8).toBe(0);
-    expect(bitmap.imageHex.length).toBe(widthBytes * heightDots * 2); // 2 hex chars per byte
-    expect(/^[0-9a-f]+$/i.test(bitmap.imageHex)).toBe(true);
   });
 });
 

@@ -14,6 +14,7 @@ export interface CompanySettings {
   currency: string;
   defaultTaxRate: number;
   invoiceNote: string;
+  invoiceNoteUrdu: string;
 }
 
 export interface FbrSettings {
@@ -55,6 +56,7 @@ const DEFAULT_COMPANY: CompanySettings = {
   currency: 'PKR',
   defaultTaxRate: 0,
   invoiceNote: '',
+  invoiceNoteUrdu: '',
 };
 
 interface SettingsContextType {
@@ -125,6 +127,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         currency: (c.currency as string) ?? DEFAULT_COMPANY.currency,
         defaultTaxRate: Number(c.defaultTaxRate ?? 0),
         invoiceNote: (c.invoiceNote as string) ?? DEFAULT_COMPANY.invoiceNote,
+        invoiceNoteUrdu: (c.invoiceNoteUrdu as string) ?? DEFAULT_COMPANY.invoiceNoteUrdu,
       };
 
       // Parse permissions from user settings (ADMIN always gets full access)

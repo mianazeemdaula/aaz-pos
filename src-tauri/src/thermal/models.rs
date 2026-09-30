@@ -51,6 +51,9 @@ pub struct ThermalInvoice {
     pub fbr_invoice_id: Option<String>,
     pub qr_data: Option<String>,
     pub notes: Option<String>,
+    /// Urdu footer note, printed under the English `notes`
+    #[serde(default)]
+    pub notes_urdu: Option<String>,
     pub logo_base64: Option<String>,
     #[serde(default)]
     pub fbr_logo_base64: Option<String>,
@@ -71,4 +74,7 @@ pub struct ThermalPrinterConfig {
     pub feed_lines: Option<u8>,
     #[serde(default)]
     pub emulation: Option<String>,
+    /// Business logo size as a percentage of the default (100 = default)
+    #[serde(default)]
+    pub logo_scale: Option<u16>,
 }

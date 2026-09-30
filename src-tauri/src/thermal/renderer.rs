@@ -22,17 +22,18 @@ impl ThermalRenderer {
     pub fn render(&self, invoice: &ThermalInvoice, config: &ThermalPrinterConfig) -> Result<Pixmap, String> {
         let is_58mm = config.paper_size.as_deref() == Some("Mm58");
         let width = if is_58mm { 384 } else { 576 };
+        let logo_scale = config.logo_scale.unwrap_or(100).clamp(25, 300) as f32 / 100.0;
 
         // Two passes:
         // Pass 1: compute layout and total required canvas height
-        let height = self.layout_pass(invoice, width, false, &mut None)? as u32;
+        let height = self.layout_pass(invoice, width, logo_scale, false, &mut None)? as u32;
 
         // Pass 2: render into the allocated Pixmap
         let mut pixmap = Pixmap::new(width, height)
             .ok_or_else(|| format!("Failed to create pixmap of size {}x{}", width, height))?;
         pixmap.fill(Color::WHITE);
 
-        self.layout_pass(invoice, width, true, &mut Some(&mut pixmap))?;
+        self.layout_pass(invoice, width, logo_scale, true, &mut Some(&mut pixmap))?;
 
         Ok(pixmap)
     }
@@ -42,6 +43,7 @@ impl ThermalRenderer {
         &self,
         invoice: &ThermalInvoice,
         width: u32,
+        logo_scale: f32,
         render: bool,
         pixmap_opt: &mut Option<&mut Pixmap>,
     ) -> Result<f32, String> {
@@ -64,14 +66,15 @@ impl ThermalRenderer {
         // 1. Optional Logo
         if let Some(ref logo_b64) = invoice.logo_base64 {
             if let Ok(logo_bytes) = STANDARD.decode(logo_b64.trim()) {
-                if let Ok(dyn_img) = image::load_from_memory(&logo_bytes) {
+                if let Ok(dyn_img) = image::load_from_memory(&logo_bytes).map(Self::trim_logo_padding) {
                     let (img_w, img_h) = dyn_img.dimensions();
                     if img_w > 0 && img_h > 0 {
-                        let max_logo_w = if is_compact { 250.0 } else { 350.0 };
-                        let max_logo_h = 125.0;
+                        let base_logo_w = if is_compact { 250.0 } else { 350.0 };
+                        let max_logo_w = (base_logo_w * logo_scale).min(w - (left_margin * 2.0));
+                        let max_logo_h = 125.0 * logo_scale;
                         let scale = (max_logo_w / img_w as f32)
                             .min(max_logo_h / img_h as f32)
-                            .min(1.25);
+                            .min(1.25 * logo_scale);
                         let target_w = (img_w as f32 * scale).round();
                         let target_h = (img_h as f32 * scale).round();
 
@@ -99,7 +102,7 @@ impl ThermalRenderer {
                                 }
                             }
                         }
-                        y += target_h + 10.0;
+                        y += target_h + 2.0;
                     }
                 }
             }
@@ -443,6 +446,34 @@ impl ThermalRenderer {
             }
         }
 
+        // 8b. Invoice ID barcode (Code 128-B, short height) — only the trailing id of "INV-xxxxxxxx-xxxx"
+        let invoice_id = invoice.invoice_no.trim().rsplit('-').next().unwrap_or("").trim();
+        if let Some(modules) = Self::code128b_modules(invoice_id) {
+            let quiet = 10usize; // quiet-zone modules on each side
+            let total_modules = modules.len() + quiet * 2;
+            let module_w = ((right_margin - left_margin) / total_modules as f32).floor().clamp(1.0, 3.0);
+            let bar_h = if is_compact { 36.0 } else { 44.0 };
+            let start_x = (center_x - (modules.len() as f32 * module_w) / 2.0).round();
+
+            y += 8.0;
+            if render {
+                if let Some(ref mut pm) = pixmap_opt {
+                    let mut paint = Paint::default();
+                    paint.set_color_rgba8(0, 0, 0, 255);
+                    paint.anti_alias = false;
+                    for (i, &dark) in modules.iter().enumerate() {
+                        if dark {
+                            let rx = start_x + i as f32 * module_w;
+                            if let Some(rect) = Rect::from_xywh(rx, y, module_w, bar_h) {
+                                pm.fill_rect(rect, &paint, Transform::identity(), None);
+                            }
+                        }
+                    }
+                }
+            }
+            y += bar_h + 4.0;
+        }
+
         // 9. FBR Invoice ID banner & QR Code + FBR Logo horizontal row
         let qr_string = invoice.fbr_invoice_id.as_deref().or(invoice.qr_data.as_deref());
         if let Some(qr_content) = qr_string {
@@ -559,39 +590,45 @@ impl ThermalRenderer {
             }
         }
 
-        // 10. Notes / Urdu Footer Message
+        // 10. Notes / Footer Message
         y += 4.0;
         self.draw_divider(left_margin, right_margin, y, 1.0, render, pixmap_opt);
         y += 8.0;
 
-        if let Some(ref note) = invoice.notes {
-            if !note.trim().is_empty() {
-                let note_lines = self.shaper.wrap_text(note, w - (left_margin * 2.0), font_body, false);
-                for n_line in note_lines {
+        // English note, then Urdu note (Nastaleeq needs a slightly larger size and more leading)
+        let font_urdu_note = font_body + 2.0;
+        let footer_notes = [
+            (invoice.notes.as_deref(), font_body, 4.0),
+            (invoice.notes_urdu.as_deref(), font_urdu_note, 10.0),
+        ];
+        for (note_opt, size, leading) in footer_notes {
+            let Some(note) = note_opt else { continue };
+            if note.trim().is_empty() {
+                continue;
+            }
+            // Keep the user's own line breaks; only wrap lines too wide for the paper.
+            for input_line in note.trim().lines() {
+                if input_line.trim().is_empty() {
+                    y += size + leading;
+                    continue;
+                }
+                for n_line in self.shaper.wrap_text(input_line, w - (left_margin * 2.0), size, false) {
                     if render {
                         if let Some(ref mut pm) = pixmap_opt {
-                            self.shaper.draw_text(pm, &n_line, center_x, y + font_body, font_body, false, TextAlign::Center);
+                            self.shaper.draw_text(pm, &n_line, center_x, y + size, size, false, TextAlign::Center);
                         }
                     }
-                    y += font_body + 4.0;
+                    y += size + leading;
                 }
             }
         }
 
-        // Standard thank you note in English and Urdu
+        // Standard thank you note
         let thank_you_en = "Thank you for your visit!";
-        let thank_you_ur = "شکریہ! دوبارہ تشریف لائیں";
 
         if render {
             if let Some(ref mut pm) = pixmap_opt {
                 self.shaper.draw_text(pm, thank_you_en, center_x, y + font_body, font_body, true, TextAlign::Center);
-            }
-        }
-        y += font_body + 8.0;
-
-        if render {
-            if let Some(ref mut pm) = pixmap_opt {
-                self.shaper.draw_text(pm, thank_you_ur, center_x, y + font_body + 2.0, font_body + 2.0, true, TextAlign::Center);
             }
         }
         y += font_body + 10.0;
@@ -611,6 +648,72 @@ impl ThermalRenderer {
         y += 10.0;
 
         Ok(y)
+    }
+
+    /// Crops fully transparent / near-white borders so the logo sits tight against the business name.
+    fn trim_logo_padding(img: image::DynamicImage) -> image::DynamicImage {
+        let rgba = img.to_rgba8();
+        let (w, h) = rgba.dimensions();
+        let (mut min_x, mut min_y, mut max_x, mut max_y) = (w, h, 0u32, 0u32);
+        for (x, y, p) in rgba.enumerate_pixels() {
+            let [r, g, b, a] = p.0;
+            let is_blank = a < 32 || (r > 240 && g > 240 && b > 240);
+            if !is_blank {
+                min_x = min_x.min(x);
+                min_y = min_y.min(y);
+                max_x = max_x.max(x);
+                max_y = max_y.max(y);
+            }
+        }
+        if min_x > max_x || min_y > max_y {
+            return img;
+        }
+        img.crop_imm(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1)
+    }
+
+    /// Encodes `data` as Code 128 (set B) and returns one bool per module (true = bar).
+    /// Returns None for empty input or characters outside printable ASCII.
+    fn code128b_modules(data: &str) -> Option<Vec<bool>> {
+        const PATTERNS: [&str; 107] = [
+            "212222", "222122", "222221", "121223", "121322", "131222", "122213", "122312", "132212", "221213",
+            "221312", "231212", "112232", "122132", "122231", "113222", "123122", "123221", "223211", "221132",
+            "221231", "213212", "223112", "312131", "311222", "321122", "321221", "312212", "322112", "322211",
+            "212123", "212321", "232121", "111323", "131123", "131321", "112313", "132113", "132311", "211313",
+            "231113", "231311", "112133", "112331", "132131", "113123", "113321", "133121", "313121", "211331",
+            "231131", "213113", "213311", "213131", "311123", "311321", "331121", "312113", "312311", "332111",
+            "314111", "221411", "431111", "111224", "111422", "121124", "121421", "141122", "141221", "112214",
+            "112412", "122114", "122411", "142112", "142211", "241211", "221114", "413111", "241112", "134111",
+            "111242", "121142", "121241", "114212", "124112", "124211", "411212", "421112", "421211", "212141",
+            "214121", "412121", "111143", "111341", "131141", "114113", "114311", "411113", "411311", "113141",
+            "114131", "311141", "411131", "211412", "211214", "211232", "2331112",
+        ];
+        const START_B: usize = 104;
+        const STOP: usize = 106;
+
+        if data.is_empty() || !data.bytes().all(|b| (32..=126).contains(&b)) {
+            return None;
+        }
+
+        let mut codes = vec![START_B];
+        let mut checksum = START_B;
+        for (i, b) in data.bytes().enumerate() {
+            let v = (b - 32) as usize;
+            checksum += v * (i + 1);
+            codes.push(v);
+        }
+        codes.push(checksum % 103);
+        codes.push(STOP);
+
+        let mut modules = Vec::new();
+        for code in codes {
+            for (i, wch) in PATTERNS[code].bytes().enumerate() {
+                let dark = i % 2 == 0;
+                for _ in 0..(wch - b'0') {
+                    modules.push(dark);
+                }
+            }
+        }
+        Some(modules)
     }
 
     fn draw_divider(

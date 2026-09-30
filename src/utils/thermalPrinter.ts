@@ -66,6 +66,7 @@ export interface ThermalInvoiceData {
     qr_data?: string;
     fbr_logo_base64?: string;
     notes?: string;
+    notes_urdu?: string;
     logo_base64?: string;
     is_duplicate?: boolean;
 }
@@ -87,6 +88,7 @@ export interface ThermalPrinterConfig {
     openCashDrawer?: boolean;
     feedLines?: number;
     emulation?: 'auto' | 'escpos' | 'star';
+    logoSize?: number;    // business logo size, % of default (100 = default)
 
     // Optional legacy fields preserved for settings compatibility
     invoiceMode?: 'rust' | 'html' | 'native';
@@ -117,6 +119,7 @@ const DEFAULT_CONFIG: ThermalPrinterConfig = {
     openCashDrawer: false,
     feedLines: 3,
     emulation: 'auto',
+    logoSize: 100,
 };
 
 export function saveThermalConfig(config: ThermalPrinterConfig): void {
@@ -161,6 +164,7 @@ function toRustConfig(cfg: ThermalPrinterConfig) {
         open_cash_drawer: cfg.openCashDrawer ?? false,
         feed_lines: cfg.feedLines ?? 3,
         emulation: cfg.emulation || 'auto',
+        logo_scale: logoSize(cfg),
     };
 }
 
@@ -232,7 +236,12 @@ export const feedLines = (config: ThermalPrinterConfig): number => {
     return Number.isFinite(n) && n >= 0 ? Math.min(10, Math.round(n)) : 3;
 };
 
-const paperOf = (config: ThermalPrinterConfig): EscPosPaper => config.paperSize ?? 'Mm80';
+export const logoSize = (config: ThermalPrinterConfig): number => {
+    const n = Number(config.logoSize);
+    return Number.isFinite(n) && n > 0 ? Math.min(300, Math.max(25, Math.round(n))) : 100;
+};
+
+const paperOf =(config: ThermalPrinterConfig): EscPosPaper => config.paperSize ?? 'Mm80';
 
 export const bodyQuery = (config: ThermalPrinterConfig): ColumnQuery => ({
     paperSize: paperOf(config),

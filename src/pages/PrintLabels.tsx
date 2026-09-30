@@ -10,11 +10,11 @@ import { settingsService } from '../services/pos.service';
 import type { ProductVariant } from '../types/pos';
 import {
   buildBatchCode, buildLabelCode, downloadLabel, copyLabel,
-  sendLabelBitmap, sendTestLabelBitmap, drawLabelToCanvas,
+  checkNativeLabel, renderLabel, sendLabel, type NativeLabelCheck,
   listLabelPrinters, isLikelyLabelPrinter, isLikelySpeedXPrinter, isLikelyZebraPrinter,
-  detectPrinterModel, isTauri, loadZplSettings, saveZplSettings, tsplDensity,
-  DEFAULT_LABEL_CONFIG, SIZE_PRESETS, SAMPLE_LABEL,
-  type LabelConfig, type LabelData, type PrinterInfo, type ZplTarget, type Dpi,
+  detectPrinterModel, isTauri, loadZplSettings, saveZplSettings, withFixedPrintSettings,
+  DEFAULT_LABEL_CONFIG, FOOTER_SIZE_MIN_MM, FOOTER_SIZE_MAX_MM, SIZE_PRESETS, SAMPLE_LABEL, LABEL_DESIGNS, type LabelDesign,
+  type LabelConfig, type LabelData, type PrinterInfo, type ZplTarget,
 } from '../utils/zpl';
 
 type PriceType = 'MRP' | 'Retail' | 'Wholesale' | 'Custom';
@@ -41,26 +41,93 @@ const toLabelData = (item: LabelItem): LabelData => ({
   price: priceOf(item),
 });
 
-/** Canvas render of the centered label image — this is what gets sent dot-for-dot to the printer. */
+/**
+ * Render of the exact TSPL/ZPL commands sent to the printer. The printer's own
+ * fonts are approximated on screen; on paper they're sharper.
+ */
 function LabelPreview({ config, data }: { config: LabelConfig; data: LabelData }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const check = useMemo(() => checkNativeLabel(config, data), [config, data]);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
-    drawLabelToCanvas(config, data, canvasRef.current);
+    if (canvasRef.current) renderLabel(buildLabelCode(config, data, 1), canvasRef.current, { scale: 2 });
   }, [config, data]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        width: 'auto',
-        maxWidth: '220px',
-        maxHeight: '130px',
-        height: 'auto',
-      }}
-      className="rounded-sm shadow-xs ring-1 ring-gray-300 dark:ring-gray-600 block mx-auto bg-white"
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        style={{ width: '100%', maxWidth: 200, height: 'auto' }}
+        className="rounded-sm shadow-xs ring-1 ring-gray-300 dark:ring-gray-600 block mx-auto bg-white"
+      />
+      {check.warnings.map(w => (
+        <p key={w} className={`mt-1.5 text-[10px] leading-snug flex items-start gap-1 ${check.printable ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>
+          <AlertCircle size={11} className="shrink-0 mt-px" /> {w}
+        </p>
+      ))}
+    </>
+  );
+}
+
+/** Bar widths for the thumbnail barcode — decorative only. */
+const THUMB_BARS = [1, 0.5, 0.5, 1.5, 0.5, 1, 0.5, 0.5, 1.5, 1, 0.5, 0.5, 1, 1.5, 0.5, 1, 0.5];
+
+/** Schematic of a label design: text as grey bars, a barcode, and any vertical strips. */
+function DesignThumb({ design }: { design: LabelDesign }) {
+  const noteSide = design === 'note-side' || design === 'price-note-side';
+  const priceSide = design === 'price-side' || design === 'price-note-side';
+  const x0 = noteSide ? 11 : 5;
+  const x1 = priceSide ? 47 : 55;
+  const mid = (x0 + x1) / 2;
+  const line = (y: number, w: number, h: number, key: string) => (
+    <rect key={key} x={mid - w / 2} y={y} width={w} height={h} rx={0.6} fill="currentColor" opacity={0.45} />
+  );
+
+  let bx = mid - THUMB_BARS.reduce((s, b) => s + b + 0.5, 0) / 2;
+  const bars = THUMB_BARS.map((b, i) => {
+    const r = <rect key={`b${i}`} x={bx} y={13.5} width={b} height={8} fill="currentColor" />;
+    bx += b + 0.5;
+    return r;
+  });
+
+  return (
+    <svg viewBox="0 0 60 36" className="w-full h-auto" aria-hidden="true">
+      <rect x={0.5} y={0.5} width={59} height={35} rx={2.5} fill="white" stroke="currentColor" strokeOpacity={0.35} />
+      {line(3.5, 18, 2, 'shop')}
+      {line(7, (x1 - x0) * 0.8, 3.5, 'name')}
+      {bars}
+      {!priceSide && line(24.5, 16, 4, 'price')}
+      {!noteSide && line(30.5, 22, 2, 'note')}
+      {noteSide && <rect x={4} y={7} width={2.5} height={22} rx={0.6} fill="currentColor" opacity={0.45} />}
+      {priceSide && <rect x={51} y={6} width={4.5} height={24} rx={0.6} fill="currentColor" opacity={0.7} />}
+    </svg>
+  );
+}
+
+function DesignPicker({ value, onChange }: { value: LabelDesign; onChange: (d: LabelDesign) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5 content-start">
+      {LABEL_DESIGNS.map(d => {
+        const active = d.id === value;
+        return (
+          <button
+            key={d.id}
+            type="button"
+            onClick={() => onChange(d.id)}
+            title={d.hint}
+            aria-pressed={active}
+            className={`p-1 rounded-md border text-left transition-colors ${active
+              ? 'border-teal-500 ring-1 ring-teal-500 text-teal-600 bg-teal-50/60 dark:bg-teal-900/20'
+              : 'border-gray-200 dark:border-gray-700 text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'}`}
+          >
+            <DesignThumb design={d.id} />
+            <span className={`block mt-0.5 text-[10px] font-medium truncate ${active ? 'text-teal-700 dark:text-teal-400' : 'text-gray-600 dark:text-gray-400'}`}>
+              {d.name}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -71,7 +138,7 @@ const labelText = 'block text-[10px] font-medium text-gray-400 mb-0.5';
 
 export function PrintLabels() {
   const [items, setItems] = useState<LabelItem[]>([]);
-  const [config, setConfig] = useState<LabelConfig>(() => loadZplSettings(DEFAULT_LABEL_CONFIG));
+  const [config, setConfig] = useState<LabelConfig>(() => withFixedPrintSettings(loadZplSettings(DEFAULT_LABEL_CONFIG)));
   const [tab, setTab] = useState<'label' | 'code'>('label');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [sending, setSending] = useState(false);
@@ -96,13 +163,12 @@ export function PrintLabels() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Shop name defaults to the configured business name until it's overridden.
+  // The shop name always comes from Business Settings. If the server can't be
+  // reached, the last name loaded (saved with the label settings) is used.
   useEffect(() => {
-    const stored = loadZplSettings(DEFAULT_LABEL_CONFIG);
-    if (stored.shopName !== DEFAULT_LABEL_CONFIG.shopName) return;
     settingsService.get()
       .then(res => { if (res?.businessName) set('shopName', String(res.businessName)); })
-      .catch(() => { /* keep the default */ });
+      .catch(() => { /* keep the last known name */ });
   }, [set]);
 
   useEffect(() => {
@@ -149,6 +215,16 @@ export function PrintLabels() {
     [items],
   );
 
+  // Items whose barcode doesn't fit at the current size / bar width are skipped when printing.
+  const itemChecks = useMemo<NativeLabelCheck[]>(
+    () => items.map(item => checkNativeLabel(config, toLabelData(item))),
+    [config, items],
+  );
+  const printableLabels = items.reduce(
+    (sum, item, i) => sum + (itemChecks[i]?.printable ? item.copies : 0),
+    0,
+  );
+
   const previewCode = useMemo(
     () => buildLabelCode(config, previewData, 1),
     [config, previewData],
@@ -172,12 +248,17 @@ export function PrintLabels() {
     setSending(true);
     try {
       const modelDesc = config.printerModel === 'speedx' ? 'Speed-X (TSPL)' : 'Zebra (ZPL)';
-      await sendLabelBitmap(
-        target,
-        config,
-        items.map(item => ({ data: toLabelData(item), copies: item.copies })),
-      );
-      showToast('success', `${totalLabels} label(s) [Image: ${modelDesc}] sent to ${targetKind === 'system' ? printerName : host}`);
+      // Labels that don't fit are left out rather than printed clipped.
+      const printable = items
+        .filter((_, i) => itemChecks[i]?.printable)
+        .map(item => ({ data: toLabelData(item), copies: item.copies }));
+      await sendLabel(target, buildBatchCode(config, printable));
+      const skippedCount = totalLabels - printableLabels;
+      if (skippedCount > 0) {
+        showToast('error', `${printableLabels} label(s) [${modelDesc}] sent. ${skippedCount} skipped — they don't fit the label.`);
+      } else {
+        showToast('success', `${totalLabels} label(s) [${modelDesc}] sent to ${targetKind === 'system' ? printerName : host}`);
+      }
     } catch (err: any) {
       showToast('error', String(err?.message ?? err));
     } finally {
@@ -191,8 +272,8 @@ export function PrintLabels() {
     setSending(true);
     try {
       const modelDesc = config.printerModel === 'speedx' ? 'Speed-X' : 'Zebra';
-      await sendTestLabelBitmap(target, config);
-      showToast('success', `Test label [Image: ${modelDesc}] sent to ${targetKind === 'system' ? printerName : host}`);
+      await sendLabel(target, buildLabelCode(config, SAMPLE_LABEL, 1));
+      showToast('success', `Test label [${modelDesc}] sent to ${targetKind === 'system' ? printerName : host}`);
     } catch (err: any) {
       showToast('error', String(err?.message ?? err));
     } finally {
@@ -337,10 +418,10 @@ export function PrintLabels() {
           {/* Print Button */}
           <button
             onClick={handlePrint}
-            disabled={items.length === 0 || sending}
+            disabled={printableLabels === 0 || sending}
             className="h-7 px-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0"
           >
-            <Printer size={13} /> Print ({totalLabels})
+            <Printer size={13} /> Print ({printableLabels})
           </button>
         </div>
       </div>
@@ -385,6 +466,12 @@ export function PrintLabels() {
                         <p className="text-[10px] font-mono text-gray-400 mt-0.5">
                           {item.variant.barcode || 'no barcode'} · {item.variant.name}
                         </p>
+                        {itemChecks[index] && !itemChecks[index].printable && (
+                          <p className="text-[10px] text-red-600 dark:text-red-400 mt-0.5 flex items-start gap-1">
+                            <AlertCircle size={10} className="shrink-0 mt-px" />
+                            Won't print: {itemChecks[index].warnings[0]}
+                          </p>
+                        )}
                       </td>
                       <td className="p-2.5">
                         <select
@@ -455,7 +542,7 @@ export function PrintLabels() {
                     ? 'border-teal-600 text-teal-600'
                     : 'border-transparent text-gray-400 hover:text-gray-600'}`}
                 >
-                  Preview
+                  Label
                 </button>
                 <button
                   onClick={() => setTab('code')}
@@ -485,8 +572,15 @@ export function PrintLabels() {
             </div>
 
             {tab === 'label' ? (
-              <div className="p-2 flex items-center justify-center bg-gray-50/70 dark:bg-gray-900/30 min-h-[90px] max-h-[145px]">
-                <LabelPreview config={config} data={previewData} />
+              <div className="grid grid-cols-2 divide-x divide-gray-200 dark:divide-gray-700 bg-gray-50/70 dark:bg-gray-900/30">
+                <div className="p-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Design</p>
+                  <DesignPicker value={config.design ?? 'standard'} onChange={d => set('design', d)} />
+                </div>
+                <div className="p-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mb-1.5">Preview</p>
+                  <LabelPreview config={config} data={previewData} />
+                </div>
               </div>
             ) : (
               <pre className="p-2 text-[9px] leading-snug font-mono text-gray-700 dark:text-gray-300 bg-gray-50/70 dark:bg-gray-900/30 max-h-[135px] overflow-auto whitespace-pre-wrap break-all">
@@ -526,48 +620,29 @@ export function PrintLabels() {
                 <input type="number" min={10} value={config.heightMm} onChange={e => set('heightMm', Math.max(10, parseFloat(e.target.value) || 10))} className={field} />
               </div>
               <div>
-                <label className={labelText}>Resolution</label>
-                <select value={config.dpi} onChange={e => set('dpi', Number(e.target.value) as Dpi)} className={field}>
-                  <option value={203}>203 dpi (Speed-X & standard)</option>
-                  <option value={300}>300 dpi (12 dots/mm)</option>
-                  <option value={600}>600 dpi (24 dots/mm)</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelText}>
-                  {config.printerModel === 'speedx' ? 'Density (1–15)' : 'Darkness (^MD)'}
-                </label>
-                {config.printerModel === 'speedx' ? (
-                  <input
-                    type="number"
-                    min={1}
-                    max={15}
-                    value={tsplDensity(config.darkness)}
-                    onChange={e => {
-                      const val = Math.max(1, Math.min(15, parseInt(e.target.value) || 8));
-                      const darknessVal = Math.round(((val - 8) / 7) * 30);
-                      set('darkness', darknessVal);
-                    }}
-                    className={field}
-                  />
-                ) : (
-                  <input
-                    type="number"
-                    min={-30}
-                    max={30}
-                    value={config.darkness}
-                    onChange={e => set('darkness', Math.max(-30, Math.min(30, parseInt(e.target.value) || 0)))}
-                    className={field}
-                  />
-                )}
-              </div>
-              <div>
                 <label className={labelText}>Barcode height (mm)</label>
                 <input type="number" min={3} step={0.5} value={config.barcodeHeightMm} onChange={e => set('barcodeHeightMm', Math.max(3, parseFloat(e.target.value) || 3))} className={field} />
               </div>
               <div>
-                <label className={labelText}>Text scale · {config.textScale.toFixed(2)}×</label>
-                <input type="range" min={0.7} max={1.6} step={0.05} value={config.textScale} onChange={e => set('textScale', parseFloat(e.target.value))} className="w-full accent-teal-600 mt-1.5" />
+                <label className={labelText}>
+                  Bar width (dots) · {((config.barcodeModuleDots * 25.4) / config.dpi).toFixed(2)} mm
+                </label>
+                <input
+                  type="number" min={1} max={10} step={1}
+                  value={config.barcodeModuleDots}
+                  onChange={e => set('barcodeModuleDots', Math.min(10, Math.max(1, parseInt(e.target.value) || 1)))}
+                  title="Narrow bar (X-dimension). 2 dots at 203 dpi = 0.25 mm scans reliably; use 1 only for long codes on small labels."
+                  className={field}
+                />
+              </div>
+              <div>
+                <label className={labelText}>Top padding (mm)</label>
+                <input
+                  type="number" min={0} max={20} step={0.5}
+                  value={config.topPaddingMm}
+                  onChange={e => set('topPaddingMm', Math.min(20, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className={field}
+                />
               </div>
             </div>
 
@@ -585,14 +660,26 @@ export function PrintLabels() {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100 dark:border-gray-700">
-              <input value={config.shopName} onChange={e => set('shopName', e.target.value)} placeholder="Shop name" className={field} />
-              <input value={config.currency} onChange={e => set('currency', e.target.value)} placeholder="Currency" className={field} />
-              <input value={config.footer} onChange={e => set('footer', e.target.value)} placeholder="Footer (optional)" className={`${field} col-span-2`} />
+            <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+              <div className="flex gap-2">
+                <input value={config.footer} onChange={e => set('footer', e.target.value)} placeholder="Footer note (optional)" className={`${field} flex-1 min-w-0`} />
+                <div className="w-16 shrink-0">
+                <input
+                  type="number" min={FOOTER_SIZE_MIN_MM} max={FOOTER_SIZE_MAX_MM} step={0.5}
+                  value={config.footerSizeMm}
+                  onChange={e => set('footerSizeMm', Math.min(FOOTER_SIZE_MAX_MM, Math.max(FOOTER_SIZE_MIN_MM, parseFloat(e.target.value) || FOOTER_SIZE_MIN_MM)))}
+                  title="Note text size (mm)"
+                  aria-label="Note text size (mm)"
+                  className={field}
+                />
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Shop name comes from Business Settings.</p>
             </div>
 
             <p className="flex items-center gap-1.5 text-[10px] text-gray-400 pt-1">
-              <Code2 size={11} /> Preview is rendered from the same {codeLangName} commands sent to the printer.
+              <Code2 size={11} />
+              Printed with the printer's own fonts — the {codeLangName} tab is exactly what's sent. On paper, text is sharper than this preview.
             </p>
           </div>
         </div>
