@@ -115,6 +115,7 @@ export const API_ENDPOINTS = {
         list: '/purchases',
         create: '/purchases',
         detail: (id: number) => `/purchases/${id}`,
+        update: (id: number) => `/purchases/${id}`,
         delete: (id: number) => `/purchases/${id}`,
     },
     packages: {

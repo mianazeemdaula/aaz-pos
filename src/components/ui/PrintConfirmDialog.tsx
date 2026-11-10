@@ -46,7 +46,7 @@ export function PrintConfirmDialog({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50" onClick={printing ? undefined : onSkip} />
-            <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-xl shadow-xl p-5">
+            <div className="relative w-full max-w-sm bg-white dark:bg-gray-900 rounded-xl shadow-xl p-4">
                 <div className="flex items-start gap-3 mb-4">
                     <Printer size={20} className="text-primary-500 shrink-0 mt-0.5" />
                     <div>

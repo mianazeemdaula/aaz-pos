@@ -47,15 +47,15 @@ export function StockAdjustments() {
   const f = (key: string, val: unknown) => setForm(p => ({ ...p, [key]: val }));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Stock Adjustments</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Stock Adjustments</h1>
         <button onClick={() => { setForm({ qty: 1, type: 'ADJUST', reason: '' }); setModal(true); }}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg"><Plus size={14} /> New Adjustment</button>
       </div>
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        {loading ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
-          : items.length === 0 ? <p className="text-center text-gray-400 py-12 text-sm">No stock movements yet</p>
+        {loading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+          : items.length === 0 ? <p className="text-center text-gray-400 py-10 text-sm">No stock movements yet</p>
             : (
               <table className="w-full text-sm">
                 <thead>

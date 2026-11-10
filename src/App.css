@@ -256,7 +256,15 @@
   --color-pink-800: #78211d;
   --color-pink-900: #621c19;
 
-  --font-family-sans: Inter, system-ui, sans-serif;
+  /* Tailwind v4 reads `--font-sans`; the old `--font-family-sans` name was
+     silently ignored. Segoe UI Variable is the native Windows 11 face, so the
+     app reads as installed software even with no web font loaded. */
+  --font-sans: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  /* Elevation: hairline shadows only. Panels separate by border; these just
+     lift them a fraction off the workspace. */
+  --shadow-xs: 0 1px 1px rgb(16 24 40 / 0.03);
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 1px rgb(16 24 40 / 0.03);
 }
 
 /* Workspace ground. Kept here rather than on a wrapper so modals, popovers and
@@ -274,6 +282,91 @@ body {
 
 /* Money and quantities line up in columns throughout the app. */
 table td, table th, input[type="number"] { font-variant-numeric: tabular-nums; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   WORKSPACE SYSTEM
+   Everything below applies only inside the signed-in app (MainLayout puts
+   `app-density` on <html> and `app-main` on the workspace), never to the
+   landing page or login.
+
+   These rules are deliberately UNLAYERED: unlayered CSS outranks Tailwind's
+   utility layer, so the 35 pages share one table and one form-control
+   language without each page's hand-written padding drifting apart again.
+   Opt a table out with `.table-raw` (editable carts, print layouts).
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Density: a 15px root tightens every rem-based size — type, spacing, radii —
+   by one step, which is the desktop-POS scale operators expect. */
+html.app-density { font-size: 15px; }
+
+.app-main { -webkit-font-smoothing: antialiased; }
+
+/* Tables — a compact data grid. */
+.app-main table:not(.table-raw) { border-collapse: separate; border-spacing: 0; }
+.app-main table:not(.table-raw) > thead > tr > th {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-gray-500);
+  background: var(--color-gray-50);
+  border-bottom: 1px solid var(--color-gray-200);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.app-main table:not(.table-raw) > tbody > tr > td,
+.app-main table:not(.table-raw) > tfoot > tr > td {
+  padding: 0.5rem 0.75rem;
+  vertical-align: middle;
+}
+.app-main table:not(.table-raw) > tbody > tr > td { border-bottom: 1px solid var(--color-gray-100); }
+.app-main table:not(.table-raw) > tbody > tr:last-child > td { border-bottom: 0; }
+.app-main table:not(.table-raw) > tbody > tr:hover > td { background: var(--color-gray-50); }
+.app-main table:not(.table-raw) > tbody > tr { border-bottom: 0; }
+
+.dark .app-main table:not(.table-raw) > thead > tr > th {
+  color: var(--color-gray-400);
+  background: color-mix(in srgb, var(--color-gray-900) 60%, var(--color-gray-800));
+  border-bottom-color: var(--color-gray-750);
+}
+.dark .app-main table:not(.table-raw) > tbody > tr > td { border-bottom-color: var(--color-gray-750); }
+.dark .app-main table:not(.table-raw) > tbody > tr:hover > td { background: rgb(255 255 255 / 0.025); }
+
+/* Form controls — one height, one border, one focus ring. */
+.app-main :is(
+  input:not([type]), input[type="text"], input[type="number"], input[type="search"],
+  input[type="email"], input[type="password"], input[type="tel"], input[type="date"],
+  input[type="datetime-local"], input[type="month"], input[type="time"], input[type="url"], select
+) {
+  height: 2rem;
+  font-size: 0.8125rem;
+  border-radius: var(--radius-md);
+  border-color: var(--color-gray-250);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.app-main select { padding-top: 0; padding-bottom: 0; }
+.app-main textarea { font-size: 0.8125rem; border-radius: var(--radius-md); border-color: var(--color-gray-250); }
+.app-main :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus {
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px rgb(47 91 234 / 0.14);
+  outline: none;
+  --tw-ring-shadow: 0 0 #0000;
+}
+.app-main :is(input, select, textarea)::placeholder { color: var(--color-gray-400); }
+.dark .app-main :is(input, select, textarea) { border-color: var(--color-gray-700); }
+
+/* POS screens (New Sale / Purchase). Cart cells are denser than a form, the
+   scan field is the screen's primary target, and payment amounts are figures
+   the cashier reads at a glance — each gets its own size. */
+.app-main .table-raw :is(input, select) { height: 1.5rem; font-size: 0.8125rem; border-radius: var(--radius-md); }
+.app-main input.pos-scan { height: 2.25rem; font-size: 0.9375rem; }
+.app-main input.pos-amount { height: 2rem; font-size: 0.875rem; font-weight: 500; }
+
+/* Panels — the hand-written `rounded-xl border` cards across the pages get the
+   same hairline lift as the Card component. */
+.app-main :is(.rounded-xl, .rounded-lg).border.bg-white { box-shadow: var(--shadow-xs); }
 
 /* One visible focus treatment, so keyboard users get the same signal everywhere. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
@@ -345,3 +438,12 @@ table td, table th, input[type="number"] { font-variant-numeric: tabular-nums; }
   animation: whatsapp-float 3s ease-in-out infinite;
 }
 
+
+/* Number fields on the till screens: no spinner arrows. They eat a third of a
+   narrow cart cell and hide the value; the keyboard is how cashiers enter it. */
+.app-main .table-raw input[type="number"],
+.app-main input.pos-amount[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.app-main .table-raw input[type="number"]::-webkit-inner-spin-button,
+.app-main .table-raw input[type="number"]::-webkit-outer-spin-button,
+.app-main input.pos-amount[type="number"]::-webkit-inner-spin-button,
+.app-main input.pos-amount[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

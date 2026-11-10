@@ -175,7 +175,7 @@ export function StoreComparisonChart({
     }));
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div>
                 <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-4 text-center">
                     Active Contracts

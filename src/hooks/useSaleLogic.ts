@@ -9,7 +9,14 @@ import { type SaleInvoiceData } from '../utils/invoices';
 import type { Product, ProductVariant, Customer, Account, HeldSale } from '../types/pos';
 import type { CartItem, PriceType, DiscountType } from '../components/sale/types';
 import { getVariantPrice, computeLine, computeCartProfit, parseError, round2 } from '../components/sale/types';
-import { hasAnyReturnLine, resolveParentSaleId, sellingGross, validateCart } from '../components/sale/cart-rules';
+import {
+  hasAnyReturnLine,
+  resolveParentSaleId,
+  sellingGross,
+  signedPaymentAmount,
+  validateCart,
+  validateRefundSettlement,
+} from '../components/sale/cart-rules';
 
 export function useSaleLogic() {
   const { user } = useAuth();
@@ -47,6 +54,7 @@ export function useSaleLogic() {
     allowCartProfitView,
     maxDiscountPercent,
     exemptFromLimits,
+    saleDefaultDiscountType,
   } = useSaleSettings();
   const tillLimits = { allowPriceChange, maxDiscountPercent, exemptFromLimits };
   // Adding a customer is the Customers module; the API refuses it without the
@@ -91,7 +99,10 @@ export function useSaleLogic() {
       : round2((sellingGross(cart) * maxDiscountPercent) / 100);
 
   const paidTotal = Object.values(accountAmounts).reduce((a, v) => a + (parseFloat(v) || 0), 0);
-  const change = paidTotal - grandTotal;
+  // On a refund cart the account amounts are money paid out, so "change" is
+  // what has been refunded beyond what is owed (negative = still to refund).
+  const refundDue = isReturnCart ? -grandTotal : 0;
+  const change = isReturnCart ? paidTotal - refundDue : paidTotal - grandTotal;
 
   const showToast = useCallback((type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
@@ -104,9 +115,10 @@ export function useSaleLogic() {
       setCart(prev => {
         const idx = prev.findIndex(i => i.variant.id === variant.id);
         if (idx >= 0) {
-          const next = [...prev];
-          next[idx] = { ...next[idx], qty: returnMode ? next[idx].qty - 1 : next[idx].qty + 1 };
-          return next;
+          // A re-scan bumps the quantity AND moves the line to the top, so the
+          // item just scanned is always the first row (and the one F3 edits).
+          const bumped = { ...prev[idx], qty: returnMode ? prev[idx].qty - 1 : prev[idx].qty + 1 };
+          return [bumped, ...prev.slice(0, idx), ...prev.slice(idx + 1)];
         }
         return [
           {
@@ -116,7 +128,8 @@ export function useSaleLogic() {
             priceType,
             price: getVariantPrice(variant, priceType),
             discount: 0,
-            discountType: 'PERCENTAGE' as DiscountType,
+            // New lines start with the type set in Settings → Sales & Inventory Rules.
+            discountType: saleDefaultDiscountType as DiscountType,
             taxRate: product.taxRate ?? 0,
             taxMethod: product.taxMethod ?? 'EXCLUSIVE',
             hsCode: product.hsCode ?? '',
@@ -124,16 +137,20 @@ export function useSaleLogic() {
           ...prev,
         ];
       });
-      setBarcode('');
+      // The scan field was already cleared on Enter (see handleBarcodeEnter);
+      // clearing it again here would wipe the next barcode being scanned.
       setTimeout(() => barcodeRef.current?.focus(), 30);
     },
-    [returnMode]
+    [returnMode, saleDefaultDiscountType]
   );
 
   const handleBarcodeEnter = useCallback(
     async (bc: string) => {
       const cleanBc = bc.trim();
       if (!cleanBc) return;
+      // Clear at once, before the lookup: a scanner types the next barcode while
+      // this one is still loading, and a late clear would erase it.
+      setBarcode('');
       setBarcodeLoading(true);
       setBarcodeError('');
       try {
@@ -380,6 +397,10 @@ export function useSaleLogic() {
     if (!isReturnCart && paidTotal < grandTotal - 0.01 && !customer) {
       return showToast('error', 'Payment is short. Enter the received amount.');
     }
+    if (isReturnCart) {
+      const refundError = validateRefundSettlement({ refundDue, refunded: paidTotal, hasCustomer: !!customer });
+      if (refundError) return showToast('error', refundError);
+    }
 
     // Cost-price and discount policy. Returned lines (qty < 0) are exempt —
     // see components/sale/cart-rules.ts.
@@ -391,7 +412,7 @@ export function useSaleLogic() {
       const paymentEntries = accounts
         .filter(a => (parseFloat(accountAmounts[a.id] || '0') || 0) > 0)
         .map(a => ({
-          amount: parseFloat(accountAmounts[a.id]) || 0,
+          amount: signedPaymentAmount(parseFloat(accountAmounts[a.id]) || 0, isReturnCart),
           accountId: a.id,
           changeAmount: 0,
         }));
@@ -553,6 +574,7 @@ export function useSaleLogic() {
     taxTotal,
     change,
     isReturnCart,
+    refundDue,
     originalInvoiceId,
     allowPriceChange,
     maxDiscountPercent,
@@ -671,6 +693,7 @@ export function useSaleLogic() {
     taxTotal,
     grandTotal,
     isReturnCart,
+    refundDue,
     paidTotal,
     change,
     updateQty,

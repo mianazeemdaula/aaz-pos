@@ -38,7 +38,7 @@ export function QuickSupplierAdd({ open, onClose, onCreated }: QuickSupplierAddP
 
     return (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-sm p-5 shadow-xl">
+            <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-sm p-4 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                         <UserPlus size={16} /> New Supplier

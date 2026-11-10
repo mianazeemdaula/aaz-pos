@@ -1,6 +1,7 @@
 import { UserPlus } from 'lucide-react';
 import { CustomerSearch } from '../ui/CustomerSearch';
 import { useGlobalSettings } from '../../contexts/SettingsContext';
+import { Kbd, PanelSection } from '../pos/PosKit';
 import type { Customer } from '../../types/pos';
 
 interface SaleCustomerSectionProps {
@@ -22,26 +23,28 @@ export function SaleCustomerSection({
   const canCreateCustomer = hasPermission('customers', 'edit');
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold text-gray-500 uppercase">
-          Customer <span className="normal-case font-normal text-gray-400">(optional)</span>
-        </p>
-        {canCreateCustomer && (
+    <PanelSection
+      title="Customer"
+      hint={<Kbd>F10</Kbd>}
+      action={
+        canCreateCustomer && (
           <button
+            type="button"
             onClick={onOpenNewCustomer}
-            className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-0.5"
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
           >
-            <UserPlus size={11} /> New <span className="text-gray-400 ml-0.5">(F11)</span>
+            <UserPlus size={12} /> New <Kbd className="ml-0.5">F11</Kbd>
           </button>
-        )}
-      </div>
+        )
+      }
+    >
       <CustomerSearch
         value={customer}
         onSelect={setCustomer}
         inputRef={customerInputRef}
         onCreateNew={canCreateCustomer ? onOpenNewCustomer : undefined}
       />
-    </div>
+      {!customer && <p className="mt-1.5 text-[11px] text-gray-400">Walk-in sale. Select a customer to sell on credit.</p>}
+    </PanelSection>
   );
 }

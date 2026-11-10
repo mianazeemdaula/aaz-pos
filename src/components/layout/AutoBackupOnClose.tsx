@@ -109,7 +109,7 @@ export function AutoBackupOnClose() {
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-6 text-center">
+            <div className="w-full max-w-sm bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 p-4 text-center">
                 {phase.state === 'running' && (
                     <>
                         <div className="relative mx-auto w-12 h-12 mb-4">

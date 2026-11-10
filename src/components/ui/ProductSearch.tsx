@@ -373,7 +373,7 @@ export function ProductSearchModal({ onSelect, onClose }: ProductSearchModalProp
             </div>
           )}
           {!loading && results.length > 0 && (
-            <table className="w-full text-sm border-collapse">
+            <table className="table-raw w-full text-sm border-collapse">
               <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 z-10">
                 <tr>
                   <th className="px-3 py-2.5 text-left font-semibold text-gray-600 dark:text-gray-300 w-8">#</th>

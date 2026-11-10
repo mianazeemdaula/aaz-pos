@@ -21,7 +21,7 @@ export function SettingsHeader() {
     <div className="space-y-3 mb-3">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-2">
             Settings & Global Configuration
           </h1>
           <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">

@@ -344,12 +344,12 @@ export function Settings() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
 
       {/* PAGE HEADER */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-2">
             Settings & Global Configuration
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -382,11 +382,11 @@ export function Settings() {
       </div>
 
       {/* MAIN SETTINGS FORM CARD CONTAINER */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6 space-y-6">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-4">
 
         {/* TAB 1: COMPANY PROFILE */}
         {activeTab === 'company' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
               <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Building2 className="text-primary-600" size={18} /> Business Profile & Receipt Information
@@ -545,7 +545,7 @@ export function Settings() {
 
         {/* TAB 2: THERMAL PRINTER */}
         {activeTab === 'thermal' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
               <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Printer className="text-primary-600" size={18} /> Thermal Receipt Printer Setup
@@ -643,7 +643,7 @@ export function Settings() {
 
         {/* TAB 3: FBR FISCAL GATEWAY */}
         {activeTab === 'fbr' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
               <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <ShieldCheck className="text-primary-600" size={18} /> FBR Real-time Fiscal Integration
@@ -854,7 +854,7 @@ export function Settings() {
 
         {/* TAB 5: DATABASE BACKUP */}
         {activeTab === 'database' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
               <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Database className="text-primary-600" size={18} /> Database Backup & Maintenance
@@ -885,7 +885,7 @@ export function Settings() {
             )}
 
             {/* Automatic backups to a folder */}
-            <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-4">
+            <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-4">
               <div>
                 <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100 flex items-center gap-2">
                   <FolderClock size={15} className="text-primary-600" /> Automatic Backups
@@ -1004,7 +1004,7 @@ export function Settings() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
+              <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
                 <div>
                   <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100">Download Database Backup</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -1038,7 +1038,7 @@ export function Settings() {
                 </p>
               </div>
 
-              <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
+              <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl border border-gray-200 dark:border-gray-600 space-y-3">
                 <div>
                   <h3 className="font-bold text-sm text-gray-900 dark:text-gray-100">Restore Database</h3>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -1072,7 +1072,7 @@ export function Settings() {
 
         {/* TAB 6: USER PERMISSIONS */}
         {activeTab === 'user-permissions' && (
-          <div className="space-y-6">
+          <div className="space-y-4">
             <div className="border-b border-gray-200 dark:border-gray-700 pb-3">
               <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                 <Users className="text-primary-600" size={18} /> User Access & Module Permissions

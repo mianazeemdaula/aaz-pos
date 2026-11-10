@@ -1,4 +1,5 @@
-import { Scan, Search, Loader2, X, Receipt } from 'lucide-react';
+import { ScanLine, Search, Loader2, X, Receipt, RotateCcw, AlertCircle } from 'lucide-react';
+import { Kbd } from '../pos/PosKit';
 
 interface SaleHeaderProps {
   barcode: string;
@@ -34,11 +35,22 @@ export function SaleHeader({
   originalInvoiceId,
   setOriginalInvoiceId,
 }: SaleHeaderProps) {
+  const setMode = (toReturn: boolean) => {
+    if (toReturn === returnMode) return;
+    setReturnMode(toReturn);
+    setAccountAmounts({});
+    setTimeout(() => barcodeRef.current?.focus(), 0);
+  };
+
   return (
-    <div className="p-3 border-b border-gray-200 dark:border-gray-700">
-      <div className="flex gap-1">
-        <div className="relative flex-1">
-          <Scan size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+    <div className="shrink-0 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center gap-1.5 p-1.5">
+        {/* Scan field — the screen's primary target. */}
+        <div className="relative flex-1 min-w-0">
+          <ScanLine
+            size={17}
+            className={`absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${returnMode ? 'text-red-500' : 'text-gray-400'}`}
+          />
           <input
             ref={barcodeRef}
             autoFocus
@@ -54,71 +66,105 @@ export function SaleHeader({
                 onBarcodeEnter(barcode);
               }
             }}
-            placeholder="Scan barcode (F2) • F5 to search"
-            className="w-full pl-9 pr-9 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none"
+            placeholder={returnMode ? 'Scan the item being returned…' : 'Scan or type a barcode…'}
+            aria-label="Barcode"
+            className={`pos-scan w-full pl-10 pr-16 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none ${
+              returnMode ? 'border-red-300 dark:border-red-500/50' : 'border-gray-300 dark:border-gray-600'
+            }`}
           />
-          {barcodeLoading ? (
-            <Loader2 size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
-          ) : barcode ? (
-            <button
-              onClick={() => {
-                setBarcode('');
-                setBarcodeError('');
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              <X size={14} />
-            </button>
-          ) : null}
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+            {barcodeLoading ? (
+              <Loader2 size={15} className="text-gray-400 animate-spin" />
+            ) : barcode ? (
+              <button
+                type="button"
+                aria-label="Clear barcode"
+                onClick={() => {
+                  setBarcode('');
+                  setBarcodeError('');
+                  barcodeRef.current?.focus();
+                }}
+                className="w-6 h-6 grid place-items-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <X size={14} />
+              </button>
+            ) : (
+              <Kbd>F2</Kbd>
+            )}
+          </div>
         </div>
+
         <button
+          type="button"
           onClick={onOpenSearchModal}
-          title="Search Product (F5)"
-          className="flex items-center gap-1.5 px-3 py-2 bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-700 rounded-lg text-sm font-medium hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors whitespace-nowrap"
+          title="Search products (F5)"
+          className="h-9 inline-flex items-center gap-2 px-3 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 text-[13px] font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors whitespace-nowrap"
         >
-          <Search size={14} /> <span className="hidden sm:inline">Search</span>{' '}
-          <span className="text-xs text-primary-400">F5</span>
+          <Search size={15} className="text-gray-500" />
+          <span className="hidden sm:inline">Search</span>
+          <Kbd className="hidden md:inline-flex">F5</Kbd>
         </button>
-        <label
-          title="Toggle Return Mode"
-          className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm font-medium transition-colors whitespace-nowrap cursor-pointer ${
-            returnMode
-              ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border-red-300 dark:border-red-600'
-              : 'bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-100'
-          }`}
-        >
-          <input
-            type="checkbox"
-            checked={returnMode}
-            onChange={() => {
-              setReturnMode(r => !r);
-              setAccountAmounts({});
-            }}
-            className="rounded border-gray-300 text-red-600 focus:ring-red-500"
-          />
-          Return
-        </label>
+
+        {/* Sale / Return — a mode, so it reads as a two-way switch. */}
+        <div role="radiogroup" aria-label="Scan mode" className="h-9 inline-flex p-0.5 rounded-md bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={!returnMode}
+            onClick={() => setMode(false)}
+            className={`px-3 rounded text-[13px] font-medium transition-colors ${
+              !returnMode
+                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-[var(--shadow-sm)]'
+                : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+            }`}
+          >
+            Sale
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={returnMode}
+            onClick={() => setMode(true)}
+            className={`px-3 rounded text-[13px] font-medium inline-flex items-center gap-1.5 transition-colors ${
+              returnMode
+                ? 'bg-red-600 text-white shadow-[var(--shadow-sm)]'
+                : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+            }`}
+          >
+            <RotateCcw size={13} /> Return
+          </button>
+        </div>
       </div>
-      {hasReturnLines && (
-        <div className="flex items-center gap-2 mt-2">
-          <Receipt size={14} className="text-red-500 shrink-0" />
-          <label className="text-xs font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap">
-            Original Invoice #
-          </label>
-          <input
-            type="number"
-            min={1}
-            value={originalInvoiceId}
-            onChange={e => setOriginalInvoiceId(e.target.value)}
-            placeholder="Optional"
-            className="w-28 px-2 py-1 text-sm text-right border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-red-500 outline-none"
-          />
-          <span className="text-xs text-gray-400 truncate">
-            links the returned items to the sale they came from
-          </span>
+
+      {barcodeError && (
+        <p role="alert" className="flex items-center gap-1.5 px-2 pb-1.5 text-xs text-red-600 dark:text-red-400">
+          <AlertCircle size={13} /> {barcodeError}
+        </p>
+      )}
+
+      {(returnMode || hasReturnLines) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-2 py-1 bg-red-50 dark:bg-red-500/[0.08] border-t border-red-100 dark:border-red-500/20 text-xs">
+          {returnMode && (
+            <span className="inline-flex items-center gap-1.5 font-medium text-red-700 dark:text-red-400">
+              <RotateCcw size={13} /> Return mode — scanned items are added as returns
+            </span>
+          )}
+          {hasReturnLines && (
+            <label className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-300 ml-auto">
+              <Receipt size={13} className="text-red-500" />
+              Original invoice #
+              <input
+                type="number"
+                min={1}
+                value={originalInvoiceId}
+                onChange={e => setOriginalInvoiceId(e.target.value)}
+                placeholder="Optional"
+                className="pos-amount !h-7 w-28 px-2 text-right border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              />
+            </label>
+          )}
         </div>
       )}
-      {barcodeError && <p className="text-xs text-red-500 mt-1 pl-1">{barcodeError}</p>}
     </div>
   );
 }

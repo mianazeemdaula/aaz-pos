@@ -39,6 +39,43 @@ export function resolveParentSaleId(cart: CartItem[], originalInvoiceId: string)
   return Number.isFinite(id) && id > 0 ? id : undefined;
 }
 
+// ─── Refund settlement ──────────────────────────────────────────────────────
+
+/**
+ * When the cart nets negative — a return, or an exchange where the goods coming
+ * back are worth more than the goods going out — the shop owes the customer.
+ * The amounts typed against the payment accounts are then money paid OUT, and
+ * the API books a refund as a negative payment (the same convention the Sale
+ * Returns page uses). Positive amounts are sent unchanged for a normal sale.
+ */
+export function signedPaymentAmount(amount: number, isRefund: boolean): number {
+  return isRefund ? -Math.abs(amount) : amount;
+}
+
+/**
+ * Check how a refund is being settled. `refundDue` is the positive amount owed
+ * to the customer and `refunded` what the cashier entered against the accounts.
+ *
+ * - Nobody may be refunded more than they are owed.
+ * - A walk-in customer has no account to carry a balance, so the whole refund
+ *   must be paid out now. A known customer may take less; the remainder is
+ *   credited to their ledger by the API.
+ */
+export function validateRefundSettlement(args: {
+  refundDue: number;
+  refunded: number;
+  hasCustomer: boolean;
+}): string | null {
+  const { refundDue, refunded, hasCustomer } = args;
+  if (refunded > refundDue + 0.01) {
+    return `Refund cannot exceed the Rs ${refundDue.toFixed(2)} owed to the customer.`;
+  }
+  if (!hasCustomer && refunded < refundDue - 0.01) {
+    return `Enter the Rs ${refundDue.toFixed(2)} refund against the account it is paid from, or select a customer to credit it to.`;
+  }
+  return null;
+}
+
 /** Per-unit discount in currency, whichever way the user entered it. */
 export const unitDiscountAmount = (item: CartItem): number =>
   item.discountType === 'FIXED' ? item.discount : (item.price * item.discount) / 100;
@@ -162,6 +199,18 @@ export function parseDiscountLimit(value: unknown): number | null {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0 || n >= 100) return null;
   return n;
+}
+
+/**
+ * Read a stored "default discount type" setting. Anything other than the two
+ * known values (unset, a typo, an old row) falls back, so a bad setting can
+ * never leave a cart line without a discount type.
+ */
+export function parseDiscountType(
+  value: unknown,
+  fallback: 'PERCENTAGE' | 'FIXED'
+): 'PERCENTAGE' | 'FIXED' {
+  return value === 'PERCENTAGE' || value === 'FIXED' ? value : fallback;
 }
 
 /** Prices a variant may legitimately be sold at. */

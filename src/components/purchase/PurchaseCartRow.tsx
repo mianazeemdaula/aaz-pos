@@ -1,17 +1,21 @@
 import { useState } from 'react';
-import { Plus, Minus, Trash2, Pencil, Check, X, Loader2 } from 'lucide-react';
+import { Trash2, Pencil, Check, X, Loader2 } from 'lucide-react';
 import type { CartItem } from './types';
 import { getDiscountAmount, fmt } from './types';
+import { posTable, rowTone } from '../pos/PosKit';
 
 interface PurchaseCartRowProps {
   item: CartItem;
   idx: number;
+  /** 1-based row number shown in the first column. */
+  lineNo: number;
   isFirst: boolean;
+  /** Marks the most recently scanned line. */
+  highlight?: boolean;
   lastQtyRef: React.RefObject<HTMLInputElement | null>;
   barcodeRef: React.RefObject<HTMLInputElement | null>;
   allowPriceChange: boolean;
   allowDiscountTypeSwitch: boolean;
-  updateQty: (idx: number, delta: number) => void;
   updateField: (
     idx: number,
     field: 'qty' | 'unitCost' | 'totalCost' | 'discount' | 'unitRate',
@@ -26,12 +30,13 @@ interface PurchaseCartRowProps {
 export function PurchaseCartRow({
   item,
   idx,
+  lineNo,
   isFirst,
+  highlight = false,
   lastQtyRef,
   barcodeRef,
   allowPriceChange,
   allowDiscountTypeSwitch,
-  updateQty,
   updateField,
   updatePermanentSellingRate,
   removeItem,
@@ -44,6 +49,7 @@ export function PurchaseCartRow({
   const profitPerUnit = item.unitRate - netUnitCost;
   const profitTotal = profitPerUnit * item.qty;
   const variants = item.product.variants ?? [];
+  const td = posTable.td;
 
   const [isEditingRate, setIsEditingRate] = useState(false);
   const [editingRateVal, setEditingRateVal] = useState('');
@@ -62,23 +68,27 @@ export function PurchaseCartRow({
   };
 
   return (
-    <tr className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-      <td className="px-3 py-1.5 align-middle">
-        <p className="font-medium text-gray-900 dark:text-gray-100 break-words">{item.product.name}</p>
-        <p
-          className="text-gray-400 text-[11px] truncate"
-          title={item.variant.barcode ? `${item.variant.barcode}` : undefined}
-        >
-          {item.variant.barcode && <span className="mr-1">{item.variant.barcode}</span>}
-          {item.variant.factor > 1 && <span className="text-primary-500">×{item.variant.factor}</span>}
-        </p>
+    <tr className={`transition-colors ${rowTone({ latest: highlight })}`}>
+      <td className={`${td} text-center relative`}>
+        {highlight && <span aria-hidden className="absolute left-0 top-0 bottom-0 w-[3px] bg-primary-500" />}
+        <span className="text-xs text-gray-400 tabular-nums">{lineNo}</span>
       </td>
-      <td className="px-2 py-1.5 align-middle">
+
+      <td className={td}>
+        <div className="flex items-baseline gap-2 min-w-0" title={`${item.product.name}${item.variant.barcode ? ` · ${item.variant.barcode}` : ''}`}>
+          <span className="font-medium text-gray-900 dark:text-gray-100 truncate">{item.product.name}</span>
+          {item.variant.barcode && <span className="shrink-0 text-[11px] text-gray-400 font-mono">{item.variant.barcode}</span>}
+          {item.variant.factor > 1 && <span className="shrink-0 text-[11px] text-primary-600 dark:text-primary-400">×{item.variant.factor}</span>}
+        </div>
+      </td>
+
+      <td className={td}>
         {variants.length > 1 ? (
           <select
             value={item.variant.id}
             onChange={e => changeVariant(idx, Number(e.target.value))}
-            className="text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 py-0.5 px-1 w-full"
+            className={posTable.select}
+            aria-label="Variant"
           >
             {variants.map(v => (
               <option key={v.id} value={v.id}>
@@ -87,20 +97,15 @@ export function PurchaseCartRow({
             ))}
           </select>
         ) : (
-          <span className="text-xs text-gray-500">{item.variant.name}</span>
+          <span className="block truncate text-gray-600 dark:text-gray-300" title={item.variant.name}>{item.variant.name}</span>
         )}
       </td>
-      <td className="px-2 py-1.5 align-middle">
-        <div className="flex items-center justify-center gap-1">
-          <button
-            onClick={() => updateQty(idx, -1)}
-            className="w-5 h-5 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center"
-          >
-            <Minus size={10} />
-          </button>
-          <input
+
+      <td className={td}>
+        <input
             ref={isFirst ? lastQtyRef : undefined}
             type="number"
+            aria-label="Quantity"
             value={item.qty === 0 ? '' : item.qty}
             min={1}
             step="any"
@@ -120,33 +125,29 @@ export function PurchaseCartRow({
                   }
                 : undefined
             }
-            className="w-10 text-center border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 text-xs"
+            className={`${posTable.input} text-center font-semibold`}
           />
-          <button
-            onClick={() => updateQty(idx, 1)}
-            className="w-5 h-5 rounded text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 flex items-center justify-center"
-          >
-            <Plus size={10} />
-          </button>
-        </div>
       </td>
-      <td className="px-2 py-1.5 align-middle">
+
+      <td className={`${td} text-right`}>
         <input
           type="number"
+          aria-label="Unit cost"
           value={item.unitCost}
           min={0}
           step="0.01"
           onChange={e => updateField(idx, 'unitCost', Number(e.target.value))}
-          className="w-full text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs"
+          className={`${posTable.input} text-right`}
         />
       </td>
-      <td className="px-2 py-1.5 align-middle text-right text-xs font-medium text-gray-700 dark:text-gray-300">
-        {fmt(item.totalCost)}
-      </td>
-      <td className="px-2 py-1.5 align-middle">
-        <div className="flex items-center justify-end gap-0.5">
+
+      <td className={`${td} text-right tabular-nums text-gray-700 dark:text-gray-300`}>{fmt(item.totalCost)}</td>
+
+      <td className={`${td} text-right`}>
+        <div className="flex items-center justify-end">
           <input
             type="number"
+            aria-label="Discount"
             value={item.discount}
             min={0}
             max={item.discountType === 'PERCENTAGE' ? 100 : undefined}
@@ -160,31 +161,29 @@ export function PurchaseCartRow({
                   : Math.max(0, Number(e.target.value))
               )
             }
-            className="w-14 text-right border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs"
+            className={`${posTable.input} !w-16 text-right !rounded-r-none`}
           />
           <button
+            type="button"
             onClick={() => allowDiscountTypeSwitch && onToggleDiscountType(idx)}
             disabled={!allowDiscountTypeSwitch}
-            className={`text-[10px] font-medium px-1 py-0.5 rounded border shrink-0 ${
-              !allowDiscountTypeSwitch
-                ? 'opacity-50 cursor-not-allowed'
-                : 'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600'
-            } ${
-              item.discountType === 'PERCENTAGE'
-                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 border-blue-200 dark:border-blue-800'
-                : 'bg-green-50 dark:bg-green-900/30 text-green-600 border-green-200 dark:border-green-800'
+            title={allowDiscountTypeSwitch ? 'Switch between percentage and flat amount' : undefined}
+            className={`h-6 w-9 shrink-0 -ml-px rounded-r-md border border-gray-250 dark:border-gray-600 bg-gray-50 dark:bg-gray-750 text-[11px] font-semibold text-gray-600 dark:text-gray-300 ${
+              allowDiscountTypeSwitch ? 'hover:bg-gray-100 dark:hover:bg-gray-700' : 'opacity-60 cursor-not-allowed'
             }`}
           >
-            {item.discountType === 'PERCENTAGE' ? '%' : 'Rs'}
+            {item.discountType === 'PERCENTAGE' ? '%' : 'Flat'}
           </button>
         </div>
       </td>
-      <td className="px-2 py-1.5 align-middle text-right">
+
+      <td className={`${td} text-right`}>
         {isEditingRate ? (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-0.5">
             <input
               type="number"
               autoFocus
+              aria-label="New sale rate"
               value={editingRateVal}
               min={0}
               step="0.01"
@@ -198,60 +197,64 @@ export function PurchaseCartRow({
                   setIsEditingRate(false);
                 }
               }}
-              className="w-16 text-right border border-primary-500 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 py-0.5 px-1 text-xs font-semibold focus:ring-1 focus:ring-primary-500 outline-none"
+              className={`${posTable.input} !w-[4.5rem] text-right font-semibold !border-primary-500`}
             />
             <button
+              type="button"
               onClick={handleSaveRate}
               title="Save selling price permanently to DB for product & variants"
+              aria-label="Save sale rate"
               disabled={isSavingRate}
-              className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30 rounded shrink-0"
+              className="w-6 h-6 grid place-items-center rounded text-green-600 hover:bg-green-50 dark:hover:bg-green-500/10 shrink-0"
             >
-              {isSavingRate ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+              {isSavingRate ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
             </button>
             <button
+              type="button"
               onClick={() => setIsEditingRate(false)}
               title="Cancel"
-              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded shrink-0"
+              aria-label="Cancel"
+              className="w-6 h-6 grid place-items-center rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 shrink-0"
             >
-              <X size={12} />
+              <X size={13} />
             </button>
           </div>
         ) : (
           <div className="flex items-center justify-end gap-1 group">
-            <span className="font-semibold text-gray-900 dark:text-gray-100 text-xs">
-              {item.unitRate.toFixed(2)}
-            </span>
+            <span className="tabular-nums font-medium text-gray-900 dark:text-gray-100">{item.unitRate.toFixed(2)}</span>
             {allowPriceChange && (
               <button
+                type="button"
                 onClick={() => {
                   setEditingRateVal(item.unitRate.toString());
                   setIsEditingRate(true);
                 }}
                 title="Edit sale rate & update permanently in DB for all variants"
-                className="opacity-70 group-hover:opacity-100 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-opacity p-0.5 rounded"
+                aria-label="Edit sale rate"
+                className="w-6 h-6 grid place-items-center rounded text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-500/10 dark:hover:text-primary-400 transition-colors"
               >
-                <Pencil size={11} />
+                <Pencil size={12} />
               </button>
             )}
           </div>
         )}
       </td>
+
       <td
-        className={`px-2 py-1.5 align-middle text-right text-xs font-medium ${
-          profitTotal >= 0 ? 'text-green-600' : 'text-red-500'
+        className={`${td} text-right tabular-nums font-medium ${
+          profitTotal > 0 ? 'text-green-600 dark:text-green-400' : profitTotal < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-300 dark:text-gray-600'
         }`}
       >
         {profitTotal !== 0 ? fmt(profitTotal) : '—'}
       </td>
-      <td className="px-2 py-1.5 align-middle text-right font-medium text-gray-900 dark:text-gray-100">
-        {fmt(netTotal)}
+
+      <td className={`${td} text-right`}>
+        <span className="tabular-nums font-semibold text-gray-900 dark:text-gray-100">{fmt(netTotal)}</span>
       </td>
-      <td className="px-1 py-1.5 align-middle text-center">
-        <button
-          onClick={() => removeItem(idx)}
-          className="text-gray-300 hover:text-red-500 dark:hover:text-red-400"
-        >
-          <Trash2 size={13} />
+
+      <td className={`${td} text-center`}>
+        <button type="button" aria-label={`Remove ${item.product.name}`} onClick={() => removeItem(idx)} className={posTable.removeBtn}>
+          <Trash2 size={14} />
         </button>
       </td>
     </tr>

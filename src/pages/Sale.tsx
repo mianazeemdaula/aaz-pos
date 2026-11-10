@@ -11,7 +11,7 @@ import { SaleHeader } from '../components/sale/SaleHeader';
 import { SaleCartTable } from '../components/sale/SaleCartTable';
 import { SaleCartSummary } from '../components/sale/SaleCartSummary';
 import { SaleCustomerSection } from '../components/sale/SaleCustomerSection';
-import { SalePaymentSection } from '../components/sale/SalePaymentSection';
+import { SalePaymentSection, SaleTotalsSection } from '../components/sale/SalePaymentSection';
 import { SaleActionsSection } from '../components/sale/SaleActionsSection';
 
 export type { PriceType, DiscountType, CartItem } from '../components/sale/types';
@@ -72,22 +72,24 @@ export function Sale() {
     isReturnCart,
     paidTotal,
     change,
-    updateQty,
     updateField,
     removeItem,
     changeVariant,
     changePriceType,
     toggleDiscountType,
     loadHeldSale,
+    holdSale,
     submit,
   } = useSaleLogic();
 
   return (
-    <div className="flex flex-col lg:flex-row gap-3 h-[calc(100vh-5rem)]">
+    // Fills the workspace under the menu bar (3rem bar + the 0.75rem till inset).
+    <div className="flex flex-col lg:flex-row gap-1.5 lg:h-[calc(100vh-3.75rem)]">
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm text-white ${
+          role="status"
+          className={`fixed top-14 right-4 z-50 flex items-center gap-2 pl-3 pr-2 py-2.5 rounded-md shadow-lg text-[13px] font-medium text-white max-w-md ${
             toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
           }`}
         >
@@ -166,7 +168,7 @@ export function Sale() {
       />
 
       {/* LEFT: Cart Panel */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-[var(--shadow-xs)] overflow-hidden min-h-[420px] lg:min-h-0">
         <SaleHeader
           barcode={barcode}
           setBarcode={setBarcode}
@@ -192,7 +194,6 @@ export function Sale() {
           allowPriceChange={allowPriceChange}
           maxDiscountPercent={maxDiscountPercent}
           allowDiscountTypeSwitch={allowDiscountTypeSwitch}
-          updateQty={updateQty}
           updateField={updateField}
           removeItem={removeItem}
           changeVariant={changeVariant}
@@ -211,44 +212,53 @@ export function Sale() {
         />
       </div>
 
-      {/* RIGHT: Customer + Totals + Payments + Actions */}
-      <div className="w-full lg:w-72 flex flex-col gap-1 overflow-y-auto min-h-0">
-        <SaleCustomerSection
-          customer={customer}
-          setCustomer={setCustomer}
-          customerInputRef={customerInputRef}
-          onOpenNewCustomer={() => setShowNewCustomer(true)}
-        />
+      {/* RIGHT: one panel — customer, payment and totals scroll; the action is pinned. */}
+      <aside className="w-full lg:w-[340px] shrink-0 flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-[var(--shadow-xs)] overflow-hidden min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-150 dark:divide-gray-700">
+          <SaleCustomerSection
+            customer={customer}
+            setCustomer={setCustomer}
+            customerInputRef={customerInputRef}
+            onOpenNewCustomer={() => setShowNewCustomer(true)}
+          />
 
-        <SalePaymentSection
-          accounts={accounts}
-          accountAmounts={accountAmounts}
-          setAccountAmounts={setAccountAmounts}
-          firstAccountRef={firstAccountRef}
-          invoiceDiscount={invoiceDiscount}
-          setInvoiceDiscount={setInvoiceDiscount}
-          maxInvoiceDiscount={maxInvoiceDiscount}
+          <SalePaymentSection
+            accounts={accounts}
+            accountAmounts={accountAmounts}
+            setAccountAmounts={setAccountAmounts}
+            firstAccountRef={firstAccountRef}
+            invoiceDiscount={invoiceDiscount}
+            setInvoiceDiscount={setInvoiceDiscount}
+            maxInvoiceDiscount={maxInvoiceDiscount}
+            isReturnCart={isReturnCart}
+            cartLength={cart.length}
+            allowCartProfitView={allowCartProfitView}
+            onOpenProfitModal={() => setShowProfitModal(true)}
+          />
+        </div>
+
+        <SaleTotalsSection
           itemDiscountTotal={itemDiscountTotal}
+          invoiceDiscount={invoiceDiscount}
           taxTotal={taxTotal}
           grandTotal={grandTotal}
           isReturnCart={isReturnCart}
           paidTotal={paidTotal}
           change={change}
           cartLength={cart.length}
-          allowCartProfitView={allowCartProfitView}
-          onOpenProfitModal={() => setShowProfitModal(true)}
         />
 
         <SaleActionsSection
           note={note}
           setNote={setNote}
           onSubmit={submit}
+          onHold={holdSale}
           saving={saving}
           cartLength={cart.length}
           isReturnCart={isReturnCart}
           grandTotal={grandTotal}
         />
-      </div>
+      </aside>
     </div>
   );
 }

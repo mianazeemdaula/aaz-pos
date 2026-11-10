@@ -94,12 +94,12 @@ export function LicensingGuard({ children }: { children: React.ReactNode }) {
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-950 text-white p-6 font-sans selection:bg-primary-500 selection:text-white">
+        <div className="flex items-center justify-center min-h-screen bg-gray-950 text-white p-4 font-sans selection:bg-primary-500 selection:text-white">
             {/* Background design accents */}
             <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary-600/10 rounded-full blur-3xl -z-10 animate-pulse" />
             <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl -z-10 animate-pulse" />
 
-            <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-2xl space-y-6 relative overflow-hidden">
+            <div className="w-full max-w-md bg-gray-900 border border-gray-800 rounded-2xl p-4 shadow-2xl space-y-4 relative overflow-hidden">
                 {/* Glowing top line */}
                 <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary-500 to-purple-500" />
                 
@@ -107,7 +107,7 @@ export function LicensingGuard({ children }: { children: React.ReactNode }) {
                     <div className="mx-auto w-12 h-12 bg-red-500/10 border border-red-500/20 text-red-500 rounded-full flex items-center justify-center mb-2">
                         <Lock size={20} />
                     </div>
-                    <h1 className="text-xl font-bold tracking-tight">License Required</h1>
+                    <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">License Required</h1>
                     <p className="text-xs text-gray-400">
                         {status?.expires_at === 'Clock Tampering Detected' 
                             ? 'System clock tampering detected. Set your system clock correctly.' 

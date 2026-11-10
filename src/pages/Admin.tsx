@@ -56,9 +56,9 @@ export function Admin() {
     };
 
     return (
-        <div className="max-w-3xl space-y-6">
+        <div className="max-w-3xl space-y-4">
             <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-2">
                     <ShieldCheck size={20} className="text-primary-600" /> Admin Panel
                 </h1>
                 <p className="text-sm text-gray-400 mt-0.5">Administrative tools and system management</p>
@@ -94,7 +94,7 @@ export function Admin() {
             </div>
 
             {/* Backup & Restore */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-5">
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
                 <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 flex items-center gap-2">
                     <Database size={15} className="text-primary-500" /> Database Backup &amp; Restore
                 </h2>

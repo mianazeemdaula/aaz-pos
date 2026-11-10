@@ -93,6 +93,7 @@ function App() {
                 <Route path="sale/returns" element={<ErrorBoundary><SaleReturns /></ErrorBoundary>} />
                 <Route path="purchase" element={<ErrorBoundary><Purchase /></ErrorBoundary>} />
                 <Route path="purchase/returns" element={<ErrorBoundary><PurchaseReturns /></ErrorBoundary>} />
+                <Route path="purchase/:id/edit" element={<ErrorBoundary><Purchase /></ErrorBoundary>} />
                 <Route path="products" element={<ErrorBoundary><Products /></ErrorBoundary>} />
                 <Route path="products/new" element={<ErrorBoundary><ProductForm /></ErrorBoundary>} />
                 <Route path="products/:id/edit" element={<ErrorBoundary><ProductForm /></ErrorBoundary>} />

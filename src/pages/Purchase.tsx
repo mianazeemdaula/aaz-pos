@@ -1,4 +1,4 @@
-import { CheckCircle2, AlertCircle, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, X, Pencil, Loader2 } from 'lucide-react';
 import { ProductSearchModal } from '../components/ui/ProductSearch';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { PrintConfirmDialog } from '../components/ui/PrintConfirmDialog';
@@ -11,7 +11,7 @@ import { HeldPurchasesModal } from '../components/purchase/HeldPurchasesModal';
 import { PurchaseHeader } from '../components/purchase/PurchaseHeader';
 import { PurchaseCartTable } from '../components/purchase/PurchaseCartTable';
 import { PurchaseSupplierSection } from '../components/purchase/PurchaseSupplierSection';
-import { PurchasePaymentSection } from '../components/purchase/PurchasePaymentSection';
+import { PurchasePaymentSection, PurchaseTotalsSection } from '../components/purchase/PurchasePaymentSection';
 import { PurchaseActionsSection } from '../components/purchase/PurchaseActionsSection';
 
 export type { DiscountType, CartItem } from '../components/purchase/types';
@@ -19,6 +19,9 @@ export { getDiscountAmount, fmt, parseError } from '../components/purchase/types
 
 export function Purchase() {
   const {
+    editId,
+    editLoading,
+    exitEdit,
     cart,
     addProduct,
     supplier,
@@ -73,7 +76,6 @@ export function Purchase() {
     showLeaveConfirm,
     handleLeaveConfirm,
     handleLeaveCancel,
-    updateQty,
     updateField,
     updatePermanentSellingRate,
     removeItem,
@@ -85,11 +87,13 @@ export function Purchase() {
   } = usePurchaseLogic();
 
   return (
-    <div className="flex flex-col lg:flex-row gap-3 h-[calc(100vh-5rem)]">
+    // Fills the workspace under the menu bar (3rem bar + the 0.75rem till inset).
+    <div className="flex flex-col lg:flex-row gap-1.5 lg:h-[calc(100vh-3.75rem)]">
       {/* Toast Notification */}
       {toast && (
         <div
-          className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm text-white ${
+          role="status"
+          className={`fixed top-14 right-4 z-50 flex items-center gap-2 pl-3 pr-2 py-2.5 rounded-md shadow-lg text-[13px] font-medium text-white max-w-md ${
             toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
           }`}
         >
@@ -145,15 +149,34 @@ export function Purchase() {
           if (pendingPrintData) await printPurchaseInvoice(pendingPrintData);
           setPendingPrintData(null);
           setShowPrintDialog(false);
+          if (editId !== null) exitEdit();
         }}
         onSkip={() => {
           setPendingPrintData(null);
           setShowPrintDialog(false);
+          if (editId !== null) exitEdit();
         }}
       />
 
       {/* LEFT: Cart Panel */}
-      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-[var(--shadow-xs)] overflow-hidden min-h-[420px] lg:min-h-0">
+        {editId !== null && (
+          <div className="shrink-0 flex items-center gap-2 px-3 py-2 border-b border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-[13px] text-amber-800 dark:text-amber-300">
+            {editLoading ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />}
+            <span className="font-semibold">Editing PO-{editId}</span>
+            <span className="hidden sm:inline text-amber-700/80 dark:text-amber-300/80">
+              Saving updates stock, average cost, payments and the supplier ledger.
+            </span>
+            <button
+              type="button"
+              onClick={exitEdit}
+              disabled={saving}
+              className="ml-auto px-2.5 py-1 rounded-md border border-amber-300 dark:border-amber-500/40 hover:bg-amber-100 dark:hover:bg-amber-500/20 disabled:opacity-50"
+            >
+              Cancel edit
+            </button>
+          </div>
+        )}
         <PurchaseHeader
           barcode={barcode}
           setBarcode={setBarcode}
@@ -176,7 +199,6 @@ export function Purchase() {
           allowPriceChange={allowPriceChange}
           allowDiscountTypeSwitch={allowDiscountTypeSwitch}
           itemNetTotal={itemNetTotal}
-          updateQty={updateQty}
           updateField={updateField}
           updatePermanentSellingRate={updatePermanentSellingRate}
           removeItem={removeItem}
@@ -185,28 +207,36 @@ export function Purchase() {
         />
       </div>
 
-      {/* RIGHT: Supplier + Details + Totals + Actions */}
-      <div className="w-full lg:w-72 flex flex-col gap-3 overflow-y-auto min-h-0">
-        <PurchaseSupplierSection
-          supplier={supplier}
-          setSupplier={setSupplier}
-          refNo={refNo}
-          setRefNo={setRefNo}
-          onOpenQuickSupplier={() => setShowQuickSupplier(true)}
-        />
+      {/* RIGHT: one panel — supplier, payment and totals scroll; the action is pinned. */}
+      <aside className="w-full lg:w-[340px] shrink-0 flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-[var(--shadow-xs)] overflow-hidden min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-150 dark:divide-gray-700">
+          <PurchaseSupplierSection
+            supplier={supplier}
+            setSupplier={setSupplier}
+            refNo={refNo}
+            setRefNo={setRefNo}
+            onOpenQuickSupplier={() => setShowQuickSupplier(true)}
+          />
 
-        <PurchasePaymentSection
+          <PurchasePaymentSection
+            accounts={accounts}
+            accountAmounts={accountAmounts}
+            setAccountAmounts={setAccountAmounts}
+            firstAccountRef={firstAccountRef}
+            invoiceDiscount={invoiceDiscount}
+            setInvoiceDiscount={setInvoiceDiscount}
+            invoiceTax={invoiceTax}
+            setInvoiceTax={setInvoiceTax}
+            invoiceExpenses={invoiceExpenses}
+            setInvoiceExpenses={setInvoiceExpenses}
+          />
+        </div>
+
+        <PurchaseTotalsSection
           supplier={supplier}
-          accounts={accounts}
-          accountAmounts={accountAmounts}
-          setAccountAmounts={setAccountAmounts}
-          firstAccountRef={firstAccountRef}
           invoiceDiscount={invoiceDiscount}
-          setInvoiceDiscount={setInvoiceDiscount}
           invoiceTax={invoiceTax}
-          setInvoiceTax={setInvoiceTax}
           invoiceExpenses={invoiceExpenses}
-          setInvoiceExpenses={setInvoiceExpenses}
           itemDiscountTotal={itemDiscountTotal}
           grandTotal={grandTotal}
           paidTotal={paidTotal}
@@ -219,12 +249,13 @@ export function Purchase() {
           setNote={setNote}
           onSubmit={submit}
           onHold={holdPurchase}
-          saving={saving}
+          editing={editId !== null}
+          saving={saving || editLoading}
           cartLength={cart.length}
           grandTotal={grandTotal}
           hasDraft={hasDraft}
         />
-      </div>
+      </aside>
 
       {/* Quick Supplier Add Modal */}
       <QuickSupplierAdd

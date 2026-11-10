@@ -141,7 +141,7 @@ export function QuickProductAdd({ open, onClose, onCreated, initialBarcode = '' 
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-lg p-5 shadow-xl flex flex-col gap-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-lg p-4 shadow-xl flex flex-col gap-4">
         <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
           <h3 className="font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2 text-base">
             <Package size={18} className="text-primary-600" /> Quick Add Product

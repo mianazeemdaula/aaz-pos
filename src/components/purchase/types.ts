@@ -22,7 +22,7 @@ export function getDiscountAmount(item: CartItem): number {
 }
 
 export const fmt = (n: number) =>
-  `Rs ${round2(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  `${round2(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function parseError(e: unknown, fallback: string): string {
   if (e instanceof Error) return e.message;

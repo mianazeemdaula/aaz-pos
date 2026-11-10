@@ -314,7 +314,7 @@ export function PrintLabels() {
             <ChevronLeft size={16} />
           </Link>
           <div className="flex items-center gap-1.5">
-            <h1 className="text-sm font-bold text-gray-900 dark:text-gray-100 tracking-tight flex items-center gap-1">
+            <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
               <Tag size={15} className="text-teal-600" /> Labels
             </h1>
             <span className="text-[10px] text-gray-400 dark:text-gray-500 hidden md:inline">
@@ -419,7 +419,7 @@ export function PrintLabels() {
           <button
             onClick={handlePrint}
             disabled={printableLabels === 0 || sending}
-            className="h-7 px-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0"
+            className="h-7 px-2.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shrink-0"
           >
             <Printer size={13} /> Print ({printableLabels})
           </button>

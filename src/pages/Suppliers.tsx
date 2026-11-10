@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Plus, Pencil, Trash2, Loader2, Eye, Upload, Download } from 'lucide-react';
 import { Pagination } from '../components/ui/Pagination';
 import { useNavigate } from 'react-router-dom';
+import { useListParams } from '../hooks/useListParams';
 import { supplierService, dataService } from '../services/pos.service';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -14,8 +15,8 @@ export function Suppliers() {
   const navigate = useNavigate();
   const [items, setItems] = useState<Supplier[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [q, setQ] = useState('');
+  const { get, page, setPage, update: updateParams } = useListParams('/suppliers');
+  const q = get('q');
   const [loading, setLoading] = useState(false);
   const [modal, setModal] = useState<{ mode: 'add' | 'edit'; item?: Supplier } | null>(null);
   const [confirm, setConfirm] = useState<{ id: number } | null>(null);
@@ -74,9 +75,9 @@ export function Suppliers() {
   const f = (key: keyof Supplier | 'openingBalance' | 'openingBalanceType', val: unknown) => setForm(p => ({ ...p, [key]: val }));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Suppliers</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Suppliers</h1>
         <div className="flex items-center gap-2">
           <input ref={csvFileInputRef} type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
           <button onClick={handleExport} disabled={exporting}
@@ -94,12 +95,12 @@ export function Suppliers() {
         <div className="p-3 border-b border-gray-200 dark:border-gray-700">
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={q} onChange={e => { setQ(e.target.value); setPage(1); }} placeholder="Search by name, phone..."
+            <input value={q} onChange={e => updateParams({ q: e.target.value, page: 1 })} placeholder="Search by name, phone..."
               className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500" />
           </div>
         </div>
-        {loading ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
-          : items.length === 0 ? <p className="text-center text-gray-400 py-12 text-sm">No suppliers found</p>
+        {loading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+          : items.length === 0 ? <p className="text-center text-gray-400 py-10 text-sm">No suppliers found</p>
             : (
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
@@ -121,9 +122,9 @@ export function Suppliers() {
                       </td>
                       <td className="px-4 py-2.5">
                         <div className="flex gap-1">
-                          <button onClick={() => navigate(`/suppliers/${item.id}`)} className="p-1.5 rounded-lg text-violet-500 bg-violet-50 hover:bg-violet-100 dark:text-violet-400 dark:bg-violet-500/10 dark:hover:bg-violet-500/20 transition-colors"><Eye size={14} /></button>
-                          <button onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
-                          <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
+                          <button onClick={() => navigate(`/suppliers/${item.id}`)} className="p-1.5 rounded-md text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:text-gray-400 dark:hover:text-primary-400 dark:hover:bg-primary-500/10 transition-colors"><Eye size={14} /></button>
+                          <button onClick={() => { setForm(item); setModal({ mode: 'edit', item }); }} className="p-1.5 rounded-md text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:text-gray-400 dark:hover:text-primary-400 dark:hover:bg-primary-500/10 transition-colors"><Pencil size={14} /></button>
+                          <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-colors"><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>
@@ -198,7 +199,7 @@ export function Suppliers() {
       <ConfirmDialog open={!!confirm} title="Delete Supplier" message="Delete this supplier?" variant="danger" confirmLabel="Delete" onConfirm={del} onCancel={() => setConfirm(null)} />
       {csvImportResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-5 space-y-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-4 space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Import Results</h2>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div><p className="font-medium text-gray-700 dark:text-gray-300">Imported</p><p className="text-2xl font-bold text-green-600">{csvImportResult.imported}</p></div>

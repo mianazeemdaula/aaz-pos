@@ -1,6 +1,6 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { X, KeyRound, Eye, EyeOff, AlertCircle, Check } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { apiClient } from '../../services/api';
 import { API_ENDPOINTS } from '../../config/api';
 import { AutoBackupOnClose } from './AutoBackupOnClose';
@@ -40,8 +40,8 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
 
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={handleClose}>
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-750 w-full max-w-sm mx-4 p-6" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl border border-gray-200 dark:border-gray-750 w-full max-w-sm mx-4 p-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <KeyRound size={16} className="text-primary-600" />
             <h3 className="font-semibold text-sm text-gray-900 dark:text-gray-100">Change Password</h3>
@@ -98,15 +98,27 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
   );
 }
 
+/** Till screens: the cart takes the whole window, so the workspace inset shrinks. */
+const TILL_PATHS = ['/sale', '/purchase'];
+
 export function MainLayout() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const { pathname } = useLocation();
+  const isTill = TILL_PATHS.includes(pathname);
+
+  // The compact desktop scale (App.css → html.app-density) belongs to the
+  // signed-in workspace only; the landing page and login keep the web scale.
+  useEffect(() => {
+    document.documentElement.classList.add('app-density');
+    return () => document.documentElement.classList.remove('app-density');
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-950">
       <TopNav onChangePassword={() => setChangePasswordOpen(true)} />
 
       {/* The workspace takes the whole window width now that the sidebar is gone. */}
-      <main className="flex-1 w-full px-4 py-4 lg:px-5 lg:py-4">
+      <main className={`app-main flex-1 w-full ${isTill ? 'p-1.5' : 'px-4 py-3'}`}>
         <Outlet />
       </main>
 

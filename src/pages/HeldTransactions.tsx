@@ -41,11 +41,11 @@ export function HeldTransactions() {
   };
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Held Transactions</h1>
+    <div className="space-y-3">
+      <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Held Transactions</h1>
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        {loading ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
-          : items.length === 0 ? <p className="text-center text-gray-400 py-12 text-sm">No held transactions</p>
+        {loading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+          : items.length === 0 ? <p className="text-center text-gray-400 py-10 text-sm">No held transactions</p>
             : (
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
@@ -69,7 +69,7 @@ export function HeldTransactions() {
                         <td className="px-4 py-2.5">
                           <div className="flex gap-1">
                             <button onClick={() => resume(item.id)} className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"><Play size={12} /> Resume</button>
-                            <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
+                            <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-colors"><Trash2 size={14} /></button>
                           </div>
                         </td>
                       </tr>

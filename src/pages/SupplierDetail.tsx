@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { listPath } from '../hooks/useListParams';
 import { ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { supplierService } from '../services/pos.service';
 import { formatPhone } from '../utils/formatters';
@@ -27,10 +28,10 @@ export function SupplierDetail() {
   if (!supplier) return null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center gap-3">
-        <Link to="/suppliers" className="text-gray-400 hover:text-gray-600"><ArrowLeft size={18} /></Link>
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">{supplier.name}</h1>
+        <Link to={listPath('/suppliers')} className="text-gray-400 hover:text-gray-600"><ArrowLeft size={18} /></Link>
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">{supplier.name}</h1>
         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ml-auto ${supplier.balance > 0 ? 'bg-amber-100 text-amber-700' : supplier.balance < 0 ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
           {supplier.balance > 0 ? `Payable ${fmt(supplier.balance)}` : supplier.balance < 0 ? `Advance ${fmt(Math.abs(supplier.balance))}` : 'Clear'}
         </span>

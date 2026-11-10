@@ -15,34 +15,55 @@ const fmt = (n: number) => `Rs ${n.toLocaleString('en-PK', { minimumFractionDigi
 const fmtK = (n: number) => n >= 1_000_000 ? `Rs ${(n / 1_000_000).toFixed(0)}M` : n >= 1_000 ? `Rs ${(n / 1_000).toFixed(0)}K` : `Rs ${(n).toFixed(0)}`;
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
+type Tone = 'primary' | 'green' | 'red' | 'amber' | 'gray';
+
+const TONE_CHIP: Record<Tone, string> = {
+  primary: 'bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400',
+  green: 'bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400',
+  red: 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400',
+  amber: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400',
+  gray: 'bg-gray-100 text-gray-500 dark:bg-gray-700/60 dark:text-gray-300',
+};
+
+/**
+ * A neutral tile: the figure is the content, colour only marks meaning (a loss,
+ * low stock). `invert` is for cost lines, where growth is the bad direction.
+ */
 function KPI({
-  label, value, sub, change, icon: Icon, gradient, iconBg,
+  label, value, sub, change, icon: Icon, tone = 'gray', valueTone, invert = false,
 }: {
   label: string;
   value: string;
   sub?: string;
   change?: number | null;
   icon: React.FC<{ size?: number; className?: string }>;
-  gradient: string;
-  iconBg: string;
+  tone?: Tone;
+  valueTone?: 'green' | 'red';
+  invert?: boolean;
 }) {
+  const good = change != null && (invert ? change <= 0 : change >= 0);
   return (
-    <div className={`rounded-xl p-4 ${gradient} relative overflow-hidden`}>
-      <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 80% 20%, white 0%, transparent 60%)' }} />
-      <div className="relative">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-medium text-white/80 truncate">{label}</p>
-          <div className={`w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center`}>
-            <Icon size={15} className="text-white" />
-          </div>
-        </div>
-        <p className="text-xl font-extrabold text-white leading-tight">{value}</p>
-        {sub && <p className="text-xs text-white/70 mt-0.5">{sub}</p>}
+    <div className="rounded-lg border border-gray-200 dark:border-gray-750 bg-white dark:bg-gray-900 px-3.5 py-3 shadow-[var(--shadow-xs)]">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400 truncate">{label}</p>
+        <span className={`w-7 h-7 rounded-md grid place-items-center shrink-0 ${TONE_CHIP[tone]}`}>
+          <Icon size={14} />
+        </span>
+      </div>
+      <p className={`mt-1 text-xl font-semibold tracking-tight leading-tight tabular-nums ${
+        valueTone === 'red' ? 'text-red-600 dark:text-red-400'
+          : valueTone === 'green' ? 'text-green-600 dark:text-green-400'
+            : 'text-gray-900 dark:text-gray-50'}`}>
+        {value}
+      </p>
+      <div className="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 min-h-4">
+        {sub && <span className="truncate">{sub}</span>}
         {change != null && (
-          <div className={`flex items-center gap-0.5 text-xs mt-1 font-semibold ${change >= 0 ? 'text-green-200' : 'text-red-200'}`}>
-            {change >= 0 ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
-            {Math.abs(change)}% vs last month
-          </div>
+          <span className={`inline-flex items-center gap-0.5 font-medium shrink-0 ${good ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+            {change >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+            {Math.abs(change)}%
+            <span className="font-normal text-gray-400">vs last month</span>
+          </span>
         )}
       </div>
     </div>
@@ -117,8 +138,8 @@ export function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold bg-linear-to-r from-secondary-700 via-secondary-600 to-primary-600 bg-clip-text text-transparent">Dashboard</h1>
-          <p className="text-xs text-gray-400 mt-0.5">{new Date().toLocaleDateString('en-PK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Dashboard</h1>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{new Date().toLocaleDateString('en-PK', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
         </div>
         {(pendingReturns ?? 0) > 0 && (
           <div className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700 rounded-lg font-medium">
@@ -132,60 +153,47 @@ export function Dashboard() {
         <KPI label="Today Sales" value={fmt(today?.salesTotal ?? 0)}
           sub={`${today?.salesCount ?? 0} orders`}
           change={today?.vsYesterday?.salesGrowth ?? null}
-          icon={ShoppingCart}
-          gradient="bg-linear-to-br from-secondary-700 to-secondary-800"
-          iconBg="bg-white/20" />
+          icon={ShoppingCart} tone="primary" />
         <KPI label="Month Sales" value={fmt(thisMonth?.salesTotal ?? 0)}
           sub={`${thisMonth?.salesCount ?? 0} orders`}
           change={changes?.salesGrowth ?? null}
-          icon={TrendingUp}
-          gradient="bg-linear-to-br from-primary-500 to-primary-700"
-          iconBg="bg-white/20" />
+          icon={TrendingUp} tone="primary" />
         <KPI label="Month Purchases" value={fmt(thisMonth?.purchasesTotal ?? 0)}
           sub={`${thisMonth?.purchasesCount ?? 0} orders`}
           change={changes?.purchasesChange ?? null}
-          icon={ShoppingBag}
-          gradient="bg-linear-to-br from-secondary-600 to-secondary-700"
-          iconBg="bg-white/20" />
+          icon={ShoppingBag} invert />
         <KPI label="Net Profit" value={fmt(thisMonth?.netProfit ?? 0)}
           sub={`COGS ${fmt(thisMonth?.cogs ?? 0)}`}
-          icon={thisMonth?.netProfit && thisMonth.netProfit >= 0 ? TrendingUp : TrendingDown}
-          gradient={(thisMonth?.netProfit ?? 0) >= 0 ? 'bg-linear-to-br from-emerald-500 to-green-600' : 'bg-linear-to-br from-red-500 to-rose-600'}
-          iconBg="bg-white/20" />
+          icon={(thisMonth?.netProfit ?? 0) >= 0 ? TrendingUp : TrendingDown}
+          tone={(thisMonth?.netProfit ?? 0) >= 0 ? 'green' : 'red'}
+          valueTone={(thisMonth?.netProfit ?? 0) >= 0 ? 'green' : 'red'} />
       </div>
 
       {/* Secondary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KPI label="Inventory Products" value={(inventory?.totalProducts ?? 0).toString()}
           sub={`Value ${fmtK(inventory?.totalInventoryValue ?? 0)}`}
-          icon={Package}
-          gradient="bg-linear-to-br from-secondary-500 to-secondary-700"
-          iconBg="bg-white/20" />
+          icon={Package} />
         <KPI label="Low / Out of Stock" value={`${inventory?.lowStockCount ?? 0} / ${inventory?.outOfStockCount ?? 0}`}
           icon={AlertCircle}
-          gradient={(inventory?.lowStockCount ?? 0) > 0 ? 'bg-linear-to-br from-amber-500 to-orange-500' : 'bg-linear-to-br from-gray-500 to-gray-600'}
-          iconBg="bg-white/20" />
+          tone={(inventory?.lowStockCount ?? 0) + (inventory?.outOfStockCount ?? 0) > 0 ? 'amber' : 'gray'} />
         <KPI label="Customers" value={(customers?.total ?? 0).toString()}
           sub={`${customers?.newThisMonth ?? 0} new this month`}
-          icon={Users}
-          gradient="bg-linear-to-br from-primary-400 to-primary-600"
-          iconBg="bg-white/20" />
+          icon={Users} />
         <KPI label="Expenses" value={fmt(thisMonth?.expensesTotal ?? 0)}
           sub={`${thisMonth?.expensesCount ?? 0} entries`}
           change={changes?.expensesChange ?? null}
-          icon={TrendingDown}
-          gradient="bg-linear-to-br from-rose-500 to-red-600"
-          iconBg="bg-white/20" />
+          icon={TrendingDown} invert />
       </div>
 
       {/* Chart */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100">Revenue Trend</h2>
-          <div className="flex gap-1">
+          <div className="inline-flex p-0.5 rounded-md bg-gray-100 dark:bg-gray-800">
             {(['daily', 'monthly'] as const).map(v => (
               <button key={v} onClick={() => setChartView(v)}
-                className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-colors ${chartView === v ? 'bg-primary-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                className={`px-2.5 py-0.5 text-xs rounded font-medium transition-colors ${chartView === v ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-[var(--shadow-sm)]' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}>
                 {v === 'daily' ? '7 Days' : '12 Months'}
               </button>
             ))}
@@ -195,22 +203,22 @@ export function Dashboard() {
           <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="gSales" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#0f766e" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#0f766e" stopOpacity={0} />
+                <stop offset="5%" stopColor="#2f5bea" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#2f5bea" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="gPurchases" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#281c59" stopOpacity={0.2} />
-                <stop offset="95%" stopColor="#281c59" stopOpacity={0} />
+                <stop offset="5%" stopColor="#5d7288" stopOpacity={0.2} />
+                <stop offset="95%" stopColor="#5d7288" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" className="dark:stroke-gray-700" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#e3e8ee" className="dark:stroke-gray-700" />
             <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
             <YAxis tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v} />
             <Tooltip content={<ChartTip />} />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-            <Area type="monotone" dataKey="Sales" stroke="#0f766e" strokeWidth={2} fill="url(#gSales)" dot={false} />
-            <Area type="monotone" dataKey="Purchases" stroke="#281c59" strokeWidth={2} fill="url(#gPurchases)" dot={false} />
-            <Area type="monotone" dataKey="Expenses" stroke="#ef4444" strokeWidth={1.5} fill="none" dot={false} />
+            <Area type="monotone" dataKey="Sales" stroke="#2f5bea" strokeWidth={2} fill="url(#gSales)" dot={false} />
+            <Area type="monotone" dataKey="Purchases" stroke="#5d7288" strokeWidth={2} fill="url(#gPurchases)" dot={false} />
+            <Area type="monotone" dataKey="Expenses" stroke="#d13b33" strokeWidth={1.5} fill="none" dot={false} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -258,7 +266,7 @@ export function Dashboard() {
         {/* Top Products */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
           <h2 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-1.5">
-            <Star size={13} className="text-amber-400" /> Top Products
+            <Star size={13} className="text-gray-400" /> Top Products
           </h2>
           {(topProducts?.length ?? 0) === 0 ? (
             <p className="text-xs text-gray-400 text-center py-6">No data</p>

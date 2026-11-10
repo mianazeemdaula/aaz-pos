@@ -144,6 +144,7 @@ export const purchaseService = {
   list: (params?: object) => apiClient.get<PaginatedResponse<Purchase>>(API_ENDPOINTS.purchases.list, { params }),
   get: (id: number) => apiClient.get<Purchase>(API_ENDPOINTS.purchases.detail(id)),
   create: (data: object) => apiClient.post<Purchase>(API_ENDPOINTS.purchases.create, data),
+  update: (id: number, data: object) => apiClient.put<Purchase>(API_ENDPOINTS.purchases.update(id), data),
   delete: (id: number) => apiClient.delete(API_ENDPOINTS.purchases.delete(id)),
 };
 

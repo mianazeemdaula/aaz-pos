@@ -2,6 +2,9 @@ import { describe, it, expect } from 'vitest';
 
 import {
   hasAnyReturnLine,
+  parseDiscountType,
+  signedPaymentAmount,
+  validateRefundSettlement,
   isReturnLine,
   resolveParentSaleId,
   maxInvoiceDiscount,
@@ -373,5 +376,44 @@ describe('Max Cashier Discount Limit: reading the stored value', () => {
     for (const v of [undefined, null, '', 'abc', -5, NaN]) {
       expect(parseDiscountLimit(v), String(v)).toBeNull();
     }
+  });
+});
+
+describe('refund settlement (cart nets negative)', () => {
+  it('sends refund amounts as negative payments and sale amounts unchanged', () => {
+    expect(signedPaymentAmount(300, true)).toBe(-300);
+    expect(signedPaymentAmount(300, false)).toBe(300);
+  });
+
+  it('accepts a walk-in refund paid in full', () => {
+    expect(validateRefundSettlement({ refundDue: 300, refunded: 300, hasCustomer: false })).toBeNull();
+  });
+
+  it('asks a walk-in to enter the refund', () => {
+    expect(validateRefundSettlement({ refundDue: 300, refunded: 0, hasCustomer: false })).toMatch(/Rs 300\.00 refund/);
+    expect(validateRefundSettlement({ refundDue: 300, refunded: 100, hasCustomer: false })).toMatch(/Rs 300\.00 refund/);
+  });
+
+  it('lets a known customer take part or all of the refund as credit', () => {
+    expect(validateRefundSettlement({ refundDue: 300, refunded: 100, hasCustomer: true })).toBeNull();
+    expect(validateRefundSettlement({ refundDue: 300, refunded: 0, hasCustomer: true })).toBeNull();
+  });
+
+  it('never refunds more than is owed', () => {
+    expect(validateRefundSettlement({ refundDue: 300, refunded: 301, hasCustomer: true })).toMatch(/cannot exceed/);
+  });
+});
+
+describe('default discount type setting', () => {
+  it('accepts the two known values', () => {
+    expect(parseDiscountType('PERCENTAGE', 'FIXED')).toBe('PERCENTAGE');
+    expect(parseDiscountType('FIXED', 'PERCENTAGE')).toBe('FIXED');
+  });
+
+  it('falls back when the setting is unset or unrecognised', () => {
+    expect(parseDiscountType(undefined, 'PERCENTAGE')).toBe('PERCENTAGE');
+    expect(parseDiscountType('', 'FIXED')).toBe('FIXED');
+    expect(parseDiscountType('percent', 'FIXED')).toBe('FIXED');
+    expect(parseDiscountType(true, 'PERCENTAGE')).toBe('PERCENTAGE');
   });
 });

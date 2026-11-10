@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useListParams } from '../hooks/useListParams';
 import { Plus, Pencil, Trash2, Loader2, Package, ChevronDown, ChevronUp, ListPlus } from 'lucide-react';
 import { promotionService } from '../services/pos.service';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -20,7 +21,7 @@ export function Promotions() {
   const navigate = useNavigate();
   const [items, setItems] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
+  const { page, setPage } = useListParams('/promotions');
   const [total, setTotal] = useState(0);
   const [confirm, setConfirm] = useState<{ id: number } | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -45,9 +46,9 @@ export function Promotions() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Promotions</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Promotions</h1>
         <button onClick={() => navigate('/promotions/new')}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
           <Plus size={14} /> Add Promotion
@@ -55,8 +56,8 @@ export function Promotions() {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-        {loading ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
-          : items.length === 0 ? <p className="text-center text-gray-400 py-12 text-sm">No promotions yet</p>
+        {loading ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+          : items.length === 0 ? <p className="text-center text-gray-400 py-10 text-sm">No promotions yet</p>
             : (
               <table className="w-full text-sm">
                 <thead><tr className="border-b border-gray-200 dark:border-gray-700 text-left text-xs text-gray-500">
@@ -97,11 +98,11 @@ export function Promotions() {
                               </span>
                               <div className="flex gap-1 justify-end">
                                 <button onClick={() => navigate(`/promotions/${item.id}/items`)} title="Manage Items"
-                                  className="p-1.5 rounded-lg text-emerald-500 bg-emerald-50 hover:bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 transition-colors"><ListPlus size={14} /></button>
+                                  className="p-1.5 rounded-md text-gray-500 hover:text-green-600 hover:bg-green-50 dark:text-gray-400 dark:hover:text-green-400 dark:hover:bg-green-500/10 transition-colors"><ListPlus size={14} /></button>
                                 <button onClick={() => navigate(`/promotions/${item.id}/edit`)} title="Edit"
-                                  className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
+                                  className="p-1.5 rounded-md text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:text-gray-400 dark:hover:text-primary-400 dark:hover:bg-primary-500/10 transition-colors"><Pencil size={14} /></button>
                                 <button onClick={() => setConfirm({ id: item.id })} title="Delete"
-                                  className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
+                                  className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-colors"><Trash2 size={14} /></button>
                               </div>
                             </div>
                           </div>

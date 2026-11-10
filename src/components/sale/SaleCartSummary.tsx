@@ -45,13 +45,17 @@ export function SaleCartSummary({
 }: SaleCartSummaryProps) {
     if (cart.length === 0) return null;
 
-    const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+    // Sold and returned units are counted apart: on an exchange they would
+    // otherwise cancel out and the tally would read "Qty 0".
+    const soldQty = cart.reduce((sum, item) => sum + Math.max(0, item.qty), 0);
+    const returnedQty = cart.reduce((sum, item) => sum + Math.max(0, -item.qty), 0);
     const discountTotal = itemDiscountTotal + invoiceDiscount;
 
     return (
-        <div className="shrink-0 flex flex-wrap items-center gap-x-4 gap-y-0.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-750 px-3 py-1.5 text-[11px] leading-snug">
-            <Stat label="Items" value={String(cart.length)} />
-            <Stat label="Qty" value={qtyLabel(totalQty)} />
+        <div className="shrink-0 flex flex-wrap items-center gap-x-5 gap-y-0.5 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-2 py-1 text-xs leading-snug">
+            <Stat label="Lines" value={String(cart.length)} />
+            {soldQty > 0 && <Stat label="Qty" value={qtyLabel(soldQty)} />}
+            {returnedQty > 0 && <Stat label="Returned" value={qtyLabel(returnedQty)} tone="negative" />}
             <Stat label="Subtotal" value={fmt(subtotal)} />
             {discountTotal > 0 && <Stat label="Discount" value={`−${fmt(discountTotal)}`} tone="negative" />}
             {taxTotal > 0 && <Stat label="Tax" value={fmt(taxTotal)} />}
@@ -60,7 +64,7 @@ export function SaleCartSummary({
                 <span className="text-[10px] uppercase tracking-wide text-gray-400">
                     {isReturnCart ? 'Refund' : 'Total'}
                 </span>
-                <span className={`text-sm font-bold tabular-nums tracking-tight ${isReturnCart
+                <span className={`text-base font-semibold tabular-nums tracking-tight ${isReturnCart
                     ? 'text-red-600 dark:text-red-500'
                     : 'text-gray-900 dark:text-gray-100'}`}>
                     {fmt(grandTotal)}

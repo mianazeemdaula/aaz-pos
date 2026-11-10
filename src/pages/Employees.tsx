@@ -156,9 +156,9 @@ export function Employees() {
   const f = (key: keyof EmployeeForm, val: unknown) => setForm(p => ({ ...p, [key]: val }));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Employees</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Employees</h1>
         <button onClick={openAdd}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
           <Plus size={14} /> Add Employee
@@ -179,9 +179,9 @@ export function Employees() {
         </div>
 
         {loading
-          ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+          ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
           : items.length === 0
-            ? <p className="text-center text-gray-400 py-12 text-sm">No employees found</p>
+            ? <p className="text-center text-gray-400 py-10 text-sm">No employees found</p>
             : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -217,7 +217,7 @@ export function Employees() {
                           </td>
                           <td className="px-4 py-2.5">
                             <div className="flex gap-1 items-center">
-                              <button onClick={() => openAdvances(item)} title="Advances" className="relative p-1.5 rounded-lg text-gray-500 bg-gray-50 hover:bg-gray-100 dark:text-gray-400 dark:bg-gray-500/10 dark:hover:bg-gray-500/20 transition-colors">
+                              <button onClick={() => openAdvances(item)} title="Advances" className="relative p-1.5 rounded-md text-gray-500 hover:text-gray-800 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-100 dark:hover:bg-gray-700/60 transition-colors">
                                 <Banknote size={14} />
                                 {item.pendingAdvancesCount && item.pendingAdvancesCount > 0 ? (
                                   <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white ring-1 ring-white dark:ring-gray-800">
@@ -225,8 +225,8 @@ export function Employees() {
                                   </span>
                                 ) : null}
                               </button>
-                              <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
-                              <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
+                              <button onClick={() => openEdit(item)} className="p-1.5 rounded-md text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:text-gray-400 dark:hover:text-primary-400 dark:hover:bg-primary-500/10 transition-colors"><Pencil size={14} /></button>
+                              <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-colors"><Trash2 size={14} /></button>
                             </div>
                           </td>
                         </tr>
@@ -350,7 +350,7 @@ export function Employees() {
         {advLoading ? (
           <div className="flex justify-center py-8"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-sm items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 text-sm items-start">
             {/* Left Column: Give Advance Form */}
             <div className="lg:col-span-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-4 border border-gray-100 dark:border-gray-800">
               <p className="text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Give Advance</p>

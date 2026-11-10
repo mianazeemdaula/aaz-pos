@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { listPath } from '../hooks/useListParams';
 import { ArrowLeft, Loader2, Search, X, Package, Save, Filter, CheckSquare } from 'lucide-react';
 import { promotionService, productService, brandService, categoryService } from '../services/pos.service';
 import type { Promotion, Product, ProductVariant, Brand, Category } from '../types/pos';
@@ -43,7 +44,7 @@ export function PromotionItems() {
         promotionService.get(promoId).then(promo => {
             setPromotion(promo);
             setSelectedVariantIds(promo.promotionItems?.map(pi => pi.variantId) ?? []);
-        }).catch(() => navigate('/promotions'))
+        }).catch(() => navigate(listPath('/promotions')))
             .finally(() => setLoading(false));
     }, [promoId, navigate]);
 
@@ -126,7 +127,7 @@ export function PromotionItems() {
         setSaving(true);
         try {
             await promotionService.update(promoId, { variantIds: selectedVariantIds });
-            navigate('/promotions');
+            navigate(listPath('/promotions'));
         } catch (e: unknown) { alert(e instanceof Error ? e.message : 'Error'); }
         finally { setSaving(false); }
     };
@@ -142,15 +143,15 @@ export function PromotionItems() {
     if (!promotion) return null;
 
     return (
-        <div className="space-y-6 pb-8">
+        <div className="space-y-4 pb-8">
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/promotions')}
+                    <button onClick={() => navigate(listPath('/promotions'))}
                         className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
                         <ArrowLeft size={18} />
                     </button>
                     <div>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
                             Add Items to Offer
                         </h1>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -160,7 +161,7 @@ export function PromotionItems() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => navigate('/promotions')}
+                    <button onClick={() => navigate(listPath('/promotions'))}
                         className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                         Cancel
                     </button>

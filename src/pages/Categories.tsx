@@ -142,8 +142,8 @@ export function Categories() {
           <td className="px-4 py-2.5 text-sm text-gray-500">{item._count?.products ?? 0}</td>
           <td className="px-4 py-2.5">
             <div className="flex gap-1">
-              <button onClick={() => openEdit(item)} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={14} /></button>
-              <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>
+              <button onClick={() => openEdit(item)} className="p-1.5 rounded-md text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:text-gray-400 dark:hover:text-primary-400 dark:hover:bg-primary-500/10 transition-colors"><Pencil size={14} /></button>
+              <button onClick={() => setConfirm({ id: item.id })} className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-colors"><Trash2 size={14} /></button>
             </div>
           </td>
         </tr>,
@@ -154,9 +154,9 @@ export function Categories() {
   const isEmpty = q.trim() ? searchResults.length === 0 : roots.length === 0;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Categories</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Categories</h1>
         <div className="flex items-center gap-2">
           <input ref={csvFileInputRef} type="file" accept=".csv" onChange={handleCsvImport} className="hidden" />
           <button onClick={handleExport} disabled={exporting}
@@ -184,9 +184,9 @@ export function Categories() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+          <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
         ) : isEmpty ? (
-          <div className="py-16 text-center text-gray-400">
+          <div className="py-10 text-center text-gray-400">
             <Tag size={32} className="mx-auto mb-2 opacity-50" />
             <p className="text-sm">No categories found</p>
           </div>
@@ -250,7 +250,7 @@ export function Categories() {
         variant="danger" confirmLabel="Delete" onConfirm={del} onCancel={() => setConfirm(null)} />
       {csvImportResult && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-5 space-y-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-md w-full mx-4 p-4 space-y-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Import Results</h2>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div><p className="font-medium text-gray-700 dark:text-gray-300">Imported</p><p className="text-2xl font-bold text-green-600">{csvImportResult.imported}</p></div>

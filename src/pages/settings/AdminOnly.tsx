@@ -15,7 +15,7 @@ export function AdminOnly() {
   return (
     <div>
       <SettingsHeader />
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 max-w-md mx-auto my-6 text-center space-y-2 shadow-sm">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 max-w-md mx-auto my-6 text-center space-y-2 shadow-sm">
         <div className="w-9 h-9 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mx-auto">
           <ShieldAlert size={18} />
         </div>

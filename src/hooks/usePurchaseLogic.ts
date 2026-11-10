@@ -1,13 +1,79 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { purchaseService, heldService, productService, accountService } from '../services/pos.service';
 import { useSaleSettings } from '../hooks/useSaleSettings';
-import type { Product, ProductVariant, Supplier, HeldPurchase, Account } from '../types/pos';
+import type { Product, ProductVariant, Supplier, HeldPurchase, Account, Purchase } from '../types/pos';
 import type { PurchaseInvoiceData } from '../utils/invoices';
 import type { CartItem, DiscountType } from '../components/purchase/types';
 import { getDiscountAmount, parseError, loadDraft, saveDraft, clearDraft, round2 } from '../components/purchase/types';
 
+/**
+ * Rebuild the cart from a saved purchase. Items are stored in base units at base-unit
+ * cost, so each line is matched back to the pack/variant it was entered in (the one whose
+ * factor reproduces the stored cost); that keeps the bill's totals exact to the paisa.
+ */
+function purchaseToCart(p: Purchase): CartItem[] {
+  return (p.items ?? [])
+    .filter(i => i.quantity > 0 && i.product)
+    .map(i => {
+      const product = i.product!;
+      const variants = product.variants ?? [];
+      const tax = i.taxAmount ?? 0;
+      const sellingPrice = i.sellingPrice ?? 0;
+
+      const candidates = variants
+        .map(v => {
+          const factor = v.factor || 1;
+          if (i.quantity % factor !== 0) return null;
+          const qty = i.quantity / factor;
+          const unitCost = round2(((i.totalCost ?? i.unitCost * i.quantity) - tax) / qty + (i.discount ?? 0));
+          return Math.abs(round2(unitCost / factor) - i.unitCost) <= 0.01 ? { v, qty, unitCost } : null;
+        })
+        .filter((c): c is { v: ProductVariant; qty: number; unitCost: number } => c !== null);
+
+      const match =
+        candidates.find(c => sellingPrice > 0 && round2(c.v.price) === round2(sellingPrice)) ??
+        candidates.find(c => (c.v.factor || 1) === 1) ??
+        candidates[0];
+
+      if (match) {
+        return {
+          product,
+          variant: { ...match.v, product },
+          qty: match.qty,
+          unitCost: match.unitCost,
+          totalCost: round2(match.qty * match.unitCost),
+          discount: i.discount ?? 0,
+          discountType: 'FIXED' as DiscountType,
+          unitRate: sellingPrice,
+        };
+      }
+
+      // No variant reproduces the stored cost: show it in base units with the discount folded per unit.
+      const base = variants.find(v => (v.factor || 1) === 1) ?? variants[0];
+      const gross = round2(i.unitCost * i.quantity);
+      const fallbackVariant: ProductVariant = base ?? {
+        id: 0, productId: product.id, name: 'unit', barcode: '', price: 0,
+        retail: null, wholesale: null, factor: 1, isDefault: true,
+      };
+      return {
+        product,
+        variant: { ...fallbackVariant, product },
+        qty: i.quantity,
+        unitCost: i.unitCost,
+        totalCost: gross,
+        discount: round2(Math.max(0, gross + tax - (i.totalCost ?? gross)) / i.quantity),
+        discountType: 'FIXED' as DiscountType,
+        unitRate: sellingPrice,
+      };
+    });
+}
+
 export function usePurchaseLogic() {
+  // On /purchase/:id/edit the screen edits a saved purchase instead of creating one.
+  const { id: editParam } = useParams();
+  const editId = editParam ? Number(editParam) : null;
+  const [editLoading, setEditLoading] = useState(editId !== null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [showQuickSupplier, setShowQuickSupplier] = useState(false);
@@ -35,7 +101,7 @@ export function usePurchaseLogic() {
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [pendingPrintData, setPendingPrintData] = useState<PurchaseInvoiceData | null>(null);
 
-  const { allowPriceChange, allowDiscountTypeSwitch } = useSaleSettings();
+  const { allowPriceChange, allowDiscountTypeSwitch, purchaseDefaultDiscountType } = useSaleSettings();
 
   // Refs
   const barcodeRef = useRef<HTMLInputElement>(null);
@@ -107,8 +173,46 @@ export function usePurchaseLogic() {
     setTimeout(() => setToast(null), 4000);
   }, []);
 
-  // Load draft from localStorage on mount
+  // Load the purchase being edited
   useEffect(() => {
+    if (editId === null) return;
+    let cancelled = false;
+    setEditLoading(true);
+    purchaseService
+      .get(editId)
+      .then(p => {
+        if (cancelled) return;
+        if (p.parentPurchaseId || p.totalAmount < 0) {
+          showToast('error', 'Purchase returns cannot be edited');
+          return;
+        }
+        setCart(purchaseToCart(p));
+        setSupplier(p.supplier ?? null);
+        setRefNo(p.invoiceNo ?? '');
+        setNote(p.note ?? '');
+        setInvoiceDiscount(p.discount ?? 0);
+        setInvoiceTax(p.taxAmount ?? 0);
+        setInvoiceExpenses(p.expenses ?? 0);
+        const amounts: Record<number, string> = {};
+        for (const pay of p.payments ?? []) {
+          amounts[pay.accountId] = String(round2((parseFloat(amounts[pay.accountId] ?? '0') || 0) + pay.amount));
+        }
+        setAccountAmounts(amounts);
+      })
+      .catch(e => {
+        if (!cancelled) showToast('error', parseError(e, 'Failed to load purchase'));
+      })
+      .finally(() => {
+        if (!cancelled) setEditLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editId, showToast]);
+
+  // Load draft from localStorage on mount (a new purchase only; editing never touches the draft)
+  useEffect(() => {
+    if (editId !== null) return;
     const draft = loadDraft();
     if (!draft?.cart?.length) return;
     setCart(
@@ -125,12 +229,13 @@ export function usePurchaseLogic() {
     setInvoiceDiscount(draft.invoiceDiscount ?? 0);
     setInvoiceTax(draft.invoiceTax ?? 0);
     setInvoiceExpenses(draft.invoiceExpenses ?? 0);
-  }, []);
+  }, [editId]);
 
   // Save draft on every change
   useEffect(() => {
+    if (editId !== null) return;
     saveDraft({ cart, supplier, note, refNo, accountAmounts, invoiceDiscount, invoiceTax, invoiceExpenses });
-  }, [cart, supplier, note, refNo, accountAmounts, invoiceDiscount, invoiceTax, invoiceExpenses]);
+  }, [editId, cart, supplier, note, refNo, accountAmounts, invoiceDiscount, invoiceTax, invoiceExpenses]);
 
   // beforeunload warning
   useEffect(() => {
@@ -161,11 +266,12 @@ export function usePurchaseLogic() {
     setCart(prev => {
       const idx = prev.findIndex(i => i.variant.id === v.id);
       if (idx >= 0) {
-        const next = [...prev];
-        const cur = next[idx];
+        // A re-scan bumps the quantity AND moves the line to the top, so the
+        // item just scanned is always the first row (and the one F3 edits).
+        const cur = prev[idx];
         const newQty = cur.qty + 1;
-        next[idx] = { ...cur, qty: newQty, totalCost: round2(newQty * cur.unitCost) };
-        return next;
+        const bumped = { ...cur, qty: newQty, totalCost: round2(newQty * cur.unitCost) };
+        return [bumped, ...prev.slice(0, idx), ...prev.slice(idx + 1)];
       }
       const sellingPrice = round2(v.price || 0);
       return [
@@ -176,20 +282,25 @@ export function usePurchaseLogic() {
           unitCost: costPerUnit,
           totalCost: costPerUnit,
           discount: 0,
-          discountType: 'FIXED' as DiscountType,
+          // New lines start with the type set in Settings → Sales & Inventory Rules.
+          discountType: purchaseDefaultDiscountType as DiscountType,
           unitRate: sellingPrice,
         },
         ...prev,
       ];
     });
-    setBarcode('');
+    // The scan field was already cleared on Enter (see handleBarcodeEnter);
+    // clearing it again here would wipe the next barcode being scanned.
     setTimeout(() => barcodeRef.current?.focus(), 30);
-  }, []);
+  }, [purchaseDefaultDiscountType]);
 
   const handleBarcodeEnter = useCallback(
     async (bc: string) => {
       const code = bc.trim();
       if (!code) return;
+      // Clear at once, before the lookup: a scanner types the next barcode while
+      // this one is still loading, and a late clear would erase it.
+      setBarcode('');
       setBarcodeLoading(true);
       setBarcodeError('');
       try {
@@ -361,9 +472,9 @@ export function usePurchaseLogic() {
     setInvoiceDiscount(0);
     setInvoiceTax(0);
     setInvoiceExpenses(0);
-    clearDraft();
+    if (editId === null) clearDraft();
     setTimeout(() => barcodeRef.current?.focus(), 30);
-  }, []);
+  }, [editId]);
 
   // Hold purchase
   const holdPurchase = useCallback(async () => {
@@ -524,6 +635,13 @@ export function usePurchaseLogic() {
     const paymentEntries = accounts
       .filter(a => (parseFloat(accountAmounts[a.id] || '0') || 0) > 0)
       .map(a => ({ accountId: a.id, amount: parseFloat(accountAmounts[a.id]) || 0 }));
+    // An edited purchase may have been paid from an account this screen does not list; keep it.
+    if (editId !== null) {
+      for (const [id, val] of Object.entries(accountAmounts)) {
+        const amount = parseFloat(val) || 0;
+        if (amount > 0 && !accounts.some(a => a.id === Number(id))) paymentEntries.push({ accountId: Number(id), amount });
+      }
+    }
 
     // When no supplier: only allow paying up to grand total
     if (!supplier && paidTotal > grandTotal + 0.01) {
@@ -531,15 +649,16 @@ export function usePurchaseLogic() {
     }
     setSaving(true);
     try {
-      const po = await purchaseService.create({
-        invoiceNo: refNo || undefined,
-        supplierId: supplier?.id,
+      // When editing, cleared fields are sent as null so the saved value is removed too.
+      const body = {
+        invoiceNo: refNo || (editId !== null ? null : undefined),
+        supplierId: supplier?.id ?? (editId !== null ? null : undefined),
         payments: paymentEntries,
         discount: invoiceDiscount,
         paidAmount: paidTotal,
         taxAmount: invoiceTax,
         expenses: invoiceExpenses,
-        note: note || undefined,
+        note: note || (editId !== null ? null : undefined),
         items: cart.map(i => {
           const unitCost = i.unitCost;
           const discAmt = getDiscountAmount(i);
@@ -556,7 +675,8 @@ export function usePurchaseLogic() {
             taxAmount: 0,
           };
         }),
-      });
+      };
+      const po = editId !== null ? await purchaseService.update(editId, body) : await purchaseService.create(body);
 
       const poTyped = po as { id: number; invoiceNo?: string };
       const printData: PurchaseInvoiceData = {
@@ -593,7 +713,7 @@ export function usePurchaseLogic() {
       };
 
       clearCart();
-      showToast('success', `Purchase #${poTyped.invoiceNo ?? poTyped.id} saved!`);
+      showToast('success', editId !== null ? `Purchase PO-${poTyped.id} updated` : `Purchase #${poTyped.invoiceNo ?? poTyped.id} saved!`);
       setPendingPrintData(printData);
       setShowPrintDialog(true);
     } catch (e) {
@@ -617,7 +737,11 @@ export function usePurchaseLogic() {
     showToast,
     itemNetTotal,
     itemDiscountTotal,
+    editId,
   ]);
+
+  // Leaving edit mode always goes back to the purchase history.
+  const exitEdit = useCallback(() => navigate('/purchase/returns'), [navigate]);
 
   // Stable refs
   submitRef.current = submit;
@@ -628,6 +752,8 @@ export function usePurchaseLogic() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (showProductModal || showHeldModal) return;
+      // Hold, held list and clear belong to a new purchase, not to editing a saved one.
+      if (editId !== null && (e.key === 'F8' || e.key === 'F9' || e.key === 'F12')) return;
       switch (e.key) {
         case 'F2':
           e.preventDefault();
@@ -668,9 +794,12 @@ export function usePurchaseLogic() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [showProductModal, showHeldModal]);
+  }, [showProductModal, showHeldModal, editId]);
 
   return {
+    editId,
+    editLoading,
+    exitEdit,
     cart,
     addProduct,
     supplier,

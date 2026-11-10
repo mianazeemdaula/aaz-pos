@@ -82,7 +82,7 @@ export function FolderPicker({ initialPath, onSelect, onClose }: FolderPickerPro
                 {/* Listing */}
                 <div className="flex-1 overflow-y-auto min-h-[220px]">
                     {loading ? (
-                        <div className="flex items-center justify-center py-16 text-gray-400">
+                        <div className="flex items-center justify-center py-10 text-gray-400">
                             <Loader2 size={20} className="animate-spin" />
                         </div>
                     ) : error ? (
@@ -90,7 +90,7 @@ export function FolderPicker({ initialPath, onSelect, onClose }: FolderPickerPro
                             <AlertCircle size={14} className="shrink-0 mt-px" /> {error}
                         </div>
                     ) : listing && listing.entries.length === 0 ? (
-                        <p className="text-center text-xs text-gray-400 py-16">No sub-folders here</p>
+                        <p className="text-center text-xs text-gray-400 py-10">No sub-folders here</p>
                     ) : (
                         <ul className="divide-y divide-gray-100 dark:divide-gray-700/50">
                             {listing?.entries.map(entry => (

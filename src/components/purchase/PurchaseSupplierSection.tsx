@@ -1,4 +1,5 @@
 import { SupplierSearch } from '../ui/SupplierSearch';
+import { PanelSection } from '../pos/PosKit';
 import type { Supplier } from '../../types/pos';
 
 interface PurchaseSupplierSectionProps {
@@ -17,22 +18,19 @@ export function PurchaseSupplierSection({
   onOpenQuickSupplier,
 }: PurchaseSupplierSectionProps) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 space-y-3">
-      <div>
-        <p className="text-xs font-semibold text-gray-500 uppercase mb-1">
-          Supplier <span className="normal-case font-normal text-gray-400">(optional)</span>
-        </p>
-        <SupplierSearch value={supplier} onSelect={setSupplier} onCreateNew={onOpenQuickSupplier} />
-      </div>
-      <div>
-        <label className="text-xs font-medium text-gray-600 dark:text-gray-400 block mb-1">Ref / Bill #</label>
+    <PanelSection title="Supplier">
+      <SupplierSearch value={supplier} onSelect={setSupplier} onCreateNew={onOpenQuickSupplier} />
+      {!supplier && <p className="mt-1.5 text-[11px] text-gray-400">No supplier: the purchase must be paid in full.</p>}
+
+      <label className="mt-3 flex items-center justify-between gap-3">
+        <span className="text-[13px] text-gray-700 dark:text-gray-300 whitespace-nowrap">Bill / Ref #</span>
         <input
           value={refNo}
           onChange={e => setRefNo(e.target.value)}
           placeholder="e.g. INV-001"
-          className="w-full px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-primary-500"
+          className="w-40 px-2.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 outline-none"
         />
-      </div>
-    </div>
+      </label>
+    </PanelSection>
   );
 }

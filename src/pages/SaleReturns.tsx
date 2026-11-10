@@ -4,6 +4,7 @@ import { saleService, accountService, userService } from '../services/pos.servic
 import { Pagination } from '../components/ui/Pagination';
 import { printSaleInvoice, type SaleInvoiceData } from '../utils/invoices';
 import type { Sale, Account, User } from '../types/pos';
+import { useAuth } from '../contexts/AuthContext';
 
 const fmt = (n: number) => `Rs ${Math.abs(n).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d: string | Date) => {
@@ -50,6 +51,10 @@ async function printSaleReceipt(saleId: number) {
 }
 
 export function SaleReturns() {
+  // Cost and profit are for admins only; other roles reach this screen via the
+  // Sale History permission and should not see margins.
+  const { user } = useAuth();
+  const showProfit = user?.role === 'ADMIN'; // the server also strips cost for other roles
   const [sales, setSales] = useState<Sale[]>([]);
   const [salesPage, setSalesPage] = useState(1);
   const [salesTotalPages, setSalesTotalPages] = useState(1);
@@ -251,7 +256,7 @@ export function SaleReturns() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {toast && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
           {toast.msg}
@@ -260,7 +265,7 @@ export function SaleReturns() {
       )}
 
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Sales History</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Sales History</h1>
       </div>
 
       <div className="space-y-3">
@@ -410,7 +415,7 @@ export function SaleReturns() {
                 </h3>
                 <button onClick={() => setViewSale(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
               </div>
-              <div className="overflow-y-auto p-5 space-y-4 flex-1">
+              <div className="overflow-y-auto p-4 space-y-4 flex-1">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><span className="text-gray-500">Date: </span>{new Date(viewSale.createdAt).toLocaleString()}</div>
                   <div><span className="text-gray-500">Customer: </span>{viewSale.customer?.name ?? 'Walk-in'}</div>
@@ -425,9 +430,9 @@ export function SaleReturns() {
                         <th className="text-left py-1">Product</th>
                         <th className="text-right py-1">Qty</th>
                         <th className="text-right py-1">Price</th>
-                        <th className="text-right py-1">Cost</th>
+                        {showProfit && <th className="text-right py-1">Cost</th>}
                         <th className="text-right py-1">Total</th>
-                        <th className="text-right py-1">Profit</th>
+                        {showProfit && <th className="text-right py-1">Profit</th>}
                       </tr></thead>
                       <tbody>
                         {(viewSale.items ?? []).map((item, i) => {
@@ -439,13 +444,15 @@ export function SaleReturns() {
                               <td className="py-1.5">{item.variant?.product?.name ?? `#${item.variant?.barcode}`}</td>
                               <td className={`py-1.5 text-right ${item.quantity < 0 ? 'text-orange-600 font-semibold' : ''}`}>{item.quantity}</td>
                               <td className="py-1.5 text-right">{fmt(item.unitPrice)}</td>
-                              <td className="py-1.5 text-right text-gray-500">{fmt(item.avgCostPrice ?? 0)}</td>
+                              {showProfit && <td className="py-1.5 text-right text-gray-500">{fmt(item.avgCostPrice ?? 0)}</td>}
                               <td className={`py-1.5 text-right font-medium ${(itemTotal) < 0 ? 'text-orange-600' : ''}`}>
                                 {fmt(itemTotal)}
                               </td>
-                              <td className={`py-1.5 text-right font-medium ${itemProfit < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                {fmt(itemProfit)}
-                              </td>
+                              {showProfit && (
+                                <td className={`py-1.5 text-right font-medium ${itemProfit < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                  {fmt(itemProfit)}
+                                </td>
+                              )}
                             </tr>
                           );
                         })}
@@ -453,13 +460,13 @@ export function SaleReturns() {
                     </table>
                   </div>
                 )}
-                <div className="grid grid-cols-4 gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm">
+                <div className={`grid ${showProfit ? 'grid-cols-4' : 'grid-cols-3'} gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm`}>
                   <div><p className="text-xs text-gray-500">{viewSale.totalAmount < 0 ? 'Refund' : 'Total'}</p>
                     <p className={`font-semibold ${viewSale.totalAmount < 0 ? 'text-orange-600' : ''}`}>{fmt(viewSale.totalAmount)}</p>
                   </div>
                   <div><p className="text-xs text-gray-500">Discount</p><p className="font-semibold text-orange-600">{fmt(viewSale.discount)}</p></div>
                   <div><p className="text-xs text-gray-500">Tax</p><p className="font-semibold">{fmt(viewSale.taxAmount)}</p></div>
-                  <div>
+                  {showProfit && <div>
                     <p className="text-xs text-gray-500">Profit</p>
                     <p className={`font-bold ${
                       (() => {
@@ -474,7 +481,7 @@ export function SaleReturns() {
                         return fmt(grossProfit);
                       })()}
                     </p>
-                  </div>
+                  </div>}
                 </div>
                 {(viewSale.payments ?? []).length > 0 && (
                   <div>
@@ -517,7 +524,7 @@ export function SaleReturns() {
                 </h3>
                 <button onClick={() => setReturnSale(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
               </div>
-              <div className="overflow-y-auto p-5 space-y-3 flex-1">
+              <div className="overflow-y-auto p-4 space-y-3 flex-1">
                 <p className="text-xs text-gray-500">Enter quantity to return (0 = skip):</p>
                 {returnItems.map((item, i) => (
                   <div key={i} className="flex items-center gap-3 py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">

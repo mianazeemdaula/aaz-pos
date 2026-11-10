@@ -212,7 +212,7 @@ export function Payments() {
         <div className="space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-2">
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-2">
                     <Wallet size={20} className="text-primary-500" />
                     Payments
                 </h1>
@@ -229,13 +229,13 @@ export function Payments() {
                     </div>
                     {tab === 'customer' && (
                         <button onClick={openCustModal}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors">
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg transition-colors">
                             <Plus size={14} /> New Payment
                         </button>
                     )}
                     {tab === 'supplier' && (
                         <button onClick={openSupModal}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition-colors">
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg transition-colors">
                             <Plus size={14} /> New Payment
                         </button>
                     )}
@@ -248,9 +248,9 @@ export function Payments() {
                     {/* Customer Payments Table */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                         {custLoading ? (
-                            <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+                            <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
                         ) : customerPayments.length === 0 ? (
-                            <p className="text-center text-gray-400 py-12 text-sm">No payments found</p>
+                            <p className="text-center text-gray-400 py-10 text-sm">No payments found</p>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
@@ -347,7 +347,7 @@ export function Payments() {
                             <div className="flex justify-end gap-2 pt-1">
                                 <button type="button" onClick={() => setCustModal(false)} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Cancel</button>
                                 <button type="button" onClick={saveCustPayment} disabled={custSaving}
-                                    className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-colors">
+                                    className="px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-colors">
                                     {custSaving && <Loader2 size={13} className="animate-spin" />} Save Payment
                                 </button>
                             </div>
@@ -362,9 +362,9 @@ export function Payments() {
                     {/* Supplier Payments Table */}
                     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                         {supLoading ? (
-                            <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+                            <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
                         ) : supplierPayments.length === 0 ? (
-                            <p className="text-center text-gray-400 py-12 text-sm">No payments found</p>
+                            <p className="text-center text-gray-400 py-10 text-sm">No payments found</p>
                         ) : (
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
@@ -461,7 +461,7 @@ export function Payments() {
                             <div className="flex justify-end gap-2 pt-1">
                                 <button type="button" onClick={() => setSupModal(false)} className="px-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">Cancel</button>
                                 <button type="button" onClick={saveSupPayment} disabled={supSaving}
-                                    className="px-4 py-2 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-colors">
+                                    className="px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-colors">
                                     {supSaving && <Loader2 size={13} className="animate-spin" />} Save Payment
                                 </button>
                             </div>

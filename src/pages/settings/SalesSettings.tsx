@@ -6,6 +6,45 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useGlobalSettings } from '../../contexts/SettingsContext';
 import { SettingsHeader } from './SettingsHeader';
 import { AdminOnly } from './AdminOnly';
+import { parseDiscountType } from '../../components/sale/cart-rules';
+
+type DiscountType = 'PERCENTAGE' | 'FIXED';
+
+/** A two-way switch between percentage and flat-amount discounts. */
+function DiscountTypeSwitch({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: DiscountType;
+  onChange: (v: DiscountType) => void;
+}) {
+  const option = (v: DiscountType, text: string) => (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={value === v}
+      onClick={() => onChange(v)}
+      className={`px-2.5 h-6 rounded text-[11px] font-semibold transition-colors ${
+        value === v
+          ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-[var(--shadow-sm)]'
+          : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+      }`}
+    >
+      {text}
+    </button>
+  );
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400 w-14 text-right">{label}</span>
+      <div role="radiogroup" aria-label={`${label} default discount type`} className="inline-flex p-0.5 rounded-md bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-700">
+        {option('PERCENTAGE', '% Percent')}
+        {option('FIXED', 'Flat')}
+      </div>
+    </div>
+  );
+}
 
 export function SalesSettings() {
   const { user } = useAuth();
@@ -43,7 +82,7 @@ export function SalesSettings() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <SettingsHeader />
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-4">
@@ -150,10 +189,10 @@ export function SalesSettings() {
           <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
             <div className="min-w-0">
               <label htmlFor="rule-discount-switch" className="text-xs font-medium text-gray-900 dark:text-gray-100 cursor-pointer block">
-                Allow Cashiers to Switch Discount Type (% / Rs)
+                Allow Cashiers to Switch Discount Type (% / Flat)
               </label>
               <span className="text-[10px] text-gray-400 dark:text-gray-500 block leading-snug">
-                Permit non-admin cashiers to toggle between percentage and fixed rupee discounts
+                Permit non-admin cashiers to toggle between percentage and flat-amount discounts
               </span>
             </div>
             <input
@@ -163,6 +202,27 @@ export function SalesSettings() {
               onChange={e => setAppSettings(a => ({ ...a, 'sale.allowDiscountTypeSwitch': e.target.checked }))}
               className="h-3.5 w-3.5 text-primary-600 rounded border-gray-300 focus:ring-primary-500 cursor-pointer shrink-0"
             />
+          </div>
+
+          <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">
+            <div className="min-w-0">
+              <span className="text-xs font-medium text-gray-900 dark:text-gray-100 block">Default Discount Type</span>
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 block leading-snug">
+                The discount type each new cart line starts with. Held sales and saved drafts keep their own.
+              </span>
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <DiscountTypeSwitch
+                label="Sale"
+                value={parseDiscountType(appSettings['sale.defaultDiscountType'], 'PERCENTAGE')}
+                onChange={v => setAppSettings(a => ({ ...a, 'sale.defaultDiscountType': v }))}
+              />
+              <DiscountTypeSwitch
+                label="Purchase"
+                value={parseDiscountType(appSettings['purchase.defaultDiscountType'], 'FIXED')}
+                onChange={v => setAppSettings(a => ({ ...a, 'purchase.defaultDiscountType': v }))}
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors">

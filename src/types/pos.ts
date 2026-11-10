@@ -180,6 +180,7 @@ export interface PurchaseItem {
     discount: number;
     taxAmount: number;
     totalCost?: number;
+    sellingPrice?: number;
 }
 
 export interface PurchasePayment {

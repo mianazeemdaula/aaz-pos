@@ -198,9 +198,9 @@ export function SalarySlips() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Salary Slips</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Salary Slips</h1>
         <button onClick={openGenerate} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg">
           <Plus size={14} /> Generate Slip
         </button>
@@ -208,9 +208,9 @@ export function SalarySlips() {
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
         {loading
-          ? <div className="flex justify-center py-12"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
+          ? <div className="flex justify-center py-10"><Loader2 size={20} className="text-primary-600 animate-spin" /></div>
           : items.length === 0
-            ? <p className="text-center text-gray-400 py-12 text-sm">No salary slips yet</p>
+            ? <p className="text-center text-gray-400 py-10 text-sm">No salary slips yet</p>
             : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -410,7 +410,7 @@ export function SalarySlips() {
                       <button
                         onClick={() => approveAdvanceInModal(adv.id)}
                         disabled={approvingAdvId === adv.id}
-                        className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded text-[10px] font-semibold transition-colors"
+                        className="px-2 py-0.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded text-[10px] font-semibold transition-colors"
                       >
                         {approvingAdvId === adv.id ? 'Approving...' : 'Approve & Deduct'}
                       </button>
@@ -482,7 +482,7 @@ export function SalarySlips() {
               <button
                 onClick={pay}
                 disabled={paying || !payAccountId}
-                className="px-4 py-1.5 text-sm bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5 font-medium"
+                className="px-4 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg flex items-center gap-1.5 font-medium"
               >
                 {paying ? <Loader2 size={13} className="animate-spin" /> : <Banknote size={14} />}
                 Pay {fmt(paySlip.netPayable)}

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Loader2, TrendingUp } from 'lucide-react';
+import { Loader2, TrendingUp, CheckCircle2 } from 'lucide-react';
 import type { Account } from '../../types/pos';
 import { fmt } from './types';
+import { Kbd, PanelSection, SummaryLine } from '../pos/PosKit';
 
 interface SalePaymentSectionProps {
   accounts: Account[];
@@ -12,16 +13,14 @@ interface SalePaymentSectionProps {
   setInvoiceDiscount: (val: number) => void;
   /** Largest invoice discount this cashier may apply. `null` = no limit. */
   maxInvoiceDiscount?: number | null;
-  itemDiscountTotal: number;
-  taxTotal: number;
-  grandTotal: number;
   isReturnCart: boolean;
-  paidTotal: number;
-  change: number;
   cartLength: number;
   allowCartProfitView?: boolean;
   onOpenProfitModal?: () => void;
 }
+
+const amountInput =
+  'pos-amount w-32 px-2.5 text-right border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 tabular-nums outline-none';
 
 export function SalePaymentSection({
   accounts,
@@ -31,83 +30,69 @@ export function SalePaymentSection({
   invoiceDiscount,
   setInvoiceDiscount,
   maxInvoiceDiscount = null,
-  itemDiscountTotal,
-  taxTotal,
-  grandTotal,
   isReturnCart,
-  paidTotal,
-  change,
   cartLength,
   allowCartProfitView,
   onOpenProfitModal,
 }: SalePaymentSectionProps) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3">
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-semibold text-gray-500 uppercase">
-          Payment <span className="normal-case font-normal text-gray-400">(F6)</span>
-        </p>
-        {allowCartProfitView && onOpenProfitModal && (
-          <button
-            type="button"
-            onClick={onOpenProfitModal}
-            disabled={cartLength === 0}
-            title={cartLength === 0 ? "Add items to cart to view profit analysis" : "View Cart Profit Analysis"}
-            className={`flex items-center gap-1 text-xs rounded-md px-1.5 py-0.5 font-medium transition-colors border ${
-              cartLength === 0
-                ? 'opacity-40 cursor-not-allowed text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
-                : 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border-emerald-200 dark:border-emerald-800'
-            }`}
-          >
-            <TrendingUp size={12} />
-            <span className="text-[11px]">Profit</span>
-          </button>
+    <>
+      <PanelSection
+        title={isReturnCart ? 'Refund from' : 'Payment'}
+        hint={<Kbd>F6</Kbd>}
+        action={
+          allowCartProfitView &&
+          onOpenProfitModal && (
+            <button
+              type="button"
+              onClick={onOpenProfitModal}
+              disabled={cartLength === 0}
+              title={cartLength === 0 ? 'Add items to cart to view profit analysis' : 'View cart profit analysis'}
+              className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-green-600 dark:hover:text-green-400 disabled:opacity-40 disabled:pointer-events-none"
+            >
+              <TrendingUp size={12} /> Profit
+            </button>
+          )
+        }
+      >
+        {accounts.length === 0 ? (
+          <p className="text-xs text-gray-400 flex items-center gap-1.5">
+            <Loader2 size={12} className="animate-spin" /> Loading accounts
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {accounts.map((account, idx) => (
+              <label key={account.id} className="flex items-center justify-between gap-3">
+                <span className="text-[13px] text-gray-700 dark:text-gray-300 truncate">{account.name}</span>
+                <input
+                  ref={idx === 0 ? firstAccountRef : undefined}
+                  type="number"
+                  value={accountAmounts[account.id] ?? ''}
+                  min={0}
+                  step="0.01"
+                  placeholder="0.00"
+                  onChange={e => setAccountAmounts(prev => ({ ...prev, [account.id]: e.target.value }))}
+                  className={amountInput}
+                />
+              </label>
+            ))}
+          </div>
         )}
-      </div>
 
-      {accounts.length === 0 ? (
-        <p className="text-xs text-gray-400 flex items-center gap-1.5">
-          <Loader2 size={12} className="animate-spin" /> Loading accounts
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {accounts.map((account, idx) => (
-            <div key={account.id} className="flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{account.name}</p>
-                <p className="text-xs text-gray-400">{account.type}</p>
-              </div>
-              <input
-                ref={idx === 0 ? firstAccountRef : undefined}
-                type="number"
-                value={accountAmounts[account.id] ?? ''}
-                min={0}
-                step="0.01"
-                placeholder="0"
-                onChange={e => setAccountAmounts(prev => ({ ...prev, [account.id]: e.target.value }))}
-                className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
-              />
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="flex items-center justify-between gap-2 pt-0.5 border-t border-gray-100 dark:border-gray-700 mt-2">
-        <span className="text-gray-500 text-sm font-medium">
-          Invoice Discount
-          {maxInvoiceDiscount !== null && (
-            <span className="block text-[10px] text-gray-400 font-normal">
-              max {fmt(maxInvoiceDiscount)}
-            </span>
-          )}
-        </span>
-        <div className="flex items-center gap-1">
+        <label className="mt-1.5 pt-1.5 border-t border-dashed border-gray-200 dark:border-gray-700 flex items-center justify-between gap-3">
+          <span className="text-[13px] text-gray-700 dark:text-gray-300">
+            Invoice discount
+            {maxInvoiceDiscount !== null && (
+              <span className="block text-[10px] text-gray-400">max {fmt(maxInvoiceDiscount)}</span>
+            )}
+          </span>
           <input
             type="number"
             value={invoiceDiscount === 0 ? '' : invoiceDiscount}
             min={0}
             max={maxInvoiceDiscount ?? undefined}
             step="0.01"
-            placeholder="0"
+            placeholder="0.00"
             title={maxInvoiceDiscount !== null ? `Your discount limit allows at most ${fmt(maxInvoiceDiscount)}` : undefined}
             onChange={e => {
               const raw = Math.max(0, parseFloat(e.target.value) || 0);
@@ -115,57 +100,77 @@ export function SalePaymentSection({
               // would refuse on submit.
               setInvoiceDiscount(maxInvoiceDiscount === null ? raw : Math.min(maxInvoiceDiscount, raw));
             }}
-            className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-green-600 py-1 px-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
+            className={amountInput}
           />
-        </div>
-      </div>
+        </label>
+      </PanelSection>
 
-      {itemDiscountTotal > 0 && (
-        <div className="flex justify-between text-green-600 text-xs font-medium mt-0.5">
-          <span>Item Discounts</span>
-          <span>{fmt(itemDiscountTotal)}</span>
-        </div>
-      )}
-      {taxTotal > 0 && (
-        <div className="flex justify-between text-blue-600 text-xs font-medium mt-0.5">
-          <span>Tax</span>
-          <span>+ {fmt(taxTotal)}</span>
-        </div>
-      )}
+    </>
+  );
+}
 
-      <div className="flex justify-between font-bold text-sm text-gray-900 dark:text-gray-100 pt-1.5 border-t border-gray-100 dark:border-gray-700 mt-1">
-        <span>{isReturnCart ? 'Refund Amount' : 'Grand Total'}</span>
-        <span className={isReturnCart ? 'text-red-600' : ''}>{fmt(Math.abs(grandTotal))}</span>
+interface SaleTotalsSectionProps {
+  itemDiscountTotal: number;
+  invoiceDiscount: number;
+  taxTotal: number;
+  grandTotal: number;
+  isReturnCart: boolean;
+  paidTotal: number;
+  change: number;
+  cartLength: number;
+}
+
+/**
+ * The bill total and settlement status. Rendered outside the scrolling part of
+ * the panel so the figure the cashier reads out is always on screen.
+ */
+export function SaleTotalsSection({
+  itemDiscountTotal,
+  invoiceDiscount,
+  taxTotal,
+  grandTotal,
+  isReturnCart,
+  paidTotal,
+  change,
+  cartLength,
+}: SaleTotalsSectionProps) {
+  const exact = Math.abs(change) <= 0.009 && paidTotal > 0;
+
+  return (
+    <section className="shrink-0 px-3 py-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-200 dark:border-gray-700">
+      {itemDiscountTotal > 0 && <SummaryLine label="Item discounts" value={`− ${fmt(itemDiscountTotal)}`} tone="positive" />}
+      {invoiceDiscount > 0 && <SummaryLine label="Invoice discount" value={`− ${fmt(invoiceDiscount)}`} tone="positive" />}
+      {taxTotal > 0 && <SummaryLine label="Tax" value={`+ ${fmt(taxTotal)}`} />}
+
+      <div className="flex items-end justify-between gap-2 pt-1">
+        <span className={`text-[11px] font-semibold uppercase tracking-wide ${isReturnCart ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
+          {isReturnCart ? 'Refund due' : 'Total payable'}
+        </span>
+        <span className={`text-2xl font-semibold tracking-tight tabular-nums leading-none ${isReturnCart ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-50'}`}>
+          {fmt(Math.abs(grandTotal))}
+        </span>
       </div>
 
       {cartLength > 0 && (
-        <div className="mt-2 border-t border-gray-100 dark:border-gray-700 pt-2 space-y-0.5 text-xs">
-          <div className="flex justify-between font-bold text-sm text-gray-500">
-            <span>Total Received</span>
-            <span className={paidTotal >= grandTotal - 0.01 ? 'text-green-600 font-medium' : 'text-gray-700'}>
-              {fmt(paidTotal)}
-            </span>
-          </div>
+        <div className="mt-2 pt-1.5 border-t border-gray-200 dark:border-gray-700">
+          <SummaryLine label={isReturnCart ? 'Refunded' : 'Received'} value={fmt(paidTotal)} />
           {change > 0.009 && (
-            <div className="flex justify-between text-green-600 font-bold text-sm">
-              <span>{isReturnCart ? 'To Refund' : 'Change'}</span>
-              <span>{fmt(change)}</span>
-            </div>
+            <SummaryLine
+              label={isReturnCart ? 'Over refund' : 'Change'}
+              value={fmt(change)}
+              tone={isReturnCart ? 'negative' : 'positive'}
+            />
           )}
           {change < -0.009 && (
-            <div className="flex justify-between text-red-500 font-bold text-sm">
-              <span>Remaining</span>
-              <span>{fmt(-change)}</span>
-            </div>
+            <SummaryLine label={isReturnCart ? 'Still to refund' : 'Remaining'} value={fmt(-change)} tone="negative" />
           )}
-          {Math.abs(change) <= 0.009 && paidTotal > 0 && (
-            <div className="flex justify-between text-green-600 font-bold text-sm">
-              <span>Status</span>
-              <span>Exact</span>
-            </div>
+          {exact && (
+            <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+              <CheckCircle2 size={13} /> Exact amount
+            </p>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

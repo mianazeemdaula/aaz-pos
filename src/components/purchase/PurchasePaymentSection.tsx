@@ -1,10 +1,10 @@
 import React from 'react';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 import type { Account, Supplier } from '../../types/pos';
 import { fmt } from './types';
+import { Kbd, PanelSection, SummaryLine } from '../pos/PosKit';
 
 interface PurchasePaymentSectionProps {
-  supplier: Supplier | null;
   accounts: Account[];
   accountAmounts: Record<number, string>;
   setAccountAmounts: React.Dispatch<React.SetStateAction<Record<number, string>>>;
@@ -15,15 +15,42 @@ interface PurchasePaymentSectionProps {
   setInvoiceTax: (val: number) => void;
   invoiceExpenses: number;
   setInvoiceExpenses: (val: number) => void;
-  itemDiscountTotal: number;
-  grandTotal: number;
-  paidTotal: number;
-  balance: number;
-  cartLength: number;
+}
+
+const amountInput =
+  'pos-amount w-32 px-2.5 text-right border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 tabular-nums outline-none';
+
+function AmountRow({
+  label,
+  value,
+  onChange,
+  inputRef,
+  placeholder = '0.00',
+}: {
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  inputRef?: React.Ref<HTMLInputElement>;
+  placeholder?: string;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <span className="text-[13px] text-gray-700 dark:text-gray-300 truncate">{label}</span>
+      <input
+        ref={inputRef}
+        type="number"
+        value={value}
+        min={0}
+        step="0.01"
+        placeholder={placeholder}
+        onChange={e => onChange(e.target.value)}
+        className={amountInput}
+      />
+    </label>
+  );
 }
 
 export function PurchasePaymentSection({
-  supplier,
   accounts,
   accountAmounts,
   setAccountAmounts,
@@ -34,181 +61,97 @@ export function PurchasePaymentSection({
   setInvoiceTax,
   invoiceExpenses,
   setInvoiceExpenses,
+}: PurchasePaymentSectionProps) {
+  const toAmount = (v: string) => Math.max(0, parseFloat(v) || 0);
+
+  return (
+    <>
+      <PanelSection title="Payment" hint={<Kbd>F6</Kbd>}>
+        {accounts.length === 0 ? (
+          <p className="text-xs text-gray-400 flex items-center gap-1.5">
+            <Loader2 size={12} className="animate-spin" /> Loading accounts
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {accounts.map((account, idx) => (
+              <AmountRow
+                key={account.id}
+                label={account.name}
+                value={accountAmounts[account.id] ?? ''}
+                inputRef={idx === 0 ? firstAccountRef : undefined}
+                onChange={v => setAccountAmounts(prev => ({ ...prev, [account.id]: v }))}
+              />
+            ))}
+          </div>
+        )}
+      </PanelSection>
+
+      <PanelSection title="Bill adjustments">
+        <div className="space-y-1">
+          <AmountRow label="Invoice discount" value={invoiceDiscount === 0 ? '' : invoiceDiscount} onChange={v => setInvoiceDiscount(toAmount(v))} />
+          <AmountRow label="Invoice tax" value={invoiceTax === 0 ? '' : invoiceTax} onChange={v => setInvoiceTax(toAmount(v))} />
+          <AmountRow label="Invoice expenses" value={invoiceExpenses === 0 ? '' : invoiceExpenses} onChange={v => setInvoiceExpenses(toAmount(v))} />
+        </div>
+      </PanelSection>
+
+    </>
+  );
+}
+
+interface PurchaseTotalsSectionProps {
+  supplier: Supplier | null;
+  invoiceDiscount: number;
+  invoiceTax: number;
+  invoiceExpenses: number;
+  itemDiscountTotal: number;
+  grandTotal: number;
+  paidTotal: number;
+  balance: number;
+  cartLength: number;
+}
+
+/**
+ * The bill total and settlement status. Rendered outside the scrolling part of
+ * the panel so the total stays on screen however many adjustments are open.
+ */
+export function PurchaseTotalsSection({
+  supplier,
+  invoiceDiscount,
+  invoiceTax,
+  invoiceExpenses,
   itemDiscountTotal,
   grandTotal,
   paidTotal,
   balance,
   cartLength,
-}: PurchasePaymentSectionProps) {
+}: PurchaseTotalsSectionProps) {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-3 space-y-2">
-      <p className="text-xs font-semibold text-gray-500 uppercase">
-        Payment <span className="normal-case font-normal text-gray-400">(F6)</span>
-      </p>
+    <section className="shrink-0 px-3 py-2 bg-gray-50 dark:bg-gray-900/40 border-t border-gray-200 dark:border-gray-700">
+      {itemDiscountTotal > 0 && <SummaryLine label="Item discounts" value={`− ${fmt(itemDiscountTotal)}`} tone="positive" />}
+      {invoiceDiscount > 0 && <SummaryLine label="Invoice discount" value={`− ${fmt(invoiceDiscount)}`} tone="positive" />}
+      {invoiceTax > 0 && <SummaryLine label="Invoice tax" value={`+ ${fmt(invoiceTax)}`} />}
+      {invoiceExpenses > 0 && <SummaryLine label="Invoice expenses" value={`+ ${fmt(invoiceExpenses)}`} />}
 
-      {!supplier ? (
-        /* No supplier selected: only allow paying exactly the grand total */
-        <div className="space-y-1.5">
-          <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-            <AlertCircle size={12} /> No supplier — full payment only
-          </p>
-          {accounts.length === 0 ? (
-            <p className="text-xs text-gray-400 flex items-center gap-1.5">
-              <Loader2 size={12} className="animate-spin" /> Loading accounts
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {accounts.map((account, idx) => (
-                <div key={account.id} className="flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{account.name}</p>
-                    <p className="text-xs text-gray-400">{account.type}</p>
-                  </div>
-                  <input
-                    ref={idx === 0 ? firstAccountRef : undefined}
-                    type="number"
-                    value={accountAmounts[account.id] ?? ''}
-                    min={0}
-                    step="0.01"
-                    placeholder="0"
-                    onChange={e => setAccountAmounts(prev => ({ ...prev, [account.id]: e.target.value }))}
-                    className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ) : accounts.length === 0 ? (
-        <p className="text-xs text-gray-400 flex items-center gap-1.5">
-          <Loader2 size={12} className="animate-spin" /> Loading accounts
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {accounts.map((account, idx) => (
-            <div key={account.id} className="flex items-center gap-2">
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{account.name}</p>
-                <p className="text-xs text-gray-400">{account.type}</p>
-              </div>
-              <input
-                ref={idx === 0 ? firstAccountRef : undefined}
-                type="number"
-                value={accountAmounts[account.id] ?? ''}
-                min={0}
-                step="0.01"
-                placeholder="0"
-                onChange={e => setAccountAmounts(prev => ({ ...prev, [account.id]: e.target.value }))}
-                className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 outline-none"
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Invoice Discount */}
-      <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
-        <span className="text-gray-500 text-xs font-medium">Invoice Discount</span>
-        <input
-          type="number"
-          value={invoiceDiscount === 0 ? '' : invoiceDiscount}
-          min={0}
-          step="0.01"
-          placeholder="0"
-          onChange={e => setInvoiceDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
-          className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-green-600 py-1 px-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
-        />
-      </div>
-      <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
-        <span className="text-gray-500 text-xs font-medium">Invoice Tax</span>
-        <input
-          type="number"
-          value={invoiceTax === 0 ? '' : invoiceTax}
-          min={0}
-          step="0.01"
-          placeholder="0"
-          onChange={e => setInvoiceTax(Math.max(0, parseFloat(e.target.value) || 0))}
-          className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-red-500 py-1 px-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
-        />
-      </div>
-
-      <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100 dark:border-gray-700">
-        <span className="text-gray-500 text-xs font-medium">Invoice Expenses</span>
-        <input
-          type="number"
-          value={invoiceExpenses === 0 ? '' : invoiceExpenses}
-          min={0}
-          step="0.01"
-          placeholder="0"
-          onChange={e => setInvoiceExpenses(Math.max(0, parseFloat(e.target.value) || 0))}
-          className="w-24 text-right border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-orange-500 py-1 px-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
-        />
-      </div>
-
-      {itemDiscountTotal > 0 && (
-        <div className="flex justify-between text-xs text-green-600">
-          <span>Item Discounts</span>
-          <span>− {fmt(itemDiscountTotal)}</span>
-        </div>
-      )}
-      {invoiceDiscount > 0 && (
-        <div className="flex justify-between text-xs text-green-600">
-          <span>Invoice Discount</span>
-          <span>− {fmt(invoiceDiscount)}</span>
-        </div>
-      )}
-      {invoiceTax > 0 && (
-        <div className="flex justify-between text-xs text-red-500">
-          <span>Invoice Tax</span>
-          <span>+ {fmt(invoiceTax)}</span>
-        </div>
-      )}
-      {invoiceExpenses > 0 && (
-        <div className="flex justify-between text-xs text-orange-500">
-          <span>Invoice Expenses</span>
-          <span>+ {fmt(invoiceExpenses)}</span>
-        </div>
-      )}
-
-      <div className="flex justify-between font-bold text-sm text-gray-900 dark:text-gray-100 pt-1.5 border-t border-gray-100 dark:border-gray-700">
-        <span>Grand Total</span>
-        <span>{fmt(grandTotal)}</span>
+      <div className="flex items-end justify-between gap-2 pt-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Bill total</span>
+        <span className="text-2xl font-semibold tracking-tight tabular-nums leading-none text-gray-900 dark:text-gray-50">
+          {fmt(grandTotal)}
+        </span>
       </div>
 
       {cartLength > 0 && paidTotal > 0 && (
-        <div className="space-y-0.5 text-xs">
-          <div className="flex justify-between font-bold text-sm text-gray-500">
-            <span>Paid</span>
-            <span className={paidTotal >= grandTotal - 0.01 ? 'text-green-600 font-medium' : 'text-gray-700'}>
-              {fmt(paidTotal)}
-            </span>
-          </div>
-          {supplier && balance > 0.009 && (
-            <div className="flex justify-between text-amber-600 font-bold text-sm">
-              <span>Overpaid</span>
-              <span>{fmt(balance)}</span>
-            </div>
-          )}
-          {supplier && balance < -0.009 && (
-            <div className="flex justify-between text-red-500 font-bold text-sm">
-              <span>Remaining</span>
-              <span>{fmt(-balance)}</span>
-            </div>
-          )}
-          {!supplier && balance > 0.009 && (
-            <div className="flex justify-between text-red-500 font-bold text-sm">
-              <span>Exceeds Total</span>
-              <span>{fmt(balance)}</span>
-            </div>
-          )}
+        <div className="mt-2 pt-1.5 border-t border-gray-200 dark:border-gray-700">
+          <SummaryLine label="Paid" value={fmt(paidTotal)} />
+          {supplier && balance > 0.009 && <SummaryLine label="Overpaid" value={fmt(balance)} tone="negative" />}
+          {supplier && balance < -0.009 && <SummaryLine label="Remaining" value={fmt(-balance)} tone="negative" />}
+          {!supplier && balance > 0.009 && <SummaryLine label="Exceeds total" value={fmt(balance)} tone="negative" />}
           {Math.abs(balance) <= 0.009 && (
-            <div className="flex justify-between text-green-600 font-bold text-sm">
-              <span>Status</span>
-              <span>Exact ✓</span>
-            </div>
+            <p className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
+              <CheckCircle2 size={13} /> Paid in full
+            </p>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

@@ -145,7 +145,7 @@ export function DatabaseSettings() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <SettingsHeader />
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 space-y-4">

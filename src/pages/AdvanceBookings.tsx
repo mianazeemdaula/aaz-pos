@@ -204,7 +204,7 @@ export function AdvanceBookings() {
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                     <CalendarCheck size={20} className="text-primary-600" />
-                    <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Advance Bookings</h1>
+                    <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Advance Bookings</h1>
                     {!loading && <span className="text-sm text-gray-500 dark:text-gray-400">({total})</span>}
                 </div>
                 <button onClick={openCreate}
@@ -247,7 +247,7 @@ export function AdvanceBookings() {
                         <Loader2 size={22} className="animate-spin text-primary-600" />
                     </div>
                 ) : bookings.length === 0 ? (
-                    <div className="text-center py-16 text-gray-400 dark:text-gray-500">No advance bookings found</div>
+                    <div className="text-center py-10 text-gray-400 dark:text-gray-500">No advance bookings found</div>
                 ) : (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-left">
@@ -335,7 +335,7 @@ export function AdvanceBookings() {
             {/* Delete Confirm */}
             {delConfirm && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-sm w-full space-y-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-4 max-w-sm w-full space-y-4">
                         <p className="font-semibold text-gray-900 dark:text-white">Delete this booking?</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">This action cannot be undone.</p>
                         <div className="flex justify-end gap-2">
@@ -431,7 +431,7 @@ export function AdvanceBookings() {
                                 )}
                                 {viewBooking.status === 'CONFIRMED' && (
                                     <button onClick={() => { updateStatus(viewBooking.id, 'FULFILLED'); setViewBooking(null); }}
-                                        className="px-3 py-1.5 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg">
+                                        className="px-3 py-1.5 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg">
                                         Mark Fulfilled
                                     </button>
                                 )}

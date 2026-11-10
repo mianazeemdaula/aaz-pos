@@ -173,13 +173,13 @@ export function SupplierPayments() {
         <div className="space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-2">
                     <ArrowUpCircle size={20} className="text-amber-500" />
                     Supplier Payments
                 </h1>
                 <button
                     onClick={openModal}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-sm rounded-lg transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 text-white text-sm rounded-lg transition-colors"
                 >
                     <Plus size={14} /> New Payment
                 </button>
@@ -250,15 +250,15 @@ export function SupplierPayments() {
             {/* Payments Table */}
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                 {!selectedSupplier ? (
-                    <p className="text-center text-gray-400 py-12 text-sm">
+                    <p className="text-center text-gray-400 py-10 text-sm">
                         Search and select a supplier above to view their payment history
                     </p>
                 ) : loading ? (
-                    <div className="flex justify-center py-12">
+                    <div className="flex justify-center py-10">
                         <Loader2 size={20} className="text-primary-600 animate-spin" />
                     </div>
                 ) : payments.length === 0 ? (
-                    <p className="text-center text-gray-400 py-12 text-sm">
+                    <p className="text-center text-gray-400 py-10 text-sm">
                         No payments found for <span className="font-medium text-gray-600 dark:text-gray-300">{selectedSupplier.name}</span>
                     </p>
                 ) : (
@@ -434,7 +434,7 @@ export function SupplierPayments() {
                             type="button"
                             onClick={save}
                             disabled={saving}
-                            className="px-4 py-2 text-sm bg-amber-600 hover:bg-amber-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-colors"
+                            className="px-4 py-2 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-lg disabled:opacity-50 flex items-center gap-1.5 transition-colors"
                         >
                             {saving && <Loader2 size={13} className="animate-spin" />}
                             Save Payment

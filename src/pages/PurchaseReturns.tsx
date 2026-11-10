@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Eye, Printer, RotateCcw, Loader2, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Eye, Printer, RotateCcw, Loader2, X, Pencil } from 'lucide-react';
+import { useGlobalSettings } from '../contexts/SettingsContext';
 import { purchaseService, accountService } from '../services/pos.service';
 import { Pagination } from '../components/ui/Pagination';
 import type { Purchase, Account } from '../types/pos';
@@ -36,6 +38,10 @@ function printPurchaseReceipt(p: Purchase, isReturn = false) {
 }
 
 export function PurchaseReturns() {
+  const navigate = useNavigate();
+  const { hasPermission } = useGlobalSettings();
+  const canEdit = hasPermission('purchases', 'edit');
+  const openEdit = (p: Purchase) => navigate(`/purchase/${p.id}/edit`);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [purPage, setPurPage] = useState(1);
   const [purTotalPages, setPurTotalPages] = useState(1);
@@ -178,7 +184,7 @@ export function PurchaseReturns() {
   const handleSearch = () => loadPurchases(1, purFrom, purTo, purQ);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {toast && (
         <div className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg text-sm text-white ${toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'}`}>
           {toast.msg}
@@ -187,7 +193,7 @@ export function PurchaseReturns() {
       )}
 
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Purchase History</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Purchase History</h1>
       </div>
 
       <div className="space-y-3">
@@ -237,6 +243,7 @@ export function PurchaseReturns() {
                             <div className="flex items-center gap-0.5 justify-end">
                               <button onClick={() => openView(p)} disabled={viewLoading} title="View" className="p-1.5 text-gray-400 hover:text-primary-600 rounded disabled:opacity-40"><Eye size={14} /></button>
                               <button onClick={() => printPurchaseReceipt(p)} title="Print" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Printer size={14} /></button>
+                              {canEdit && <button onClick={() => openEdit(p)} title="Edit purchase" className="p-1.5 text-gray-400 hover:text-primary-600 rounded"><Pencil size={14} /></button>}
                               <button onClick={() => openReturn(p)} title="Create return" className="p-1.5 text-gray-400 hover:text-orange-500 rounded"><RotateCcw size={14} /></button>
                             </div>
                           </td>
@@ -263,7 +270,7 @@ export function PurchaseReturns() {
                 </h3>
                 <button onClick={() => setViewPurchase(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
               </div>
-              <div className="overflow-y-auto p-5 space-y-4 flex-1">
+              <div className="overflow-y-auto p-4 space-y-4 flex-1">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><span className="text-gray-500">Date: </span>{new Date(viewPurchase.date ?? viewPurchase.createdAt).toLocaleString()}</div>
                   <div><span className="text-gray-500">Supplier: </span>{viewPurchase.supplier?.name ?? ''}</div>
@@ -310,6 +317,12 @@ export function PurchaseReturns() {
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 text-sm rounded-lg">
                   <Printer size={13} /> Print
                 </button>
+                {canEdit && (viewPurchase.totalAmount ?? 0) >= 0 && !viewPurchase.parentPurchaseId && (
+                  <button onClick={() => openEdit(viewPurchase)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 hover:bg-primary-100 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300 text-sm rounded-lg">
+                    <Pencil size={13} /> Edit
+                  </button>
+                )}
                 {(viewPurchase.totalAmount ?? 0) >= 0 && (
                   <button onClick={() => { setViewPurchase(null); openReturn(viewPurchase); }}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-600 text-sm rounded-lg">
@@ -334,7 +347,7 @@ export function PurchaseReturns() {
                 </h3>
                 <button onClick={() => setReturnPurchase(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
               </div>
-              <div className="overflow-y-auto p-5 space-y-3 flex-1">
+              <div className="overflow-y-auto p-4 space-y-3 flex-1">
                 <p className="text-xs text-gray-500">Enter quantity to return to supplier (0 = skip):</p>
                 {returnItems.map((item, i) => (
                   <div key={i} className="flex items-center gap-3 py-1 border-b border-gray-100 dark:border-gray-700 last:border-0">

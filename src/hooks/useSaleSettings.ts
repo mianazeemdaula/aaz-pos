@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts';
 import { settingsService } from '../services/pos.service';
-import { parseDiscountLimit } from '../components/sale/cart-rules';
+import { parseDiscountLimit, parseDiscountType } from '../components/sale/cart-rules';
 
 /**
  * Till rules for the signed-in user.
@@ -18,6 +18,10 @@ export interface SaleSettings {
     maxDiscountPercent: number | null;
     /** Administrators are not bound by the till limits. */
     exemptFromLimits: boolean;
+    /** Discount type a new line starts with on the New Sale screen. */
+    saleDefaultDiscountType: 'PERCENTAGE' | 'FIXED';
+    /** Discount type a new line starts with on the Purchase screen. */
+    purchaseDefaultDiscountType: 'PERCENTAGE' | 'FIXED';
 }
 
 const DEFAULTS: SaleSettings = {
@@ -26,6 +30,9 @@ const DEFAULTS: SaleSettings = {
     allowCartProfitView: true,
     maxDiscountPercent: null,
     exemptFromLimits: true,
+    // The behaviour before these settings existed: sales in %, purchases flat.
+    saleDefaultDiscountType: 'PERCENTAGE',
+    purchaseDefaultDiscountType: 'FIXED',
 };
 
 export function useSaleSettings(): SaleSettings & { loading: boolean } {
@@ -51,6 +58,11 @@ export function useSaleSettings(): SaleSettings & { loading: boolean } {
                     allowCartProfitView: user.role === 'ADMIN' || flag('sale.allowCartProfitView', user.role === 'MANAGER'),
                     maxDiscountPercent: parseDiscountLimit(pick('maxCashierDiscount')),
                     exemptFromLimits: user.role === 'ADMIN',
+                    saleDefaultDiscountType: parseDiscountType(pick('sale.defaultDiscountType'), DEFAULTS.saleDefaultDiscountType),
+                    purchaseDefaultDiscountType: parseDiscountType(
+                        pick('purchase.defaultDiscountType'),
+                        DEFAULTS.purchaseDefaultDiscountType
+                    ),
                 });
             })
             .catch(() => { /* keep the permissive defaults — the API is authoritative */ })

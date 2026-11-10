@@ -8,6 +8,7 @@ import { QuickBrandAdd } from '../components/ui/QuickBrandAdd';
 import { Toast, type ToastMessage } from '../components/ui/Toast';
 import { API_CONFIG } from '../config/api';
 import type { Product, Category, Brand, ProductVariant, TaxSchedule } from '../types/pos';
+import { listPath } from '../hooks/useListParams';
 
 const serverOrigin = API_CONFIG.baseURL.replace(/\/api\/?$/, '');
 
@@ -317,7 +318,7 @@ export function ProductForm() {
                 wholesale: def?.wholesale ?? '',
                 retail: def?.retail ?? '',
             });
-        }).catch(() => navigate('/products'))
+        }).catch(() => navigate(listPath('/products')))
             .finally(() => setLoading(false));
     }, [id, isEdit, navigate]);
 
@@ -407,7 +408,7 @@ export function ProductForm() {
                     }],
                 });
             }
-            navigate('/products', {
+            navigate(listPath('/products'), {
                 state: { toast: { type: 'success', msg: isEdit ? 'Product updated successfully' : 'Product created successfully' } }
             });
         } catch (e: unknown) {
@@ -426,12 +427,12 @@ export function ProductForm() {
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/products')}
+                    <button onClick={() => navigate(listPath('/products'))}
                         className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
                         <ArrowLeft size={18} />
                     </button>
                     <div>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">
                             {isEdit ? 'Edit Product' : 'Add Product'}
                         </h1>
                         {isEdit && product && (
@@ -442,7 +443,7 @@ export function ProductForm() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => navigate('/products')}
+                    <button onClick={() => navigate(listPath('/products'))}
                         className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                         Cancel
                     </button>
@@ -457,7 +458,7 @@ export function ProductForm() {
             {/* Identity - image beside one full row of four fields */}
             <div className={card}>
                 <h2 className={sectionTitle}>Product Details</h2>
-                <div className="flex flex-col lg:flex-row gap-5">
+                <div className="flex flex-col lg:flex-row gap-4">
                     <div className="lg:w-44 shrink-0">
                         <label className={lbl}>Image</label>
                         <ImageUpload value={form.imageUrl} onChange={url => f('imageUrl', url)} onToast={showToast} />
@@ -650,7 +651,7 @@ export function ProductVariantsPage() {
     useEffect(() => {
         productService.get(Number(id))
             .then(p => setProduct(p))
-            .catch(() => navigate('/products'))
+            .catch(() => navigate(listPath('/products')))
             .finally(() => setLoading(false));
     }, [id, navigate]);
 
@@ -760,12 +761,12 @@ export function ProductVariantsPage() {
             {/* Header */}
             <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-3">
-                    <button onClick={() => navigate('/products')}
+                    <button onClick={() => navigate(listPath('/products'))}
                         className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
                         <ArrowLeft size={18} />
                     </button>
                     <div>
-                        <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Variants — {product.name}</h1>
+                        <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Variants — {product.name}</h1>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
                             Additional pack/unit variants. Default unit is managed on the product page.
                         </p>
@@ -843,8 +844,8 @@ export function ProductVariantsPage() {
                                             <td className="px-3 py-2 text-right text-gray-500">{v.retail != null ? fmt(v.retail) : '—'}</td>
                                             <td className="px-3 py-2">
                                                 <div className="flex gap-1.5 justify-end">
-                                                    <button onClick={() => startEdit(v)} className="p-1.5 rounded-lg text-blue-500 bg-blue-50 hover:bg-blue-100 dark:text-blue-400 dark:bg-blue-500/10 dark:hover:bg-blue-500/20 transition-colors"><Pencil size={13} /></button>
-                                                    <button onClick={() => setConfirmDelete({ variantId: v.id })} className="p-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 dark:text-red-400 dark:bg-red-500/10 dark:hover:bg-red-500/20 transition-colors"><Trash2 size={13} /></button>
+                                                    <button onClick={() => startEdit(v)} className="p-1.5 rounded-md text-gray-500 hover:text-primary-600 hover:bg-primary-50 dark:text-gray-400 dark:hover:text-primary-400 dark:hover:bg-primary-500/10 transition-colors"><Pencil size={13} /></button>
+                                                    <button onClick={() => setConfirmDelete({ variantId: v.id })} className="p-1.5 rounded-md text-gray-500 hover:text-red-600 hover:bg-red-50 dark:text-gray-400 dark:hover:text-red-400 dark:hover:bg-red-500/10 transition-colors"><Trash2 size={13} /></button>
                                                 </div>
                                             </td>
                                         </tr>

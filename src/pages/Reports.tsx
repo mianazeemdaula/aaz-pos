@@ -127,9 +127,9 @@ export function Reports() {
   // same map of the system.
   if (!active) {
     return (
-      <div className="space-y-5">
+      <div className="space-y-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Reports</h1>
+          <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Reports</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
             {REPORTS.length} reports — also reachable directly from the Reports menu above.
           </p>

@@ -4,6 +4,7 @@ import { saleService, purchaseService } from '../services/pos.service';
 import { Pagination } from '../components/ui/Pagination';
 import { printSaleInvoice, type SaleInvoiceData } from '../utils/invoices';
 import type { Sale, Purchase } from '../types/pos';
+import { useAuth } from '../contexts/AuthContext';
 
 type Tab = 'sale-returns' | 'purchase-returns';
 
@@ -68,6 +69,10 @@ function printPurchaseReceipt(p: Purchase) {
 }
 
 export function Returns() {
+    // Cost and profit are for admins only; other roles given access to this
+    // screen should not see margins.
+    const { user } = useAuth();
+    const showProfit = user?.role === 'ADMIN'; // the server also strips cost for other roles
     const [tab, setTab] = useState<Tab>('sale-returns');
 
     // Sale returns state
@@ -146,7 +151,7 @@ export function Returns() {
             )}
 
             <div className="flex items-center justify-between">
-                <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                <h1 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100 flex items-center gap-2">
                     <RotateCcw size={20} className="text-orange-500" />
                     Returns
                 </h1>
@@ -267,7 +272,7 @@ export function Returns() {
                             </h3>
                             <button onClick={() => setViewSale(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
                         </div>
-                        <div className="overflow-y-auto p-5 space-y-4 flex-1">
+                        <div className="overflow-y-auto p-4 space-y-4 flex-1">
                             <div className="grid grid-cols-2 gap-3 text-sm">
                                 <div><span className="text-gray-500">Date: </span>{new Date(viewSale.createdAt).toLocaleString()}</div>
                                 <div><span className="text-gray-500">Customer: </span>{viewSale.customer?.name ?? 'Walk-in'}</div>
@@ -281,9 +286,9 @@ export function Returns() {
                                             <th className="text-left py-1">Product</th>
                                             <th className="text-right py-1">Qty</th>
                                             <th className="text-right py-1">Price</th>
-                                            <th className="text-right py-1">Cost</th>
+                                            {showProfit && <th className="text-right py-1">Cost</th>}
                                             <th className="text-right py-1">Total</th>
-                                            <th className="text-right py-1">Profit</th>
+                                            {showProfit && <th className="text-right py-1">Profit</th>}
                                         </tr></thead>
                                         <tbody>
                                             {(viewSale.items ?? []).map((item, i) => {
@@ -295,13 +300,15 @@ export function Returns() {
                                                         <td className="py-1.5">{item.variant?.product?.name ?? `#${item.variant?.barcode}`}</td>
                                                         <td className={`py-1.5 text-right ${item.quantity < 0 ? 'text-orange-600 font-semibold' : ''}`}>{item.quantity}</td>
                                                         <td className="py-1.5 text-right">{fmt(item.unitPrice)}</td>
-                                                        <td className="py-1.5 text-right text-gray-500">{fmt(item.avgCostPrice ?? 0)}</td>
+                                                        {showProfit && <td className="py-1.5 text-right text-gray-500">{fmt(item.avgCostPrice ?? 0)}</td>}
                                                         <td className={`py-1.5 text-right font-medium ${(itemTotal) < 0 ? 'text-orange-600' : ''}`}>
                                                             {fmt(itemTotal)}
                                                         </td>
-                                                        <td className={`py-1.5 text-right font-medium ${itemProfit < 0 ? 'text-red-500' : 'text-green-600'}`}>
-                                                            {fmt(itemProfit)}
-                                                        </td>
+                                                        {showProfit && (
+                                                            <td className={`py-1.5 text-right font-medium ${itemProfit < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                                {fmt(itemProfit)}
+                                                            </td>
+                                                        )}
                                                     </tr>
                                                 );
                                             })}
@@ -309,11 +316,11 @@ export function Returns() {
                                     </table>
                                 </div>
                             )}
-                            <div className="grid grid-cols-4 gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm">
+                            <div className={`grid ${showProfit ? 'grid-cols-4' : 'grid-cols-3'} gap-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 text-sm`}>
                                 <div><p className="text-xs text-gray-500">Refund</p><p className="font-semibold text-orange-600">{fmt(viewSale.totalAmount)}</p></div>
                                 <div><p className="text-xs text-gray-500">Discount</p><p className="font-semibold text-orange-600">{fmt(viewSale.discount)}</p></div>
                                 <div><p className="text-xs text-gray-500">Tax</p><p className="font-semibold">{fmt(viewSale.taxAmount)}</p></div>
-                                <div>
+                                {showProfit && <div>
                                     <p className="text-xs text-gray-500">Profit</p>
                                     <p className={`font-bold ${
                                         (() => {
@@ -328,7 +335,7 @@ export function Returns() {
                                             return fmt(grossProfit);
                                         })()}
                                     </p>
-                                </div>
+                                </div>}
                             </div>
                         </div>
                         <div className="flex gap-2 px-5 py-3 border-t border-gray-200 dark:border-gray-700">
@@ -353,7 +360,7 @@ export function Returns() {
                             </h3>
                             <button onClick={() => setViewPurchase(null)} className="text-gray-400 hover:text-gray-600"><X size={16} /></button>
                         </div>
-                        <div className="overflow-y-auto p-5 space-y-4 flex-1">
+                        <div className="overflow-y-auto p-4 space-y-4 flex-1">
                             <div className="grid grid-cols-2 gap-3 text-sm">
                                 <div><span className="text-gray-500">Date: </span>{new Date(viewPurchase.date ?? viewPurchase.createdAt).toLocaleString()}</div>
                                 <div><span className="text-gray-500">Supplier: </span>{viewPurchase.supplier?.name ?? ''}</div>
